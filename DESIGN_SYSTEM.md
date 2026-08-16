@@ -64,6 +64,46 @@ viết lại chuỗi màu**:
 - Trạng thái workflow thông tin thuần túy (vd. "Mới tạo", "Không đổi") dùng xanh dương
   riêng — không phải success/warning/critical.
 
+### Màu biểu đồ (chart color tokens — hoàn thành)
+
+Trước đây mỗi biểu đồ phân bố (department/category/vị trí bị thương...) tự cycle qua
+8 sắc độ xanh lá hoặc xanh dương khác nhau theo index — nhìn rối, thiếu đồng nhất, và
+không mang ý nghĩa gì (chỉ là màu trang trí). Đã thay bằng **một token màu thương hiệu
+HSE duy nhất, dùng chung cho mọi biểu đồ phân bố/không có ý nghĩa rủi ro trên toàn hệ
+thống** (Sự cố, Nhân viên, PCCC, và mọi module sau này):
+
+- `--chart-brand` (`src/app/globals.css`) — 1 màu xanh HSE duy nhất (light `#16a34a`,
+  dark `#22c55e`, khớp `--success`/`--primary` hiện có). Export dùng chung tại
+  `src/components/charts/chart-utils.tsx`: `CHART_BRAND`.
+- `chartBrandOpacity(i)` — dãy độ mờ giảm dần theo thứ hạng (1 → 0.82 → 0.68 → ... →
+  0.26), **cùng một màu, chỉ khác độ sáng/đậm** — dùng cho donut/pie (các lát cần phân
+  biệt nhau); bar chart không cần vì độ dài cột đã thể hiện thứ hạng, nên bar luôn dùng
+  `CHART_BRAND` ở độ mờ 100%.
+- **Trạng thái chọn/focus** (vd. cột bộ phận đang được click để lọc trong biểu đồ Nhân
+  viên): cột đang chọn = `CHART_BRAND` độ mờ 100%; cột còn lại = cùng màu, độ mờ 35% —
+  không đổi hue, chỉ đổi độ sáng.
+
+**Đã xoá bỏ hoàn toàn**: `GREEN_SHADES`/`BLUE_SHADES` (8 sắc độ mỗi màu, dùng cho
+Department/Category) và `CHART_COLORS`/`colorForIndex` (bảng 5 màu rainbow mặc định
+cho donut không có colorMap, vd. "Theo vị trí bị thương"). Không còn palette prop nào
+truyền vào `TopNBarChart`.
+
+**Ngoại lệ có chủ đích (giữ nguyên, không đổi)**:
+- Donut mức độ nghiêm trọng (severity) vẫn dùng đúng `colorHex` cấu hình theo từng mức
+  (A/B/C/D) — đây là màu **ngữ nghĩa rủi ro thật**, không phải màu phân loại, nên không
+  được ép về `CHART_BRAND`. `DonutChart`'s `colorMap` prop luôn ưu tiên hơn brand green.
+- `TrendLineChart` (xu hướng sự cố = xanh lá, xu hướng chi phí = xanh dương) giữ nguyên
+  — mỗi biểu đồ chỉ 1 màu đặc duy nhất (không phải rainbow nhiều màu trong 1 biểu đồ),
+  và xanh dương ở đây phân biệt có chủ đích "số liệu vận hành" (an toàn) với "số liệu
+  tài chính" (chi phí), không phải trang trí tùy tiện.
+- "Khác" (bucket gộp phần còn lại sau topN) luôn dùng `var(--muted-foreground)` — màu
+  trung tính thật sự, không thuộc họ màu thương hiệu, không thuộc hệ rủi ro.
+
+**Quy tắc cho biểu đồ mới**: import `CHART_BRAND` (và `chartBrandOpacity` nếu là
+donut/pie) từ `src/components/charts/chart-utils.tsx`. Không tự viết mảng màu riêng,
+không dùng `--chart-1..5` trực tiếp trừ khi đó thực sự là dữ liệu ngữ nghĩa rủi ro có
+`colorMap` riêng (như severity).
+
 ## Typography (F3 — hoàn thành)
 
 Không dùng cỡ chữ tùy ý (arbitrary px) cho các vai trò lặp lại nhiều module — dùng đúng

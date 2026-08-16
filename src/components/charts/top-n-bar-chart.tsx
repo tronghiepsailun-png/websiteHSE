@@ -5,7 +5,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
-import { bucketTopN, colorForIndex, PercentTooltip, type BucketedItem, type ChartDatum } from "./chart-utils";
+import { bucketTopN, CHART_BRAND, PercentTooltip, type BucketedItem, type ChartDatum } from "./chart-utils";
 import { useDrillDown } from "./use-drill-down";
 import { ViewAllDialog } from "./view-all-dialog";
 
@@ -15,7 +15,6 @@ export function TopNBarChart({
   topN,
   filterParam,
   resolveMap,
-  palette,
 }: {
   titleKey: DictionaryKey;
   data: ChartDatum[];
@@ -24,14 +23,10 @@ export function TopNBarChart({
   /** Maps a chart label (e.g. an org unit name) to the id the list filter actually needs.
    *  Omit when the label itself is already the filter value (e.g. injured body part). */
   resolveMap?: Record<string, string>;
-  /** Shade ramp to cycle through instead of the default multi-hue chart palette —
-   *  e.g. GREEN_SHADES for Department, BLUE_SHADES for Category. */
-  palette?: string[];
 }) {
   const t = useT();
   const title = t(titleKey);
   const { items, total } = bucketTopN(data, topN, t("incidents.chart.unspecified"), t("incidents.chart.other"));
-  const colorAt = (i: number) => (palette ? palette[i % palette.length] : colorForIndex(i));
   const navigate = useDrillDown(filterParam);
   const clickable = Boolean(navigate);
 
@@ -65,10 +60,10 @@ export function TopNBarChart({
               content={<PercentTooltip total={total} countLabel={t("incidents.chart.count")} percentLabel={t("incidents.chart.percent")} />}
             />
             <Bar dataKey="value" radius={4} barSize={14}>
-              {items.map((item, i) => (
+              {items.map((item) => (
                 <Cell
                   key={item.label}
-                  fill={item.isOther ? "var(--muted-foreground)" : colorAt(i)}
+                  fill={item.isOther ? "var(--muted-foreground)" : CHART_BRAND}
                   className={clickable && !item.isOther ? "cursor-pointer" : undefined}
                   onClick={() => handleClick(item)}
                 />

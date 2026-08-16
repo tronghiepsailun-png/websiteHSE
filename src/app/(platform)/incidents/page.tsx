@@ -12,7 +12,6 @@ import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/sever
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
-import { GREEN_SHADES, BLUE_SHADES } from "@/components/charts/chart-utils";
 import { IncidentFilters } from "./incident-filters";
 import { DashboardFilters } from "./dashboard-filters";
 import { ImportDialog } from "./import-dialog";
@@ -230,7 +229,6 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
           topN={8}
           filterParam="orgUnitId"
           resolveMap={orgUnitIdByName}
-          palette={GREEN_SHADES}
         />
         <TopNBarChart
           titleKey="incidents.chart.byCategory"
@@ -238,7 +236,6 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
           topN={8}
           filterParam="categoryId"
           resolveMap={categoryIdByName}
-          palette={BLUE_SHADES}
         />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -13,15 +13,20 @@ export function bucketTopN(data: ChartDatum[], n: number, unspecifiedLabel: stri
   return { items, total };
 }
 
-export const CHART_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-export function colorForIndex(i: number) {
-  return CHART_COLORS[i % CHART_COLORS.length];
-}
+// One HSE green for every non-semantic distribution/category chart across the whole app
+// (Incidents, Employees, PCCC, and any future module) — never a per-bar rainbow. Red/amber
+// stay reserved for genuine risk meaning (severity, overdue, expired), passed in separately
+// via each chart's own colorMap, not through this default.
+export const CHART_BRAND = "var(--chart-brand)";
 
-/** Single-hue shade ramps for charts that should read as "one metric, one color family"
- *  (Department = safety/green, Category = data/blue) rather than a rainbow per bar. */
-export const GREEN_SHADES = ["#22c55e", "#4ade80", "#16a34a", "#86efac", "#15803d", "#bbf7d0", "#166534", "#dcfce7"];
-export const BLUE_SHADES = ["#3b82f6", "#60a5fa", "#2563eb", "#93c5fd", "#1d4ed8", "#bfdbfe", "#1e40af", "#dbeafe"];
+// Rank-based opacity only — same hue throughout, just lighter for lower-ranked segments.
+// Bar charts don't need this (bar length already encodes rank) and pass 1 for every item;
+// donut/pie segments use it since adjacent wedges of the exact same solid color would be
+// hard to tell apart at a glance.
+const BRAND_OPACITY_RAMP = [1, 0.82, 0.68, 0.56, 0.46, 0.38, 0.32, 0.26];
+export function chartBrandOpacity(i: number) {
+  return BRAND_OPACITY_RAMP[Math.min(i, BRAND_OPACITY_RAMP.length - 1)];
+}
 
 type TooltipPayloadEntry = { value?: number | string; payload?: { label?: string } };
 

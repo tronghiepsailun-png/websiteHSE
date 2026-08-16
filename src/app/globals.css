@@ -29,6 +29,7 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-chart-brand: var(--chart-brand);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -68,6 +69,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --success: #16a34a; /* = Tailwind green-600, matches every existing text-green-600 usage */
   --warning: #d97706; /* = Tailwind amber-600, matches every existing text-amber-600 usage */
+  --chart-brand: #16a34a; /* one HSE green for every non-semantic distribution chart — shade/opacity varies, hue never does */
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -107,6 +109,7 @@
   --destructive: #ef4444;
   --success: #4ade80; /* = Tailwind green-400, matches every existing dark:text-green-400 usage */
   --warning: #fbbf24; /* = Tailwind amber-400, same hex already used for --chart-3 */
+  --chart-brand: #22c55e; /* one HSE green for every non-semantic distribution chart — matches --primary */
   --border: #263044;
   --input: #263044;
   --ring: #22c55e;

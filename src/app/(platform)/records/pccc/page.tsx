@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
-import { GREEN_SHADES, BLUE_SHADES } from "@/components/charts/chart-utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
@@ -43,8 +42,8 @@ export default async function RecordsPcccDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <TopNBarChart titleKey="records.chart.byZone" data={data.byZone} topN={10} palette={GREEN_SHADES} />
-        <TopNBarChart titleKey="records.chart.byGroup" data={data.byGroup} topN={10} palette={BLUE_SHADES} />
+        <TopNBarChart titleKey="records.chart.byZone" data={data.byZone} topN={10} />
+        <TopNBarChart titleKey="records.chart.byGroup" data={data.byGroup} topN={10} />
       </div>
 
       <Card>

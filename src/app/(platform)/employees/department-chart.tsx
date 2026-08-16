@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "rec
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n/locale-context";
-import { GREEN_SHADES } from "@/components/charts/chart-utils";
+import { CHART_BRAND } from "@/components/charts/chart-utils";
 
 // Fixed width per bar (bar + gap) — the chart area scrolls horizontally instead of squeezing
 // every department into the card width, so all of them stay legible and tappable.
@@ -93,10 +93,10 @@ export function DepartmentChart({
                 <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={50} tick={<DeptTick />} />
                 <YAxis hide domain={[0, (max: number) => max * 1.15]} />
                 <Bar dataKey="value" radius={3} barSize={18}>
-                  {chartData.map((item, i) => (
+                  {chartData.map((item) => (
                     <Cell
                       key={item.label}
-                      fill={GREEN_SHADES[i % GREEN_SHADES.length]}
+                      fill={CHART_BRAND}
                       fillOpacity={!selected || selected === item.label ? 1 : 0.35}
                       className="cursor-pointer"
                       onClick={() => handleClick(item.label)}
