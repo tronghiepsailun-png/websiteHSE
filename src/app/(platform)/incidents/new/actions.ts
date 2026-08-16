@@ -9,6 +9,7 @@ import { generateIncidentNumber } from "@/server/incidents";
 import { writeAuditLog } from "@/server/audit";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
+import { zodFieldErrors, type FieldErrors } from "@/lib/form-errors";
 
 const schema = z.object({
   incidentNumber: z.string().max(100).optional(),
@@ -33,14 +34,14 @@ const schema = z.object({
   notes: z.string().optional(),
 });
 
-export type CreateIncidentState = { error?: string } | undefined;
+export type CreateIncidentState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
 export async function createIncidentAction(_prev: CreateIncidentState, formData: FormData): Promise<CreateIncidentState> {
   const ctx = await requireOrgPermission(PERMISSIONS.INCIDENT_CREATE);
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { error: t(await getLocale(), "incidents.new.errorGeneric") };
+  if (!parsed.success) return { error: t(await getLocale(), "incidents.new.errorGeneric"), fieldErrors: zodFieldErrors(parsed.error) };
   const data = parsed.data;
 
   let employeeSnapshot: Record<string, string | null> = {};

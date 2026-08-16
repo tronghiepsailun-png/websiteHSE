@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field-error";
 import { useT } from "@/lib/i18n/locale-context";
 
 type Option = { id: string; name: string };
@@ -50,12 +51,20 @@ export function IncidentForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="occurredAt">{t("incidents.new.fields.occurredAt")}</Label>
-            <Input id="occurredAt" name="occurredAt" type="datetime-local" defaultValue={nowLocal} required />
+            <Input
+              id="occurredAt"
+              name="occurredAt"
+              type="datetime-local"
+              defaultValue={nowLocal}
+              required
+              aria-invalid={!!state?.fieldErrors?.occurredAt}
+            />
+            <FieldError kind={state?.fieldErrors?.occurredAt} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t("incidents.new.fields.category")}</Label>
             <Select name="categoryId" required>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!state?.fieldErrors?.categoryId}>
                 <SelectValue placeholder={t("incidents.new.selectCategoryPlaceholder")}>
                   {(value: string) => categories.find((c) => c.id === value)?.name ?? value}
                 </SelectValue>
@@ -64,11 +73,12 @@ export function IncidentForm({
                 {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <FieldError kind={state?.fieldErrors?.categoryId} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{t("incidents.new.fields.severity")}</Label>
             <Select name="severityId" required>
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!state?.fieldErrors?.severityId}>
                 <SelectValue placeholder={t("incidents.new.selectSeverityPlaceholder")}>
                   {(value: string) => severities.find((s) => s.id === value)?.name ?? value}
                 </SelectValue>
@@ -77,6 +87,7 @@ export function IncidentForm({
                 {severities.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <FieldError kind={state?.fieldErrors?.severityId} />
           </div>
         </CardContent>
       </Card>
@@ -139,7 +150,8 @@ export function IncidentForm({
         <CardContent className="grid grid-cols-1 gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="description">{t("incidents.new.fields.description")}</Label>
-            <Textarea id="description" name="description" required rows={3} />
+            <Textarea id="description" name="description" required rows={3} aria-invalid={!!state?.fieldErrors?.description} />
+            <FieldError kind={state?.fieldErrors?.description} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">

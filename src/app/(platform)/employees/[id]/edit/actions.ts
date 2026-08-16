@@ -11,6 +11,7 @@ import { assertBelongsToOrg } from "@/server/org-context";
 import { EMPLOYEE_STATUSES } from "@/server/employees";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
+import { zodFieldErrors } from "@/lib/form-errors";
 import type { EmployeeFormState } from "../../employee-form";
 
 const schema = z.object({
@@ -37,7 +38,7 @@ export async function updateEmployeeAction(_prev: EmployeeFormState, formData: F
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { error: t(locale, "employees.form.errorGeneric") };
+  if (!parsed.success) return { error: t(locale, "employees.form.errorGeneric"), fieldErrors: zodFieldErrors(parsed.error) };
   const data = parsed.data;
 
   const before = await prisma.employee.findUnique({ where: { id: data.employeeId } });

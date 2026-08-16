@@ -11,8 +11,10 @@ import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { createRecordVersionAction } from "./actions";
 import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
+import { FieldError } from "@/components/ui/field-error";
+import type { FieldErrors } from "@/lib/form-errors";
 
-export type VersionFormState = { error?: string } | undefined;
+export type VersionFormState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
 type SameTypeDate = { orgUnitName: string; effectiveDate: string };
 
@@ -147,7 +149,8 @@ export function VersionForm({
           {t("records.form.fields.notes")}
           {isUnknown && <span className="ml-1 text-destructive">*</span>}
         </Label>
-        <Textarea id="notes" name="notes" rows={3} required={isUnknown} />
+        <Textarea id="notes" name="notes" rows={3} required={isUnknown} aria-invalid={!!state?.fieldErrors?.notes} />
+        <FieldError kind={state?.fieldErrors?.notes} />
         {isUnknown && <p className="text-xs text-muted-foreground">{t("records.form.notesRequiredWhenUnknown")}</p>}
       </div>
 

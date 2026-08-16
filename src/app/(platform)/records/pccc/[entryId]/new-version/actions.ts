@@ -9,6 +9,7 @@ import { assertBelongsToOrg } from "@/server/org-context";
 import { createRecordVersion, DATE_CONFIDENCES, VERIFICATION_STATUSES } from "@/server/records";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
+import { zodFieldErrors } from "@/lib/form-errors";
 import type { VersionFormState } from "./version-form";
 
 const schema = z.object({
@@ -30,11 +31,11 @@ export async function createRecordVersionAction(_prev: VersionFormState, formDat
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return { error: t(locale, "records.form.errorGeneric") };
+  if (!parsed.success) return { error: t(locale, "records.form.errorGeneric"), fieldErrors: zodFieldErrors(parsed.error) };
   const data = parsed.data;
 
   if (data.dateConfidence === "unknown" && !data.notes?.trim()) {
-    return { error: t(locale, "records.form.errorNotesRequired") };
+    return { error: t(locale, "records.form.errorNotesRequired"), fieldErrors: { notes: "required" } };
   }
 
   const entry = await prisma.recordEntry.findUnique({ where: { id: data.entryId } });

@@ -590,6 +590,8 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.export.week": "周",
   "incidents.export.factoryCode": "工厂代码",
   "common.invalidInput": "输入无效。",
+  "common.form.required": "必填项。",
+  "common.form.tooLong": "过长。",
   "admin.platformOrgs.codeFormatError": "仅限大写字母、数字和连字符。",
   "admin.platformOrgs.codeExists": "已存在使用该代码的组织。",
   "admin.users.unknownRole": "角色不存在。",

@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field-error";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import type { FieldErrors } from "@/lib/form-errors";
 
-export type EmployeeFormState = { error?: string } | undefined;
+export type EmployeeFormState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 type EmployeeFormAction = (prev: EmployeeFormState, formData: FormData) => Promise<EmployeeFormState>;
 
 export type EmployeeFormValues = {
@@ -57,11 +59,20 @@ export function EmployeeForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="employeeCode">{t("employees.field.employeeCode")}</Label>
-            <Input id="employeeCode" name="employeeCode" defaultValue={v.employeeCode} required disabled={mode === "edit"} />
+            <Input
+              id="employeeCode"
+              name="employeeCode"
+              defaultValue={v.employeeCode}
+              required
+              disabled={mode === "edit"}
+              aria-invalid={!!state?.fieldErrors?.employeeCode}
+            />
+            <FieldError kind={state?.fieldErrors?.employeeCode} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fullName">{t("employees.field.fullName")}</Label>
-            <Input id="fullName" name="fullName" defaultValue={v.fullName} required />
+            <Input id="fullName" name="fullName" defaultValue={v.fullName} required aria-invalid={!!state?.fieldErrors?.fullName} />
+            <FieldError kind={state?.fieldErrors?.fullName} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fullNameZh">{t("employees.field.fullNameZh")}</Label>
@@ -120,7 +131,14 @@ export function EmployeeForm({
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="orgUnitLevel1">{t("employees.field.orgUnitLevel1")}</Label>
-            <Input id="orgUnitLevel1" name="orgUnitLevel1" defaultValue={v.orgUnitLevel1} required />
+            <Input
+              id="orgUnitLevel1"
+              name="orgUnitLevel1"
+              defaultValue={v.orgUnitLevel1}
+              required
+              aria-invalid={!!state?.fieldErrors?.orgUnitLevel1}
+            />
+            <FieldError kind={state?.fieldErrors?.orgUnitLevel1} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="orgUnitLevel2">{t("employees.field.orgUnitLevel2")}</Label>

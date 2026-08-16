@@ -591,6 +591,8 @@ const vi = {
   "incidents.export.week": "Tuần",
   "incidents.export.factoryCode": "Mã nhà máy",
   "common.invalidInput": "Dữ liệu không hợp lệ.",
+  "common.form.required": "Bắt buộc.",
+  "common.form.tooLong": "Quá dài.",
   "admin.platformOrgs.codeFormatError": "Chỉ dùng chữ in hoa, số và dấu gạch ngang.",
   "admin.platformOrgs.codeExists": "Đã tồn tại tổ chức với mã này.",
   "admin.users.unknownRole": "Vai trò không tồn tại.",
