@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteIncidentAction } from "./actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useT } from "@/lib/i18n/locale-context";
 
 export function DeleteIncidentButton({
@@ -21,8 +22,7 @@ export function DeleteIncidentButton({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  function handleClick() {
-    if (!window.confirm(t("incidents.detail.confirmDelete", { number: incidentNumber }))) return;
+  function handleConfirm() {
     startTransition(async () => {
       await deleteIncidentAction(incidentId);
       if (redirectAfterDelete) router.push("/incidents");
@@ -31,8 +31,16 @@ export function DeleteIncidentButton({
   }
 
   return (
-    <Button type="button" variant="destructive" size={size} onClick={handleClick} disabled={pending}>
-      {pending ? t("common.deleting") : t("common.delete")}
-    </Button>
+    <ConfirmDialog
+      trigger={
+        <Button type="button" variant="destructive" size={size} disabled={pending}>
+          {pending ? t("common.deleting") : t("common.delete")}
+        </Button>
+      }
+      description={t("incidents.detail.confirmDelete", { number: incidentNumber })}
+      confirmLabel={t("common.delete")}
+      onConfirm={handleConfirm}
+      pending={pending}
+    />
   );
 }

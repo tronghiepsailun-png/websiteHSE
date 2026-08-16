@@ -268,6 +268,7 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.detail.system": "系统",
   "incidents.detail.deleteButton": "删除事件",
   "incidents.detail.confirmDelete": "确定要删除事件 {number} 吗?此操作无法撤销。",
+  "common.confirmDeleteTitle": "确认删除",
 
   // ── Employees module ─────────────────────────────────────────────────
   "employees.moduleName": "员工名单",

@@ -267,6 +267,7 @@ const vi = {
   "incidents.detail.system": "Hệ thống",
   "incidents.detail.deleteButton": "Xóa sự cố",
   "incidents.detail.confirmDelete": "Bạn có chắc chắn muốn xóa sự cố {number} không? Hành động này không thể hoàn tác.",
+  "common.confirmDeleteTitle": "Xác nhận xóa",
 
   // ── Employees module ─────────────────────────────────────────────────
   "employees.moduleName": "Danh sách nhân viên",

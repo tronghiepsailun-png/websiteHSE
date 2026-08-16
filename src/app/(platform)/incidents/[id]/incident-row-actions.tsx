@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, Eye, Trash2 } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { deleteIncidentAction } from "./actions";
 import { useT } from "@/lib/i18n/locale-context";
 
@@ -26,9 +27,9 @@ export function IncidentRowActions({
   const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  function handleDelete() {
-    if (!window.confirm(t("incidents.detail.confirmDelete", { number: incidentNumber }))) return;
+  function handleConfirm() {
     startTransition(async () => {
       await deleteIncidentAction(incidentId);
       router.refresh();
@@ -36,22 +37,33 @@ export function IncidentRowActions({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" disabled={pending} />}>
-        <MoreHorizontal className="size-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem render={<Link href={`/incidents/${incidentId}`} />}>
-          <Eye className="size-4" />
-          {t("common.viewDetails")}
-        </DropdownMenuItem>
-        {canDelete && (
-          <DropdownMenuItem variant="destructive" onClick={handleDelete}>
-            <Trash2 className="size-4" />
-            {t("common.delete")}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" disabled={pending} />}>
+          <MoreHorizontal className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem render={<Link href={`/incidents/${incidentId}`} />}>
+            <Eye className="size-4" />
+            {t("common.viewDetails")}
           </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {canDelete && (
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+              <Trash2 className="size-4" />
+              {t("common.delete")}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        description={t("incidents.detail.confirmDelete", { number: incidentNumber })}
+        confirmLabel={t("common.delete")}
+        onConfirm={handleConfirm}
+        pending={pending}
+      />
+    </>
   );
 }
