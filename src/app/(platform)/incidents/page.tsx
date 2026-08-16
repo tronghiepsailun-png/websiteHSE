@@ -239,10 +239,10 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
         />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DonutChart
+        <TopNBarChart
           titleKey="incidents.chart.byInjuredBodyPart"
           data={dashboard.byInjuredBodyPart}
-          topN={6}
+          topN={8}
           filterParam="injuredBodyPart"
         />
         <TrendLineChart titleKey="incidents.chart.trendCost" data={costTrend} metric="cost" />

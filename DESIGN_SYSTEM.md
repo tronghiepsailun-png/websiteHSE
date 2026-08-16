@@ -104,6 +104,36 @@ donut/pie) từ `src/components/charts/chart-utils.tsx`. Không tự viết mả
 không dùng `--chart-1..5` trực tiếp trừ khi đó thực sự là dữ liệu ngữ nghĩa rủi ro có
 `colorMap` riêng (như severity).
 
+### Chọn loại biểu đồ (dựa trên nghiên cứu IBM Carbon + Tableau)
+
+Nguồn: [Carbon Design System – Color palettes](https://carbondesignsystem.com/data-visualization/color-palettes/),
+[Tableau Visual Best Practices](https://help.tableau.com/current/pro/desktop/en-us/visual_best_practices.htm),
+[Data-Ink Ratio (Tufte)](https://www.holistics.io/blog/data-ink-ratio/).
+
+Quy tắc chọn loại biểu đồ áp dụng cho toàn hệ thống, bắt buộc kiểm tra khi thêm biểu đồ mới:
+
+| Tình huống dữ liệu | Loại biểu đồ | Lý do |
+|---|---|---|
+| Xu hướng theo thời gian | Line/Area (`TrendLineChart`) | Chỉ loại này thể hiện đúng "thay đổi liên tục" |
+| Nhiều category (≥6) cần so sánh chính xác | Bar (`TopNBarChart`), sắp giảm dần | Mắt người so sánh độ dài chính xác hơn nhiều so với góc/diện tích |
+| Ít category (≤5), mục đích tỷ trọng tổng quan nhanh | Donut (`DonutChart`) | Carbon/Tableau đều khuyến nghị donut chỉ nên có **dưới 5 lát** — nhiều hơn thì khó phân biệt bằng mắt |
+
+**Quyết định đã áp dụng**: biểu đồ "Theo vị trí bị thương" (Incidents) trước đây là
+Donut với 6-7 lát (vượt ngưỡng khuyến nghị) — đã đổi sang `TopNBarChart` (tái dùng
+component có sẵn, cùng logic `bucketTopN`/click-drill-down, không đổi dữ liệu) để nhất
+quán với "Theo bộ phận"/"Theo danh mục" và dễ so sánh chính xác hơn. Donut mức độ
+nghiêm trọng (4 lát: A/B/C/D) giữ nguyên vì đã nằm trong ngưỡng và có ý nghĩa rủi ro
+thật (màu semantic, không phải brand).
+
+### Mật độ & data-ink ratio
+
+- Gridline luôn ở độ mờ thấp hơn dữ liệu (`stroke-border/50` trở xuống) hoặc bỏ hẳn nếu
+  trục không có thang đo hiển thị.
+- Trục không hiển thị số khi số liệu đã có nhãn trực tiếp trên chart (áp dụng cho mọi
+  `YAxis hide` hiện có) — tránh "ink" không cần thiết.
+- Cột/lát có giá trị rất nhỏ (gần 0% tổng) vẫn hiển thị đúng độ dài thật thay vì phóng
+  đại — đây là cách trung thực thể hiện "không đáng kể", không phải lỗi cần che giấu.
+
 ## Typography (F3 — hoàn thành)
 
 Không dùng cỡ chữ tùy ý (arbitrary px) cho các vai trò lặp lại nhiều module — dùng đúng
