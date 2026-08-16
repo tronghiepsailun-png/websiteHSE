@@ -16,6 +16,7 @@ import {
 import { importIncidentsAction, type ImportActionState } from "./import-actions";
 import { useT } from "@/lib/i18n/locale-context";
 import { FIELD_LABEL_KEYS } from "@/server/incident-import-shared";
+import { STATUS_TEXT_CLASS } from "@/lib/status-tone";
 
 export function ImportDialog() {
   const [open, setOpen] = useState(false);
@@ -58,8 +59,8 @@ export function ImportDialog() {
           <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-3 text-sm">
             <p className="font-medium">{t("incidents.upload.resultTitle")}</p>
             <p>{t("incidents.upload.resultTotal", { n: state.result.totalDataRows })}</p>
-            <p className="text-green-600 dark:text-green-400">{t("incidents.upload.resultCreated", { n: state.result.created })}</p>
-            <p className="text-amber-600 dark:text-amber-400">{t("incidents.upload.resultDuplicates", { n: state.result.duplicates.length })}</p>
+            <p className={STATUS_TEXT_CLASS.success}>{t("incidents.upload.resultCreated", { n: state.result.created })}</p>
+            <p className={STATUS_TEXT_CLASS.warning}>{t("incidents.upload.resultDuplicates", { n: state.result.duplicates.length })}</p>
             <p className="text-destructive">{t("incidents.upload.resultErrors", { n: state.result.errors.length })}</p>
 
             {state.result.duplicates.length > 0 && (

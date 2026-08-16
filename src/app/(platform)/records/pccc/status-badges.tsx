@@ -4,19 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import type { DataStatus, ExpiryStatus } from "@/server/records";
+import { STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 
 const DATA_STATUS_CLASS: Record<DataStatus, string> = {
-  sufficient: "border-green-500/30 text-green-600 dark:text-green-400",
-  needs_update: "border-amber-500/30 text-amber-600 dark:text-amber-400",
-  missing: "border-destructive/30 text-destructive",
-  not_applicable: "",
+  sufficient: STATUS_OUTLINE_CLASS.success,
+  needs_update: STATUS_OUTLINE_CLASS.warning,
+  missing: STATUS_OUTLINE_CLASS.critical,
+  not_applicable: STATUS_OUTLINE_CLASS.neutral,
 };
 
 const EXPIRY_STATUS_CLASS: Record<ExpiryStatus, string> = {
-  valid: "border-green-500/30 text-green-600 dark:text-green-400",
-  expiring_soon: "border-amber-500/30 text-amber-600 dark:text-amber-400",
-  expired: "border-destructive/30 text-destructive",
-  non_periodic: "",
+  valid: STATUS_OUTLINE_CLASS.success,
+  expiring_soon: STATUS_OUTLINE_CLASS.warning,
+  expired: STATUS_OUTLINE_CLASS.critical,
+  non_periodic: STATUS_OUTLINE_CLASS.neutral,
 };
 
 export function DataStatusBadge({ status }: { status: DataStatus }) {

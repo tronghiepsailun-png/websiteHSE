@@ -20,6 +20,7 @@ import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { FIELD_LABEL_KEYS } from "@/server/employee-import-shared";
 import type { ClassifiedEmployeeRow, EmployeeImportCommitResult } from "@/server/employee-import-shared";
+import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
 
 type Step = "select" | "preview" | "result";
 
@@ -178,12 +179,15 @@ export function ImportDialog() {
   );
 }
 
+// "existing" (unchanged rows) is informational, not a risk tone, so it intentionally
+// stays its own literal blue rather than being forced into the shared success/warning/
+// critical/neutral palette.
 const TONE_CLASSES: Record<string, string> = {
-  new: "border-green-500/30 bg-green-500/5 text-green-600 dark:text-green-400",
+  new: STATUS_BANNER_CLASS.success,
   existing: "border-blue-500/30 bg-blue-500/5 text-blue-600 dark:text-blue-400",
-  updated: "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400",
-  error: "border-destructive/30 bg-destructive/5 text-destructive",
-  departed: "border-border bg-muted/40 text-muted-foreground",
+  updated: STATUS_BANNER_CLASS.warning,
+  error: STATUS_BANNER_CLASS.critical,
+  departed: STATUS_BANNER_CLASS.neutral,
 };
 
 function SummaryPill({ label, value, tone }: { label: string; value: number; tone: string }) {

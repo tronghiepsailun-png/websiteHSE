@@ -11,6 +11,7 @@ import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 import { toggleRecordTypeActiveAction, applyRecordTypeToSitesAction } from "./actions";
 import { TypeForm } from "./type-form";
+import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
 
 export default async function RecordsCatalogPage({ searchParams }: PageProps<"/records/pccc/catalog">) {
   const ctx = await requireApiAccess(PERMISSIONS.RECORDS_MANAGE);
@@ -32,7 +33,7 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
       </div>
 
       {applied != null && (
-        <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+        <p className={`rounded-md border px-3 py-2 text-sm ${STATUS_BANNER_CLASS.success}`}>
           {t(locale, "records.catalog.applyResult", { n: applied })}
         </p>
       )}

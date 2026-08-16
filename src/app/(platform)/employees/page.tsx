@@ -15,6 +15,7 @@ import { EmployeeFilters } from "./employee-filters";
 import { EmployeeRowActions } from "./employee-row-actions";
 import { ImportDialog } from "./import-dialog";
 import { DepartmentChart } from "./department-chart";
+import { STATUS_TILE_CLASS, STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -105,9 +106,9 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
             </div>
           </CardContent>
         </Card>
-        <Card className="border-green-500/20">
+        <Card className={STATUS_TILE_CLASS.success.border}>
           <CardContent className="flex items-center gap-3 p-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-green-500/10 text-green-600 dark:text-green-400">
+            <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${STATUS_TILE_CLASS.success.iconBg} ${STATUS_TILE_CLASS.success.iconFg}`}>
               <UserCheck className="size-4" />
             </div>
             <div className="min-w-0">
@@ -196,7 +197,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
                   <TableCell className="py-3">
                     <Badge
                       variant={employee.status === "active" ? "outline" : "secondary"}
-                      className={employee.status === "active" ? "border-green-500/30 text-green-600 dark:text-green-400" : ""}
+                      className={employee.status === "active" ? STATUS_OUTLINE_CLASS.success : ""}
                     >
                       <T k={employee.status === "active" ? "employees.status.active" : "employees.status.resigned"} />
                     </Badge>

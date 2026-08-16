@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 
 export type EmployeeDetailData = {
   employeeCode: string;
@@ -54,7 +55,7 @@ export function EmployeeDetailSheet({
         </SheetHeader>
 
         <div className="flex flex-col gap-4 px-4 pb-4">
-          <Badge variant={employee.status === "active" ? "outline" : "secondary"} className={employee.status === "active" ? "border-green-500/30 text-green-600 dark:text-green-400" : ""}>
+          <Badge variant={employee.status === "active" ? "outline" : "secondary"} className={employee.status === "active" ? STATUS_OUTLINE_CLASS.success : ""}>
             {t(`employees.status.${employee.status}` as DictionaryKey)}
           </Badge>
 

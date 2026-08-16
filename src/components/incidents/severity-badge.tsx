@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { STATUS_FILLED_CLASS } from "@/lib/status-tone";
 
 export function SeverityBadge({ name, colorHex }: { name: string; colorHex?: string | null }) {
   const color = colorHex ?? "#6b7280";
@@ -15,11 +16,13 @@ export function SeverityBadge({ name, colorHex }: { name: string; colorHex?: str
   );
 }
 
+// open/action_pending are workflow-stage colors (not risk tones), so they stay literal;
+// investigating/closed map cleanly onto the shared warning/success risk tones.
 const STATUS_VARIANTS: Record<string, string> = {
   open: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  investigating: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  investigating: STATUS_FILLED_CLASS.warning,
   action_pending: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-  closed: "bg-green-500/10 text-green-600 dark:text-green-400",
+  closed: STATUS_FILLED_CLASS.success,
 };
 
 export function IncidentStatusBadge({ status }: { status: string }) {
@@ -32,12 +35,14 @@ export function IncidentStatusBadge({ status }: { status: string }) {
   );
 }
 
+// "overdue" now shares the same red as every other critical/destructive indicator in
+// the app (it was previously a separate hardcoded red-500, its own one-off shade).
 const CAPA_STATUS_VARIANTS: Record<string, string> = {
   open: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  in_progress: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  completed: "bg-green-500/10 text-green-600 dark:text-green-400",
-  overdue: "bg-red-500/10 text-red-600 dark:text-red-400",
-  closed: "bg-muted text-muted-foreground",
+  in_progress: STATUS_FILLED_CLASS.warning,
+  completed: STATUS_FILLED_CLASS.success,
+  overdue: STATUS_FILLED_CLASS.critical,
+  closed: STATUS_FILLED_CLASS.neutral,
 };
 
 export function CapaStatusBadge({ status }: { status: string }) {

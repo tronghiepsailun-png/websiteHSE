@@ -27,6 +27,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -64,6 +66,8 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: #16a34a; /* = Tailwind green-600, matches every existing text-green-600 usage */
+  --warning: #d97706; /* = Tailwind amber-600, matches every existing text-amber-600 usage */
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -101,6 +105,8 @@
   --accent: #1a2337;
   --accent-foreground: #e5e7eb;
   --destructive: #ef4444;
+  --success: #4ade80; /* = Tailwind green-400, matches every existing dark:text-green-400 usage */
+  --warning: #fbbf24; /* = Tailwind amber-400, same hex already used for --chart-3 */
   --border: #263044;
   --input: #263044;
   --ring: #22c55e;

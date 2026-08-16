@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { createRecordVersionAction } from "./actions";
+import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
 
 export type VersionFormState = { error?: string } | undefined;
 
@@ -93,7 +94,7 @@ export function VersionForm({
       {isUnknown && <p className="text-xs text-muted-foreground">{t("records.form.unknownDateHint")}</p>}
 
       {collision && (
-        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+        <p className={`rounded-md border px-3 py-2 text-xs ${STATUS_BANNER_CLASS.warning}`}>
           {t("records.form.dateCollisionWarning", {
             zone: collision.orgUnitName,
             date: new Date(collision.effectiveDate).toLocaleDateString(),

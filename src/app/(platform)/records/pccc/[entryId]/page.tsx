@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { DataStatusBadge, ExpiryStatusBadge } from "../status-badges";
+import { STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -140,7 +141,7 @@ export default async function RecordEntryDetailPage({ params }: PageProps<"/reco
           {entry.versions.map((v) => (
             <div key={v.id} className="flex flex-col gap-1.5 py-3 text-sm first:pt-0 last:pb-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={v.isSuperseded ? "secondary" : "outline"} className={v.isSuperseded ? "" : "border-green-500/30 text-green-600 dark:text-green-400"}>
+                <Badge variant={v.isSuperseded ? "secondary" : "outline"} className={v.isSuperseded ? "" : STATUS_OUTLINE_CLASS.success}>
                   <T k={v.isSuperseded ? "records.detail.supersededBadge" : "records.detail.currentBadge"} />
                 </Badge>
                 <span className="font-medium">

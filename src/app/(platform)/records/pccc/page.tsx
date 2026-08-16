@@ -11,6 +11,7 @@ import { GREEN_SHADES, BLUE_SHADES } from "@/components/charts/chart-utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { STATUS_TILE_CLASS, STATUS_TEXT_CLASS } from "@/lib/status-tone";
 
 export default async function RecordsPcccDashboardPage() {
   const ctx = await requireApiAccess(PERMISSIONS.RECORDS_VIEW);
@@ -34,11 +35,11 @@ export default async function RecordsPcccDashboardPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard labelKey="records.kpi.totalTracked" value={data.totalTracked} icon={ClipboardCheck} tone="neutral" />
-        <KpiCard labelKey="records.kpi.sufficient" value={data.sufficientTotal} icon={CheckCircle2} tone="green" />
-        <KpiCard labelKey="records.kpi.needsUpdate" value={data.needsUpdateTotal} icon={RefreshCw} tone="amber" />
-        <KpiCard labelKey="records.kpi.missing" value={data.missingTotal} icon={FileX} tone="red" />
-        <KpiCard labelKey="records.kpi.expiringSoon" value={data.expiringSoonTotal} icon={Clock} tone="amber" />
-        <KpiCard labelKey="records.kpi.expired" value={data.expiredTotal} icon={AlertTriangle} tone="red" />
+        <KpiCard labelKey="records.kpi.sufficient" value={data.sufficientTotal} icon={CheckCircle2} tone="success" />
+        <KpiCard labelKey="records.kpi.needsUpdate" value={data.needsUpdateTotal} icon={RefreshCw} tone="warning" />
+        <KpiCard labelKey="records.kpi.missing" value={data.missingTotal} icon={FileX} tone="critical" />
+        <KpiCard labelKey="records.kpi.expiringSoon" value={data.expiringSoonTotal} icon={Clock} tone="warning" />
+        <KpiCard labelKey="records.kpi.expired" value={data.expiredTotal} icon={AlertTriangle} tone="critical" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -75,7 +76,7 @@ export default async function RecordsPcccDashboardPage() {
                   <TableCell className="py-3">{e.orgUnit.name}</TableCell>
                   <TableCell className="py-3">{e.currentVersion?.expiresAt ? new Date(e.currentVersion.expiresAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell className="py-3 text-right">
-                    <span className={e.expiryStatus === "expired" ? "font-medium text-destructive" : "font-medium text-amber-600 dark:text-amber-400"}>
+                    <span className={`font-medium ${e.expiryStatus === "expired" ? STATUS_TEXT_CLASS.critical : STATUS_TEXT_CLASS.warning}`}>
                       {e.daysUntilExpiry != null && e.daysUntilExpiry < 0 ? (
                         <T k="records.chart.daysOverdue" vars={{ n: Math.abs(e.daysUntilExpiry) }} />
                       ) : (
@@ -100,13 +101,6 @@ export default async function RecordsPcccDashboardPage() {
   );
 }
 
-const TONE_CLASSES: Record<string, { border: string; iconBg: string; iconFg: string }> = {
-  neutral: { border: "", iconBg: "bg-muted", iconFg: "text-muted-foreground" },
-  green: { border: "border-green-500/20", iconBg: "bg-green-500/10", iconFg: "text-green-500" },
-  amber: { border: "border-amber-500/20", iconBg: "bg-amber-500/10", iconFg: "text-amber-500" },
-  red: { border: "border-destructive/20", iconBg: "bg-destructive/10", iconFg: "text-destructive" },
-};
-
 function KpiCard({
   labelKey,
   value,
@@ -116,9 +110,9 @@ function KpiCard({
   labelKey: DictionaryKey;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
-  tone: keyof typeof TONE_CLASSES;
+  tone: keyof typeof STATUS_TILE_CLASS;
 }) {
-  const t = TONE_CLASSES[tone];
+  const t = STATUS_TILE_CLASS[tone];
   return (
     <Card className={t.border}>
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
