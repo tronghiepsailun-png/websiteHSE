@@ -167,6 +167,35 @@ dùng `src/components/ui/confirm-dialog.tsx` (`<ConfirmDialog>`).
 **Quy tắc cho hành động mới**: bất kỳ hành động xóa/không thể hoàn tác nào phải dùng
 `ConfirmDialog`, không tự viết `window.confirm()` hay dialog riêng.
 
-## Chưa hoàn thành (sẽ bổ sung ở bước tiếp theo)
+## Filter chip — số lượng bộ lọc đang áp dụng (F6 — hoàn thành)
 
-- Filter chip rules (F6)
+Mọi filter bar (dạng "ô tìm kiếm + vài Select + nút Xóa bộ lọc") phải hiển thị một badge
+nhỏ, trung tính, cho biết đang áp dụng bao nhiêu bộ lọc — người dùng dễ quên mình đang lọc
+gì khi filter bar có nhiều trường, đặc biệt sau khi điều hướng qua lại nhiều lần.
+
+- `src/lib/count-active-filters.ts` — `countActiveFilters(...values)`: đếm số prop có giá
+  trị thật (bỏ qua `undefined`/`""`). Nhận thẳng các prop *đã được chuẩn hóa* của filter bar
+  (chỗ `page.tsx` đã convert `"all"` → `undefined` từ trước) — không cần biết field nào ứng
+  với Select nào, không đụng vào logic filter/query.
+- `src/components/ui/filter-count-badge.tsx` — `<FilterCountBadge count={n} />`: dùng
+  `<Badge variant="secondary">` (màu trung tính, không phải success/warning/critical — đây
+  là thông tin trạng thái UI, không mang ý nghĩa rủi ro), tự ẩn khi `count === 0` để không
+  gây nhiễu lúc chưa lọc gì.
+- Đã lắp vào cả 4 filter bar hiện có: `incident-filters.tsx`, `employee-filters.tsx`,
+  `capa-filters.tsx`, `records-filters.tsx` — badge đặt ngay trước link "Xóa bộ lọc".
+
+**Không đụng vào**: các tham số "carry" từ dashboard drill-down (vd. `dYear`/`dMonth`/
+`dWeek`/`dOrgUnitId` truyền vào Incidents list qua hidden input) không được tính vào số đếm
+— đây là ngữ cảnh điều hướng từ dashboard, không phải trường do người dùng thao tác trực
+tiếp trên chính filter bar đó.
+
+**Quy tắc cho filter bar mới**: tính `activeCount` bằng `countActiveFilters(...)` trên đúng
+các prop hiển thị trên form, đặt `<FilterCountBadge count={activeCount} />` ngay trước nút
+"Xóa bộ lọc".
+
+## Chưa hoàn thành
+
+Không còn mục nào trong danh sách Phase 1 (F1–F6) — cả 6 bước đã triển khai và xác minh.
+Các hạng mục ngoài phạm vi Phase 1 (chưa quyết định, chờ yêu cầu thêm nếu cần):
+- Nút xóa tài liệu/đính kèm trên trang chi tiết sự cố chưa có xác nhận.
+- Nút "Xóa vai trò" trong `admin/users/users-table.tsx` chưa có xác nhận.
