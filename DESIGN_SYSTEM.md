@@ -125,6 +125,14 @@ quán với "Theo bộ phận"/"Theo danh mục" và dễ so sánh chính xác h
 nghiêm trọng (4 lát: A/B/C/D) giữ nguyên vì đã nằm trong ngưỡng và có ý nghĩa rủi ro
 thật (màu semantic, không phải brand).
 
+**Biến thể cột đứng**: `TopNVerticalBarChart` (`src/components/charts/top-n-vertical-bar-chart.tsx`)
+là bản cột đứng của `TopNBarChart` — cùng data/bucketing/click-drill-down/màu `CHART_BRAND`,
+chỉ khác hướng hiển thị (cột đứng, nhãn nghiêng 35°, có thanh cuộn ngang khi nhiều category —
+giống hệt cách làm ở biểu đồ Nhân viên). Hiện chỉ dùng cho "Theo bộ phận" (Sự cố) theo yêu
+cầu riêng — 4 biểu đồ còn lại (Theo danh mục sự cố, Theo vị trí bị thương, PCCC theo khu/nhóm)
+vẫn giữ `TopNBarChart` dạng ngang. **Khi cần thêm biểu đồ cột đứng khác, tái dùng component
+này thay vì viết lại.**
+
 ### Mật độ & data-ink ratio
 
 - Gridline luôn ở độ mờ thấp hơn dữ liệu (`stroke-border/50` trở xuống) hoặc bỏ hẳn nếu

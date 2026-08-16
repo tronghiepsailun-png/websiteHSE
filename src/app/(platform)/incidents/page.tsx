@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { buttonVariants } from "@/components/ui/button";
 import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
+import { TopNVerticalBarChart } from "@/components/charts/top-n-vertical-bar-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { IncidentFilters } from "./incident-filters";
@@ -223,7 +224,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
         <DonutChart titleKey="incidents.chart.bySeverity" data={dashboard.bySeverity} topN={8} colorMap={severityColorByName} />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <TopNBarChart
+        <TopNVerticalBarChart
           titleKey="incidents.chart.byDepartment"
           data={dashboard.byDepartment}
           topN={8}
