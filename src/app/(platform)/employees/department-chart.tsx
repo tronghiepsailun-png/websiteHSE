@@ -7,9 +7,12 @@ import { ChartContainer } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n/locale-context";
 import { GREEN_SHADES } from "@/components/charts/chart-utils";
 
-// Fixed width per bar (bar + label spacing) — the chart area scrolls horizontally instead of
-// squeezing every department into the card width, so all of them stay legible.
-const ITEM_WIDTH = 52;
+// Fixed width per bar (bar + gap) — the chart area scrolls horizontally instead of squeezing
+// every department into the card width, so all of them stay legible and tappable.
+const ITEM_WIDTH = 68;
+
+type TickProps = { x?: number; y?: number; payload?: { value?: string } };
+type LabelProps = { x?: number; y?: number; value?: React.ReactNode; index?: number };
 
 export function DepartmentChart({
   data,
@@ -38,6 +41,44 @@ export function DepartmentChart({
 
   const chartData = data.map((d) => ({ label: d.name, value: d.count }));
 
+  // Custom tick so the department name is angled (avoids adjacent labels running into each
+  // other) and clickable — a short bar for a small department can be only a couple of
+  // pixels tall, too small to click reliably, so the name and the value-on-top both act as
+  // the same click target as the bar itself.
+  function DeptTick({ x = 0, y = 0, payload }: TickProps) {
+    const name = payload?.value ?? "";
+    const isSelected = !selected || selected === name;
+    return (
+      <text
+        x={x}
+        y={y}
+        dy={8}
+        textAnchor="end"
+        transform={`rotate(-35, ${x}, ${y})`}
+        onClick={() => handleClick(name)}
+        className={`cursor-pointer text-[10px] ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
+      >
+        {name}
+      </text>
+    );
+  }
+
+  function ValueLabel({ x = 0, y = 0, value, index = 0 }: LabelProps) {
+    const name = chartData[index]?.label ?? "";
+    const isSelected = !selected || selected === name;
+    return (
+      <text
+        x={x}
+        y={y - 6}
+        textAnchor="middle"
+        onClick={() => handleClick(name)}
+        className={`cursor-pointer text-[10px] font-medium ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
+      >
+        {value}
+      </text>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -45,11 +86,11 @@ export function DepartmentChart({
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <div className="h-[220px]" style={{ minWidth: `${chartData.length * ITEM_WIDTH}px` }}>
+          <div className="h-[260px]" style={{ minWidth: `${chartData.length * ITEM_WIDTH}px` }}>
             <ChartContainer config={{}} className="aspect-auto h-full w-full">
-              <BarChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 4 }} barCategoryGap={6}>
+              <BarChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} className="text-[10px]" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={50} tick={<DeptTick />} />
                 <YAxis hide domain={[0, (max: number) => max * 1.15]} />
                 <Bar dataKey="value" radius={3} barSize={18}>
                   {chartData.map((item, i) => (
@@ -61,7 +102,7 @@ export function DepartmentChart({
                       onClick={() => handleClick(item.label)}
                     />
                   ))}
-                  <LabelList dataKey="value" position="top" offset={6} className="fill-foreground text-[10px] font-medium" />
+                  <LabelList dataKey="value" content={<ValueLabel />} />
                 </Bar>
               </BarChart>
             </ChartContainer>
