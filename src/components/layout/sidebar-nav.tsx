@@ -21,7 +21,8 @@ function NavLink({ href, labelKey, icon: Icon, onNavigate }: NavItem & { onNavig
       href={href}
       onClick={onNavigate}
       className={cn(
-        "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors",
+        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
@@ -31,10 +32,13 @@ function NavLink({ href, labelKey, icon: Icon, onNavigate }: NavItem & { onNavig
   );
 }
 
-// Only the group header is visible by default — hovering over the group reveals its
-// links (pure CSS, via a named group + grid-template-rows animation, no JS state).
-// The header itself is still highlighted whenever the active route belongs to this
-// group, so the current location stays visible without needing to hover.
+// Only the group header is visible by default — hovering OR keyboard-focusing any
+// link inside the group reveals it (pure CSS, via a named group + grid-template-rows
+// animation, no JS state). The focus-within variant is what makes this reachable by
+// Tab alone: links stay in the DOM (just clipped to 0 height) so they're still
+// focusable, and focusing one expands its group automatically — a mouse is never
+// required. The header itself is still highlighted whenever the active route belongs
+// to this group, so the current location stays visible without needing to hover.
 function NavGroup({ labelKey, items, onNavigate }: { labelKey?: DictionaryKey; items: NavItem[]; onNavigate?: () => void }) {
   const t = useT();
   const pathname = usePathname();
@@ -53,7 +57,7 @@ function NavGroup({ labelKey, items, onNavigate }: { labelKey?: DictionaryKey; i
           {t(labelKey)}
         </p>
       )}
-      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-150 ease-out group-hover/nav:grid-rows-[1fr]">
+      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-150 ease-out group-hover/nav:grid-rows-[1fr] group-focus-within/nav:grid-rows-[1fr]">
         <div className="flex flex-col gap-1 overflow-hidden">
           {items.map((item) => (
             <NavLink key={item.href} {...item} onNavigate={onNavigate} />
