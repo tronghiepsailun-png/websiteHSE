@@ -143,7 +143,30 @@ form — người dùng không được phải đoán field nào sai.
 chỉ trả `{ error: string }` chung chung. Form ngắn (2–3 field, vd. đăng nhập, mời người
 dùng) có thể giữ banner chung nếu không có sự mơ hồ thực sự về field nào sai.
 
-## Chưa hoàn thành (sẽ bổ sung ở các bước tiếp theo)
+## Dialog confirmation (F5 — hoàn thành)
 
-- Dialog confirmation rules (F5)
+**Không dùng `window.confirm()`** cho bất kỳ hành động phá hủy/không thể hoàn tác nào —
+dùng `src/components/ui/confirm-dialog.tsx` (`<ConfirmDialog>`).
+
+2 cách dùng:
+- **Uncontrolled** (trigger là nút bấm thường): truyền prop `trigger`.
+- **Controlled** (trigger nằm trong overlay khác, vd. `DropdownMenuItem`): truyền
+  `open`/`onOpenChange`, không truyền `trigger` — tránh lồng `DialogTrigger` trực tiếp
+  trong dropdown vì sẽ xung đột hành vi đóng của dropdown.
+
+```tsx
+<ConfirmDialog
+  trigger={<Button variant="destructive">Xóa</Button>}
+  description={t("...")}
+  confirmLabel={t("common.delete")}
+  onConfirm={handleConfirm}
+  pending={pending}
+/>
+```
+
+**Quy tắc cho hành động mới**: bất kỳ hành động xóa/không thể hoàn tác nào phải dùng
+`ConfirmDialog`, không tự viết `window.confirm()` hay dialog riêng.
+
+## Chưa hoàn thành (sẽ bổ sung ở bước tiếp theo)
+
 - Filter chip rules (F6)
