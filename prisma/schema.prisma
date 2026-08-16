@@ -1,0 +1,600 @@
+// Prisma schema for the HSE Management Platform.
+// Provider is SQLite for local development; see DATABASE.md for the PostgreSQL migration path.
+// IDs are cuid() strings everywhere so the schema is identical across providers.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PLATFORM / TENANCY
+// ─────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  industry  String?
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orgUnitTypes         OrgUnitType[]
+  orgUnits             OrgUnit[]
+  employees            Employee[]
+  userOrganizations    UserOrganization[]
+  userOrganizationRoles UserOrganizationRole[]
+  documents            Document[]
+  documentTypes        DocumentType[]
+  picklists            Picklist[]
+  incidentCategories   IncidentCategory[]
+  incidentSeverities   IncidentSeverity[]
+  idSequenceConfigs    IdSequenceConfig[]
+  incidents            Incident[]
+  capaItems            CapaItem[]
+  auditLogs            AuditLog[]
+  recordDomains        RecordDomain[]
+  recordEntries        RecordEntry[]
+
+  @@map("organizations")
+}
+
+/// Per-organization configurable hierarchy levels (Site, Building, Workshop, Department, Team, ...)
+model OrgUnitType {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  level          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgUnits     OrgUnit[]
+
+  @@unique([organizationId, code])
+  @@map("org_unit_types")
+}
+
+/// Flexible, self-referencing org structure so each Organization can model its own hierarchy.
+model OrgUnit {
+  id             String   @id @default(cuid())
+  organizationId String
+  unitTypeId     String
+  parentId       String?
+  code           String
+  name           String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unitType     OrgUnitType  @relation(fields: [unitTypeId], references: [id])
+  parent       OrgUnit?     @relation("OrgUnitHierarchy", fields: [parentId], references: [id])
+  children     OrgUnit[]    @relation("OrgUnitHierarchy")
+
+  employees Employee[]
+  incidents Incident[]
+  recordEntries RecordEntry[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, parentId])
+  @@map("org_units")
+}
+
+/// Platform-wide login identity. Organization membership/roles live in UserOrganization(Role).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  isPlatformAdmin Boolean @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userOrganizations     UserOrganization[]
+  userOrganizationRoles UserOrganizationRole[]
+  auditLogs             AuditLog[]
+  uploadedDocuments     Document[]             @relation("DocumentUploadedBy")
+  reportedIncidents     Incident[]             @relation("IncidentReportedBy")
+  createdCapaItems      CapaItem[]             @relation("CapaCreatedBy")
+  enteredRecordVersions RecordVersion[]        @relation("RecordVersionEnteredBy")
+  uploadedRecordFiles   RecordFile[]           @relation("RecordFileUploadedBy")
+
+  @@map("users")
+}
+
+/// Membership of a User in an Organization (independent of which specific roles they hold).
+model UserOrganization {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  status         String   @default("active") // active | invited | disabled
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("user_organizations")
+}
+
+/// Org-scoped roles (platform_admin is a separate top-level flag on User, not a Role row).
+model Role {
+  id          String   @id @default(cuid())
+  key         String   @unique // org_admin | hse_manager | hse_staff | department_manager | department_user | viewer
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions       RolePermission[]
+  userOrganizationRoles UserOrganizationRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique // e.g. incident.create, capa.approve, org.manage
+  module      String // e.g. incident, capa, organization
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// A user can hold different role(s) in different organizations (powers the Organization Switcher).
+model UserOrganizationRole {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  roleId         String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, roleId])
+  @@index([organizationId, userId])
+  @@map("user_organization_roles")
+}
+
+/// HSE-domain person. Not every Employee has a login (User) account.
+model Employee {
+  id             String   @id @default(cuid())
+  organizationId String
+  orgUnitId      String?
+  employeeCode   String
+  fullName       String // Vietnamese name (越文名)
+  fullNameZh     String? // Chinese name (中文名)
+  position       String?
+  shift          String?
+  email          String?
+  phone          String?
+  status         String   @default("active") // active | resigned
+
+  // HSE/HR profile fields populated by the employee-import pipeline (src/server/employee-import.ts).
+  gender         String? // male | female
+  education      String?
+  birthDate      DateTime?
+  nationalId     String? // CCCD / 身份证号码
+  orgUnitLevel1  String? // 一级部门
+  orgUnitLevel2  String? // 二级部门
+  region         String? // 区域
+  costCenterName String? // 成本中心名称
+  team           String? // 班组
+  sourceRowData  Json? // full original spreadsheet row, verbatim, so no imported data is ever lost
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgUnit      OrgUnit?     @relation(fields: [orgUnitId], references: [id])
+
+  incidentsInvolved       Incident[] @relation("IncidentEmployee")
+  incidentsResponsible    Incident[] @relation("IncidentResponsiblePerson")
+  capaItemsResponsible    CapaItem[] @relation("CapaResponsiblePerson")
+
+  @@unique([organizationId, employeeCode])
+  @@unique([organizationId, nationalId])
+  @@map("employees")
+}
+
+/// Append-only change history, used across every module.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  module         String // e.g. incident, capa, organization
+  recordType     String
+  recordId       String
+  action         String // create | update | delete
+  fieldName      String?
+  oldValue       String?
+  newValue       String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, module, recordId])
+  @@map("audit_logs")
+}
+
+model DocumentType {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents    Document[]
+
+  @@unique([organizationId, code])
+  @@map("document_types")
+}
+
+/// Metadata only — actual file bytes live behind the StorageService abstraction (see STORAGE.md).
+/// Polymorphic via (module, recordId) so every module (incident, capa, ...) reuses this one table.
+model Document {
+  id               String   @id @default(cuid())
+  organizationId   String
+  module           String // e.g. incident, capa
+  recordId         String
+  documentTypeId   String?
+  fileName         String
+  fileType         String
+  sizeBytes        Int
+  storageProvider  String   @default("local")
+  storagePath      String
+  uploadedById     String?
+  uploadedAt       DateTime @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentType DocumentType? @relation(fields: [documentTypeId], references: [id])
+  uploadedBy   User?         @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([organizationId, module, recordId])
+  @@map("documents")
+}
+
+/// Generic reusable config lists reserved for future modules' simple dropdowns
+/// (training types, equipment types, ...). Incident category/severity get dedicated,
+/// richer tables below because they need extra fields (rank, color).
+model Picklist {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String // e.g. training_type, equipment_type
+  name           String
+  createdAt      DateTime @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        PicklistItem[]
+
+  @@unique([organizationId, key])
+  @@map("picklists")
+}
+
+model PicklistItem {
+  id         String  @id @default(cuid())
+  picklistId String
+  label      String
+  value      String
+  sortOrder  Int     @default(0)
+  isActive   Boolean @default(true)
+
+  picklist Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+
+  @@unique([picklistId, value])
+  @@map("picklist_items")
+}
+
+/// Configurable Incident ID generation per organization, e.g. ORG1/INC/2026/0001.
+model IdSequenceConfig {
+  id               String   @id @default(cuid())
+  organizationId   String
+  module           String // e.g. incident
+  prefix           String
+  includeYear      Boolean  @default(true)
+  includeOrgCode   Boolean  @default(true)
+  separator        String   @default("/")
+  padLength        Int      @default(4)
+  resetPeriod      String   @default("yearly") // yearly | monthly | never
+  currentPeriodKey String?
+  currentSequence  Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, module])
+  @@map("id_sequence_configs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// INCIDENT MANAGEMENT MODULE
+// ─────────────────────────────────────────────────────────────────────────
+
+model IncidentCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  description    String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incidents    Incident[]
+
+  @@unique([organizationId, code])
+  @@map("incident_categories")
+}
+
+model IncidentSeverity {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  rank           Int // used for sorting / analytics, higher = more severe
+  colorHex       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incidents    Incident[]
+
+  @@unique([organizationId, code])
+  @@map("incident_severities")
+}
+
+model Incident {
+  id             String   @id @default(cuid())
+  organizationId String
+  incidentNumber String
+
+  occurredAt DateTime
+  reportedAt DateTime @default(now())
+
+  orgUnitId     String?
+  locationDetail String?
+  equipment      String?
+
+  employeeId             String?
+  employeeNameSnapshot   String?
+  employeeCodeSnapshot   String?
+  departmentSnapshot     String?
+  positionSnapshot       String?
+  shiftSnapshot          String?
+
+  categoryId String
+  severityId String
+
+  description     String
+  immediateCause  String?
+  rootCause       String?
+  correctiveAction String?
+  preventiveAction String?
+
+  responsiblePersonId            String?
+  responsiblePersonNameSnapshot  String? // set when only a name is known (e.g. Excel import), no matching Employee record
+  dueDate             DateTime?
+  completionDate       DateTime?
+
+  status String @default("open") // open | investigating | action_pending | closed
+  cost   Float?
+  notes  String?
+
+  // Fields populated by the Excel import pipeline (src/server/incident-import.ts).
+  costRmb         Float?
+  costVnd         Float?
+  pointsDeducted  Float?
+  injuredBodyPart String?
+  sourceRowData   Json? // full original spreadsheet row, verbatim, so no imported data is ever lost
+
+  reportedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgUnit           OrgUnit?          @relation(fields: [orgUnitId], references: [id])
+  employee          Employee?         @relation("IncidentEmployee", fields: [employeeId], references: [id])
+  responsiblePerson Employee?         @relation("IncidentResponsiblePerson", fields: [responsiblePersonId], references: [id])
+  category          IncidentCategory  @relation(fields: [categoryId], references: [id])
+  severity          IncidentSeverity  @relation(fields: [severityId], references: [id])
+  reportedBy        User?             @relation("IncidentReportedBy", fields: [reportedById], references: [id])
+
+  @@unique([organizationId, incidentNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, severityId])
+  @@index([organizationId, occurredAt])
+  @@map("incidents")
+}
+
+/// Polymorphic CAPA so Inspection/Audit/Risk/Violation modules can create CAPA later
+/// without a new table — only sourceModule needs a new value.
+model CapaItem {
+  id             String @id @default(cuid())
+  organizationId String
+
+  sourceModule   String // incident | inspection | audit | risk | violation
+  sourceRecordId String
+
+  action    String
+  rootCause String?
+
+  responsiblePersonId String?
+  dueDate             DateTime?
+  completionDate       DateTime?
+
+  status        String  @default("open") // open | in_progress | completed | overdue | closed
+  evidenceNotes String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  responsiblePerson Employee?    @relation("CapaResponsiblePerson", fields: [responsiblePersonId], references: [id])
+  createdBy         User?        @relation("CapaCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, sourceModule, sourceRecordId])
+  @@index([organizationId, status])
+  @@map("capa_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// RECORDS MODULE (Quản lý hồ sơ) — starts with PCCC (fire-safety), designed
+// so a second domain (e.g. Môi trường) can be added later as pure data,
+// with no schema change. "Site" (Khu A/B/C) reuses the existing OrgUnit
+// table rather than a dedicated site table — see RecordEntry.orgUnitId.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A records domain, e.g. PCCC (fire-safety) or MOI_TRUONG (environment, future).
+model RecordDomain {
+  id             String  @id @default(cuid())
+  organizationId String
+  code           String // PCCC, MOI_TRUONG
+  name           String
+  description    String?
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  groups       RecordGroup[]
+
+  @@unique([organizationId, code])
+  @@map("record_domains")
+}
+
+/// A group of record types within a domain, e.g. A/B/C/D for PCCC.
+model RecordGroup {
+  id        String @id @default(cuid())
+  domainId  String
+  code      String
+  name      String
+  sortOrder Int    @default(0)
+
+  domain RecordDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  types  RecordType[]
+
+  @@unique([domainId, code])
+  @@map("record_groups")
+}
+
+/// The shared catalog of standard record types (26 for PCCC) — defined once, never
+/// duplicated per site. A RecordEntry is created per site only when it actually applies.
+model RecordType {
+  id                String  @id @default(cuid())
+  groupId           String
+  code              String // A1, B2, C10, D5, ...
+  name              String
+  legalBasis        String?
+  frequencyLabel    String? // free-text description, e.g. "6 tháng/lần"
+  cycleMonths       Int? // periodic cycle in months; null = not periodic (one-off / on-change)
+  responsibleUnit   String?
+  sharedAcrossSites Boolean @default(false) // true = one physical record covers all sites (e.g. evacuation map)
+  isActive          Boolean @default(true) // hidden, not deleted, so history stays intact
+  sortOrder         Int     @default(0)
+
+  group   RecordGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  entries RecordEntry[]
+
+  @@unique([groupId, code])
+  @@map("record_types")
+}
+
+/// The intersection of one RecordType and one site (OrgUnit) — created only when that
+/// standard record actually applies there. No stored "current status": both status axes
+/// are computed from the current (non-superseded) RecordVersion at query time, the same
+/// way incident dashboard KPIs are computed from raw rows rather than a cached field —
+/// avoids ever needing to keep a cache in sync.
+model RecordEntry {
+  id                String  @id @default(cuid())
+  organizationId    String
+  recordTypeId      String
+  orgUnitId         String // the site (Khu A/B/C) — an existing OrgUnit, not a new table
+  responsiblePerson String?
+  notApplicable     Boolean @default(false) // explicit "N/A for this site", distinct from "missing"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recordType   RecordType      @relation(fields: [recordTypeId], references: [id])
+  orgUnit      OrgUnit         @relation(fields: [orgUnitId], references: [id])
+  versions     RecordVersion[]
+
+  @@unique([recordTypeId, orgUnitId])
+  @@index([organizationId])
+  @@map("record_entries")
+}
+
+/// One update to a RecordEntry. Never overwritten — a new version supersedes the old one
+/// (isSuperseded flips to true on the old row), so full compliance history survives audits.
+model RecordVersion {
+  id                 String    @id @default(cuid())
+  entryId            String
+  effectiveDate      DateTime? // ngày ký/lập/sự kiện, from the document itself — null only when dateConfidence = unknown
+  dateSourceQuote    String? // verbatim quote of where the date was read, e.g. "Tây Ninh, ngày 03 tháng 06 năm 2026"
+  dateConfidence     String // confirmed | estimated | unknown
+  expiresAt          DateTime? // auto = effectiveDate + recordType.cycleMonths at create time, unless manually overridden
+  expiresAtIsManual  Boolean   @default(false)
+  verificationStatus String    @default("ok") // ok | needs_verification | conflict
+  notes              String?
+  enteredById        String?
+  enteredAt          DateTime  @default(now())
+  isSuperseded       Boolean   @default(false)
+  supersededById     String?   @unique // the newer version that replaced this one
+
+  entry        RecordEntry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  enteredBy    User?           @relation("RecordVersionEnteredBy", fields: [enteredById], references: [id])
+  supersededBy RecordVersion?  @relation("RecordVersionSupersedes", fields: [supersededById], references: [id])
+  supersedes   RecordVersion?  @relation("RecordVersionSupersedes")
+  files        RecordFile[]
+
+  @@index([entryId, isSuperseded])
+  @@map("record_versions")
+}
+
+/// A file attached to one version — either a Google Drive link (the format every real
+/// record uses today) or a real upload via the existing storageService, so nothing about
+/// local storage is foreclosed even though the MVP data is 100% Drive links.
+model RecordFile {
+  id           String   @id @default(cuid())
+  versionId    String
+  fileName     String
+  storageType  String // drive_link | upload
+  url          String? // set when storageType = drive_link
+  storagePath  String? // set when storageType = upload (relative path under storageService)
+  sizeBytes    Int?
+  mimeType     String?
+  isPrimary    Boolean  @default(false)
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
+
+  version    RecordVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  uploadedBy User?         @relation("RecordFileUploadedBy", fields: [uploadedById], references: [id])
+
+  @@map("record_files")
+}
