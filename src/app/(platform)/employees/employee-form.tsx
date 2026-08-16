@@ -52,7 +52,7 @@ export function EmployeeForm({
       {employeeId && <input type="hidden" name="employeeId" value={employeeId} />}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("employees.form.sections.identity")}</CardTitle>
+          <CardTitle className="text-base font-semibold">{t("employees.form.sections.identity")}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
@@ -115,7 +115,7 @@ export function EmployeeForm({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("employees.form.sections.org")}</CardTitle>
+          <CardTitle className="text-base font-semibold">{t("employees.form.sections.org")}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">

@@ -35,7 +35,7 @@ export function DepartmentChart({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold">{t("employees.chart.byDepartment")}</CardTitle>
+        <CardTitle className="text-base font-semibold">{t("employees.chart.byDepartment")}</CardTitle>
       </CardHeader>
       <CardContent className="max-h-72 overflow-y-auto pt-0">
         <div className="flex flex-col">

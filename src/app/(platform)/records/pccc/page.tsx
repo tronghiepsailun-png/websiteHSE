@@ -120,7 +120,7 @@ function KpiCard({
           <CardDescription className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             <T k={labelKey} />
           </CardDescription>
-          <CardTitle className="text-[22px] leading-none font-bold">{value}</CardTitle>
+          <CardTitle className="text-2xl leading-none font-bold">{value}</CardTitle>
         </div>
         <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${t.iconBg} ${t.iconFg}`}>
           <Icon className="size-4" />

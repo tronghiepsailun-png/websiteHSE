@@ -102,7 +102,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
               <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <T k="employees.kpi.total" />
               </p>
-              <p className="text-lg leading-none font-bold">{stats.total}</p>
+              <p className="text-2xl leading-none font-bold">{stats.total}</p>
             </div>
           </CardContent>
         </Card>
@@ -115,7 +115,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
               <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <T k="employees.kpi.active" />
               </p>
-              <p className="text-lg leading-none font-bold">{stats.active}</p>
+              <p className="text-2xl leading-none font-bold">{stats.active}</p>
             </div>
           </CardContent>
         </Card>
@@ -128,7 +128,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
               <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <T k="employees.kpi.resigned" />
               </p>
-              <p className="text-lg leading-none font-bold">{stats.resigned}</p>
+              <p className="text-2xl leading-none font-bold">{stats.resigned}</p>
             </div>
           </CardContent>
         </Card>

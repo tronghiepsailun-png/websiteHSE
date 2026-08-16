@@ -4,7 +4,7 @@ import { PERMISSIONS } from "@/server/permissions";
 import { listCapaForOrg, getCapaSummary, isCapaOverdue } from "@/server/capa";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CapaStatusBadge } from "@/components/incidents/severity-badge";
 import { CapaFilters } from "./capa-filters";
@@ -67,10 +67,10 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardDescription><T k="capa.kpi.total" /></CardDescription><CardTitle className="text-2xl">{summary.total}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription><T k="capa.kpi.open" /></CardDescription><CardTitle className="text-2xl">{summary.open}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription><T k="capa.kpi.overdue" /></CardDescription><CardTitle className="text-2xl text-destructive">{summary.overdue}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription><T k="capa.kpi.completed" /></CardDescription><CardTitle className="text-2xl">{summary.completed}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.total" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.total}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.open" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.open}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{summary.overdue}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.completed" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.completed}</CardTitle></CardHeader></Card>
       </div>
 
       <CapaFilters search={search} status={status} />

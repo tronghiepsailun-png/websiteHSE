@@ -32,7 +32,7 @@ export function IncidentForm({
   return (
     <form action={formAction} className="flex flex-col gap-6">
       <Card>
-        <CardHeader><CardTitle className="text-base">{t("incidents.new.sections.identification")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base font-semibold">{t("incidents.new.sections.identification")}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="incidentNumber">{t("incidents.new.fields.incidentNumber")}</Label>
@@ -46,7 +46,7 @@ export function IncidentForm({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">{t("incidents.new.sections.classification")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base font-semibold">{t("incidents.new.sections.classification")}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="occurredAt">{t("incidents.new.fields.occurredAt")}</Label>
@@ -82,7 +82,7 @@ export function IncidentForm({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">{t("incidents.new.sections.location")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base font-semibold">{t("incidents.new.sections.location")}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label>{t("incidents.new.fields.orgUnit")}</Label>
@@ -135,7 +135,7 @@ export function IncidentForm({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">{t("incidents.new.sections.description")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base font-semibold">{t("incidents.new.sections.description")}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="description">{t("incidents.new.fields.description")}</Label>
