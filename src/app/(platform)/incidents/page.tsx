@@ -227,7 +227,6 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
         <TopNVerticalBarChart
           titleKey="incidents.chart.byDepartment"
           data={dashboard.byDepartment}
-          topN={8}
           filterParam="orgUnitId"
           resolveMap={orgUnitIdByName}
         />
