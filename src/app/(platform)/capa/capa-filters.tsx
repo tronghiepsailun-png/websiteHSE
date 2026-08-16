@@ -6,11 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterCountBadge } from "@/components/ui/filter-count-badge";
+import { countActiveFilters } from "@/lib/count-active-filters";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 
 export function CapaFilters({ search, status }: { search?: string; status?: string }) {
   const t = useT();
+  const activeCount = countActiveFilters(search, status);
   const formRef = useRef<HTMLFormElement>(null);
   // The status Select applies immediately on change — no need to hit "Lọc" separately (the
   // search box still needs Enter, since submitting on every keystroke would be unusable). With
@@ -44,9 +47,12 @@ export function CapaFilters({ search, status }: { search?: string; status?: stri
               <SelectItem value="closed">{t("status.capa.closed")}</SelectItem>
             </SelectContent>
           </Select>
-          <Link href="/capa" className={buttonVariants({ variant: "outline" })}>
-            {t("common.clearFilters")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <FilterCountBadge count={activeCount} />
+            <Link href="/capa" className={buttonVariants({ variant: "outline" })}>
+              {t("common.clearFilters")}
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>

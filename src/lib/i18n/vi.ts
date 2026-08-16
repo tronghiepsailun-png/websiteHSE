@@ -22,6 +22,7 @@ const vi = {
   "common.download": "Tải xuống",
   "common.filter": "Lọc",
   "common.clearFilters": "Xóa bộ lọc",
+  "common.filtersActive": "{count} bộ lọc đang áp dụng",
   "common.search": "Tìm kiếm",
   "common.status": "Trạng thái",
   "common.active": "Đang hoạt động",

@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterCountBadge } from "@/components/ui/filter-count-badge";
+import { countActiveFilters } from "@/lib/count-active-filters";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 
@@ -29,6 +31,7 @@ export function RecordsFilters({
   groups: Option[];
 }) {
   const t = useT();
+  const activeCount = countActiveFilters(search, orgUnitId, groupCode, dataStatus, expiryStatus);
   const formRef = useRef<HTMLFormElement>(null);
   // Selects apply immediately on change — no need to hit a "Lọc" button (matches the
   // standard already applied to every other filter bar in the platform). With no submit
@@ -113,9 +116,12 @@ export function RecordsFilters({
             </Select>
           </div>
 
-          <Link href="/records/pccc/list" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            {t("common.clearFilters")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <FilterCountBadge count={activeCount} />
+            <Link href="/records/pccc/list" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {t("common.clearFilters")}
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>

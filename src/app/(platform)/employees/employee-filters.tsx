@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterCountBadge } from "@/components/ui/filter-count-badge";
+import { countActiveFilters } from "@/lib/count-active-filters";
 import { useT } from "@/lib/i18n/locale-context";
 
 export function EmployeeFilters({
@@ -28,6 +30,7 @@ export function EmployeeFilters({
   options: { orgUnitLevel1: string[]; orgUnitLevel2: string[]; region: string[]; shift: string[]; position: string[] };
 }) {
   const t = useT();
+  const activeCount = countActiveFilters(search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status);
   const formRef = useRef<HTMLFormElement>(null);
   // Selects apply immediately on change — no need to hit "Lọc" separately (the search box
   // still needs Enter, since submitting on every keystroke would be unusable). With no submit
@@ -88,9 +91,12 @@ export function EmployeeFilters({
             </Select>
           </div>
 
-          <Link href="/employees" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            {t("common.clearFilters")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <FilterCountBadge count={activeCount} />
+            <Link href="/employees" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {t("common.clearFilters")}
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>

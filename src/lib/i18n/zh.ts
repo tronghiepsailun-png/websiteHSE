@@ -23,6 +23,7 @@ const zh: Record<DictionaryKey, string> = {
   "common.download": "下载",
   "common.filter": "筛选",
   "common.clearFilters": "清除筛选",
+  "common.filtersActive": "已应用 {count} 个筛选条件",
   "common.search": "搜索",
   "common.status": "状态",
   "common.active": "启用",
