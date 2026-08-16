@@ -124,8 +124,26 @@ giá trị tùy ý nào được tìm thấy khi audit F3:
 - **Sidebar**: nhóm theo domain nghiệp vụ, chỉ hiện tên nhóm mặc định, mở rộng khi hover
   HOẶC focus bàn phím (không được chỉ hỗ trợ hover).
 
+## Form validation (F4 — hoàn thành)
+
+Lỗi validation phải hiển thị ngay dưới field bị lỗi, không chỉ ở banner chung dưới cùng
+form — người dùng không được phải đoán field nào sai.
+
+- `src/lib/form-errors.ts` — `zodFieldErrors(error)` chuyển `ZodError` thành
+  `Record<tên_field, "required" | "tooLong" | "invalid">`. Dùng issue **code** (không
+  phải message tùy chỉnh) nên không cần dịch riêng từng field.
+- `src/components/ui/field-error.tsx` — `<FieldError kind={...} />`, hiển thị đúng câu
+  dịch (`common.form.required` / `common.form.tooLong` / `common.invalidInput`).
+- Input/Select/Textarea đã sẵn `aria-invalid:border-destructive` trong class mặc định —
+  chỉ cần truyền `aria-invalid={!!state?.fieldErrors?.tenField}` là tự động có viền đỏ.
+- Với validation rule tùy chỉnh (không qua zod, vd. "ghi chú bắt buộc khi độ tin cậy
+  là Chưa xác định") — set trực tiếp `fieldErrors: { tenField: "required" }` trong action.
+
+**Quy tắc cho form mới**: nếu form có nhiều hơn ~3 field, PHẢI dùng pattern này thay vì
+chỉ trả `{ error: string }` chung chung. Form ngắn (2–3 field, vd. đăng nhập, mời người
+dùng) có thể giữ banner chung nếu không có sự mơ hồ thực sự về field nào sai.
+
 ## Chưa hoàn thành (sẽ bổ sung ở các bước tiếp theo)
 
-- Form validation rules (F4)
 - Dialog confirmation rules (F5)
 - Filter chip rules (F6)
