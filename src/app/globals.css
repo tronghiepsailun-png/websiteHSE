@@ -70,6 +70,8 @@
   --success: #16a34a; /* = Tailwind green-600, matches every existing text-green-600 usage */
   --warning: #d97706; /* = Tailwind amber-600, matches every existing text-amber-600 usage */
   --chart-brand: #16a34a; /* one HSE green for every non-semantic distribution chart — shade/opacity varies, hue never does */
+  --accent-blue: #2563eb; /* controlled 2nd/3rd accent for enterprise-dashboard-style KPI tiers (not chart data) */
+  --accent-purple: #7c3aed;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -110,6 +112,8 @@
   --success: #4ade80; /* = Tailwind green-400, matches every existing dark:text-green-400 usage */
   --warning: #fbbf24; /* = Tailwind amber-400, same hex already used for --chart-3 */
   --chart-brand: #22c55e; /* one HSE green for every non-semantic distribution chart — matches --primary */
+  --accent-blue: #3b82f6;
+  --accent-purple: #a855f7;
   --border: #263044;
   --input: #263044;
   --ring: #22c55e;
@@ -137,5 +141,26 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Reusable slim scrollbar for any panel that scrolls independently of the page
+   (dense dashboard panels, drill-down dialogs) — keeps the default OS scrollbar
+   from feeling heavy against a dark theme. */
+@layer utilities {
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
   }
 }

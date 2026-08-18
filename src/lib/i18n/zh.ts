@@ -287,9 +287,12 @@ const zh: Record<DictionaryKey, string> = {
   "employees.chart.clearFilter": "清除筛选",
   "employees.chart.viewDetail": "查看详情",
   "employees.chart.viewDetailTitle": "部门分布详情",
+  "employees.chart.viewDetailSubtitle": "按部门、区域、班组和班次划分的人员结构",
+  "employees.chart.byLevel1": "一级部门",
+  "employees.chart.subgroups": "个子部门",
+  "employees.chart.detailByLevel2": "二级部门明细",
   "employees.chart.ratio": "占比",
   "employees.chart.shiftDetail": "班次明细",
-  "employees.chart.ofTotal": "占员工总数",
 
   "employees.field.employeeCode": "工号",
   "employees.field.fullName": "越文姓名",

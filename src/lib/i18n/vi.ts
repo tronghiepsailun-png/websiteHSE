@@ -286,9 +286,12 @@ const vi = {
   "employees.chart.clearFilter": "Xóa bộ lọc",
   "employees.chart.viewDetail": "Xem chi tiết",
   "employees.chart.viewDetailTitle": "Chi tiết phân bổ theo bộ phận",
+  "employees.chart.viewDetailSubtitle": "Cơ cấu nhân sự theo bộ phận, khu vực, tổ nhóm và ca làm việc",
+  "employees.chart.byLevel1": "Bộ phận cấp 1",
+  "employees.chart.subgroups": "bộ phận con",
+  "employees.chart.detailByLevel2": "Chi tiết theo bộ phận cấp 2",
   "employees.chart.ratio": "Tỷ lệ",
   "employees.chart.shiftDetail": "Chi tiết theo ca",
-  "employees.chart.ofTotal": "trên tổng nhân viên",
 
   "employees.field.employeeCode": "Mã nhân viên",
   "employees.field.fullName": "Họ tên (Tiếng Việt)",
