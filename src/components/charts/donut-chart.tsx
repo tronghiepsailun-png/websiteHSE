@@ -58,7 +58,7 @@ export function DonutChart({
       <CardContent className="flex items-center gap-4">
         <div className="relative h-[150px] w-[150px] shrink-0">
           <ChartContainer config={{}} className="aspect-auto h-full w-full">
-            <PieChart>
+            <PieChart accessibilityLayer={false}>
               <Tooltip content={<PercentTooltip total={total} countLabel={t("incidents.chart.count")} percentLabel={t("incidents.chart.percent")} />} />
               <Pie data={items} dataKey="value" nameKey="label" innerRadius={44} outerRadius={68} paddingAngle={2} strokeWidth={2}>
                 {items.map((item, i) => {

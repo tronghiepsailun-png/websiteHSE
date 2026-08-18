@@ -51,7 +51,7 @@ export function TopNBarChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={{}} className="aspect-auto h-[220px] w-full">
-          <BarChart data={chartData} layout="vertical" margin={{ left: 4, right: 44, top: 4, bottom: 4 }}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 4, right: 44, top: 4, bottom: 4 }} accessibilityLayer={false}>
             <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border/50" />
             <XAxis type="number" hide />
             <YAxis type="category" dataKey="label" width={110} tickLine={false} axisLine={false} className="text-xs" interval={0} />

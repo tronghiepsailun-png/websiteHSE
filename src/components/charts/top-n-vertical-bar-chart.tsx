@@ -88,7 +88,7 @@ export function TopNVerticalBarChart({
         <div className="overflow-x-auto">
           <div className="h-[260px]" style={{ minWidth: `${items.length * ITEM_WIDTH}px` }}>
             <ChartContainer config={{}} className="aspect-auto h-full w-full">
-              <BarChart data={items} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16}>
+              <BarChart data={items} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16} accessibilityLayer={false}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={50} tick={<CategoryTick />} />
                 <YAxis hide domain={[0, (max: number) => max * 1.15]} />

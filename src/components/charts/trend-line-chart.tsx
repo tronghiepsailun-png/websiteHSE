@@ -52,7 +52,7 @@ export function TrendLineChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={{}} className="aspect-auto h-[240px] w-full">
-          <AreaChart data={data} margin={{ left: 4, right: 12, top: 22, bottom: 4 }}>
+          <AreaChart data={data} margin={{ left: 4, right: 12, top: 22, bottom: 4 }} accessibilityLayer={false}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.24} />

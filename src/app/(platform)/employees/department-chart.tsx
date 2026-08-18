@@ -88,7 +88,7 @@ export function DepartmentChart({
         <div className="overflow-x-auto">
           <div className="h-[260px]" style={{ minWidth: `${chartData.length * ITEM_WIDTH}px` }}>
             <ChartContainer config={{}} className="aspect-auto h-full w-full">
-              <BarChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16}>
+              <BarChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16} accessibilityLayer={false}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} height={50} tick={<DeptTick />} />
                 <YAxis hide domain={[0, (max: number) => max * 1.15]} />
