@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Users, UserCheck, UserX } from "lucide-react";
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
-import { listEmployees, getEmployeeFilterOptions, getEmployeeStats } from "@/server/employees";
+import { listEmployees, getEmployeeFilterOptions, getEmployeeStats, getEmployeeHierarchy } from "@/server/employees";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,10 +41,11 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   const page = Number(params.page) || 1;
   const viewAll = params.viewAll === "1";
 
-  const [{ items, total, pageSize }, options, stats, permissionKeys] = await Promise.all([
+  const [{ items, total, pageSize }, options, stats, hierarchy, permissionKeys] = await Promise.all([
     listEmployees(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, team, shift, position, status, page, viewAll }),
     getEmployeeFilterOptions(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, team, shift, position, status }),
     getEmployeeStats(ctx.organizationId),
+    getEmployeeHierarchy(ctx.organizationId),
     ctx.isPlatformAdmin
       ? Promise.resolve(null)
       : prisma.userOrganizationRole
@@ -53,6 +54,12 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   ]);
 
   const canManage = hasPermission(permissionKeys, PERMISSIONS.EMPLOYEE_MANAGE);
+
+  // "Xem chi tiết" defaults to whichever Bộ phận cấp 1 contains the department currently
+  // selected on the chart (via orgUnitLevel2), so it opens already scoped to what's on screen.
+  const defaultOrgUnitLevel1 = orgUnitLevel2
+    ? hierarchy.find((l1) => l1.level2.some((l2) => l2.orgUnitLevel2 === orgUnitLevel2))?.orgUnitLevel1 ?? undefined
+    : undefined;
 
   const buildHref = (overrides: Record<string, string | undefined>) => {
     const next = new URLSearchParams();
@@ -135,7 +142,13 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
         </Card>
       </div>
 
-      <DepartmentChart data={stats.byDepartment} total={stats.total} selected={orgUnitLevel2} />
+      <DepartmentChart
+        data={stats.byDepartment}
+        total={stats.total}
+        selected={orgUnitLevel2}
+        hierarchy={hierarchy}
+        defaultOrgUnitLevel1={defaultOrgUnitLevel1}
+      />
 
       <EmployeeFilters
         search={search}

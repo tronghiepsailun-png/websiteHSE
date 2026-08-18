@@ -285,6 +285,9 @@ const zh: Record<DictionaryKey, string> = {
   "employees.chart.byDepartment": "员工部门分布",
   "employees.chart.filteringBy": "筛选条件：",
   "employees.chart.clearFilter": "清除筛选",
+  "employees.chart.viewDetail": "查看详情",
+  "employees.chart.viewDetailTitle": "部门分布详情",
+  "employees.chart.selectDepartment": "选择一级部门",
 
   "employees.field.employeeCode": "工号",
   "employees.field.fullName": "越文姓名",

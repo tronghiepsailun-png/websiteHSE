@@ -147,3 +147,58 @@ export async function getEmployeeFilterOptions(organizationId: string, filters: 
     position: countBy(position.map((e) => e.position)),
   };
 }
+
+export type ShiftBreakdown = { shift: string | null; count: number };
+export type TeamBreakdown = { team: string | null; count: number; shifts: ShiftBreakdown[] };
+export type RegionBreakdown = { region: string | null; count: number; teams: TeamBreakdown[] };
+export type Level2Breakdown = { orgUnitLevel2: string | null; count: number; regions: RegionBreakdown[] };
+export type Level1Breakdown = { orgUnitLevel1: string | null; count: number; level2: Level2Breakdown[] };
+
+function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const bucket = map.get(key);
+    if (bucket) bucket.push(item);
+    else map.set(key, [item]);
+  }
+  return map;
+}
+
+function sortByCountDesc<T extends { count: number }>(items: T[]): T[] {
+  return items.sort((a, b) => b.count - a.count);
+}
+
+type HierarchyRow = { orgUnitLevel1: string | null; orgUnitLevel2: string | null; region: string | null; team: string | null; shift: string | null };
+
+/** Full Bộ phận cấp 1 → cấp 2 → Khu vực → Tổ nhóm → Ca hierarchy with headcounts at every
+ *  level — powers the "Xem chi tiết" drill-down dialog on the department distribution chart.
+ *  Missing values at any level stay `null` (not resolved to a display label) so the client
+ *  can localize "Không xác định"/"未指定" itself. */
+export async function getEmployeeHierarchy(organizationId: string): Promise<Level1Breakdown[]> {
+  const rows: HierarchyRow[] = await prisma.employee.findMany({
+    where: { organizationId },
+    select: { orgUnitLevel1: true, orgUnitLevel2: true, region: true, team: true, shift: true },
+  });
+
+  const byLevel1 = groupBy(rows, (r) => r.orgUnitLevel1);
+  const level1 = [...byLevel1.entries()].map(([orgUnitLevel1, l1Rows]): Level1Breakdown => {
+    const byLevel2 = groupBy(l1Rows, (r) => r.orgUnitLevel2);
+    const level2 = [...byLevel2.entries()].map(([orgUnitLevel2, l2Rows]): Level2Breakdown => {
+      const byRegion = groupBy(l2Rows, (r) => r.region);
+      const regions = [...byRegion.entries()].map(([region, rgRows]): RegionBreakdown => {
+        const byTeam = groupBy(rgRows, (r) => r.team);
+        const teams = [...byTeam.entries()].map(([team, tmRows]): TeamBreakdown => {
+          const byShift = groupBy(tmRows, (r) => r.shift);
+          const shifts = [...byShift.entries()].map(([shift, shRows]): ShiftBreakdown => ({ shift, count: shRows.length }));
+          return { team, count: tmRows.length, shifts: sortByCountDesc(shifts) };
+        });
+        return { region, count: rgRows.length, teams: sortByCountDesc(teams) };
+      });
+      return { orgUnitLevel2, count: l2Rows.length, regions: sortByCountDesc(regions) };
+    });
+    return { orgUnitLevel1, count: l1Rows.length, level2: sortByCountDesc(level2) };
+  });
+
+  return sortByCountDesc(level1);
+}

@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n/locale-context";
 import { CHART_BRAND } from "@/components/charts/chart-utils";
+import { DepartmentDetailDialog } from "./department-detail-dialog";
+import type { Level1Breakdown } from "@/server/employees";
 
 // Fixed width per bar (bar + gap) — the chart area scrolls horizontally instead of squeezing
 // every department into the card width, so all of them stay legible and tappable.
@@ -17,10 +19,14 @@ type LabelProps = { x?: number; y?: number; value?: React.ReactNode; index?: num
 export function DepartmentChart({
   data,
   selected,
+  hierarchy,
+  defaultOrgUnitLevel1,
 }: {
   data: { name: string; count: number }[];
   total: number;
   selected?: string;
+  hierarchy: Level1Breakdown[];
+  defaultOrgUnitLevel1?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -83,8 +89,9 @@ export function DepartmentChart({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <CardTitle className="text-base font-semibold">{t("employees.chart.byDepartment")}</CardTitle>
+        <DepartmentDetailDialog data={hierarchy} defaultOrgUnitLevel1={defaultOrgUnitLevel1} />
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
