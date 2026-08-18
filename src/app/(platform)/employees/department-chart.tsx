@@ -56,7 +56,8 @@ export function DepartmentChart({
         textAnchor="end"
         transform={`rotate(-35, ${x}, ${y})`}
         onClick={() => handleClick(name)}
-        className={`cursor-pointer text-[10px] ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
+        tabIndex={-1}
+        className={`cursor-pointer text-[10px] outline-none ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
       >
         {name}
       </text>
@@ -72,7 +73,8 @@ export function DepartmentChart({
         y={y - 6}
         textAnchor="middle"
         onClick={() => handleClick(name)}
-        className={`cursor-pointer text-[10px] font-medium ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
+        tabIndex={-1}
+        className={`cursor-pointer text-[10px] font-medium outline-none ${isSelected ? "fill-foreground" : "fill-muted-foreground"}`}
       >
         {value}
       </text>

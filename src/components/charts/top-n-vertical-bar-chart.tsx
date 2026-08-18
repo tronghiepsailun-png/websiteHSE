@@ -56,7 +56,8 @@ export function TopNVerticalBarChart({
         textAnchor="end"
         transform={`rotate(-35, ${x}, ${y})`}
         onClick={() => item && handleClick(item)}
-        className={`text-[10px] fill-muted-foreground ${clickable ? "cursor-pointer" : ""}`}
+        tabIndex={-1}
+        className={`text-[10px] fill-muted-foreground outline-none ${clickable ? "cursor-pointer" : ""}`}
       >
         {payload?.value ?? ""}
       </text>
@@ -71,7 +72,8 @@ export function TopNVerticalBarChart({
         y={y - 6}
         textAnchor="middle"
         onClick={() => item && handleClick(item)}
-        className={`text-[10px] font-medium fill-foreground ${clickable ? "cursor-pointer" : ""}`}
+        tabIndex={-1}
+        className={`text-[10px] font-medium fill-foreground outline-none ${clickable ? "cursor-pointer" : ""}`}
       >
         {value}
       </text>
