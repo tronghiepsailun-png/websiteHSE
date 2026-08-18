@@ -42,7 +42,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
 
   const [{ items, total, pageSize }, options, stats, permissionKeys] = await Promise.all([
     listEmployees(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status, page, viewAll }),
-    getEmployeeFilterOptions(ctx.organizationId),
+    getEmployeeFilterOptions(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status }),
     getEmployeeStats(ctx.organizationId),
     ctx.isPlatformAdmin
       ? Promise.resolve(null)

@@ -85,19 +85,50 @@ export async function getEmployeeStats(organizationId: string) {
 }
 
 /** Distinct, non-empty values for each filter dropdown — same idea as the incident dashboard's availableYears/orgUnits. */
-export async function getEmployeeFilterOptions(organizationId: string) {
-  const employees = await prisma.employee.findMany({
-    where: { organizationId },
-    select: { orgUnitLevel1: true, orgUnitLevel2: true, region: true, shift: true, position: true },
+type FacetField = "orgUnitLevel1" | "orgUnitLevel2" | "region" | "shift" | "position";
+
+/** Cascading facet options: each field's option list reflects every OTHER currently-active
+ *  filter (so picking a department narrows what regions/shifts/positions show up next), but
+ *  never its own filter — otherwise choosing a value would immediately shrink its own dropdown
+ *  to a single option. `search`/`status` narrow every facet since they aren't derived options. */
+export async function getEmployeeFilterOptions(organizationId: string, filters: EmployeeFilters = {}) {
+  const facetWhere = (omit: FacetField) => ({
+    organizationId,
+    orgUnitLevel1: omit === "orgUnitLevel1" ? undefined : filters.orgUnitLevel1 || undefined,
+    orgUnitLevel2: omit === "orgUnitLevel2" ? undefined : filters.orgUnitLevel2 || undefined,
+    region: omit === "region" ? undefined : filters.region || undefined,
+    shift: omit === "shift" ? undefined : filters.shift || undefined,
+    position: omit === "position" ? undefined : filters.position || undefined,
+    status: filters.status || undefined,
+    ...(filters.search
+      ? {
+          OR: [
+            { employeeCode: { contains: filters.search } },
+            { fullName: { contains: filters.search } },
+            { fullNameZh: { contains: filters.search } },
+            { nationalId: { contains: filters.search } },
+            { orgUnitLevel1: { contains: filters.search } },
+            { position: { contains: filters.search } },
+          ],
+        }
+      : {}),
   });
 
   const distinct = (values: (string | null)[]) => [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
 
+  const [level1, level2, region, shift, position] = await Promise.all([
+    prisma.employee.findMany({ where: facetWhere("orgUnitLevel1"), select: { orgUnitLevel1: true } }),
+    prisma.employee.findMany({ where: facetWhere("orgUnitLevel2"), select: { orgUnitLevel2: true } }),
+    prisma.employee.findMany({ where: facetWhere("region"), select: { region: true } }),
+    prisma.employee.findMany({ where: facetWhere("shift"), select: { shift: true } }),
+    prisma.employee.findMany({ where: facetWhere("position"), select: { position: true } }),
+  ]);
+
   return {
-    orgUnitLevel1: distinct(employees.map((e) => e.orgUnitLevel1)),
-    orgUnitLevel2: distinct(employees.map((e) => e.orgUnitLevel2)),
-    region: distinct(employees.map((e) => e.region)),
-    shift: distinct(employees.map((e) => e.shift)),
-    position: distinct(employees.map((e) => e.position)),
+    orgUnitLevel1: distinct(level1.map((e) => e.orgUnitLevel1)),
+    orgUnitLevel2: distinct(level2.map((e) => e.orgUnitLevel2)),
+    region: distinct(region.map((e) => e.region)),
+    shift: distinct(shift.map((e) => e.shift)),
+    position: distinct(position.map((e) => e.position)),
   };
 }
