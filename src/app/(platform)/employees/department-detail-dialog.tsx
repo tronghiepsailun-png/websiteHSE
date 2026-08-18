@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useT } from "@/lib/i18n/locale-context";
 import { CHART_BRAND } from "@/components/charts/chart-utils";
-import type { Level1Breakdown, RegionBreakdown } from "@/server/employees";
+import type { Level2Breakdown, Level1Breakdown } from "@/server/employees";
 
 function name(value: string | null, unspecified: string) {
   return value ?? unspecified;
 }
 
-/** Thin proportion bar reused at every nested level — value/parent-total is visible as a bar
- *  length, not just a number, so a screenshot reads "big vs small" without doing mental math. */
+/** Thin proportion bar reused at every row — value/parent-total is visible as a bar length,
+ *  not just a number, so a screenshot reads "big vs small" without doing mental math. */
 function ProportionBar({ value, total }: { value: number; total: number }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   return (
@@ -22,10 +24,82 @@ function ProportionBar({ value, total }: { value: number; total: number }) {
   );
 }
 
+/** Icon-box KPI tile — the same "icon-box + caption + big number" shape used for KPI cards
+ *  everywhere else in the app, just reused here instead of a plain text block. */
+function KpiTile({ label, value, selected, onClick }: { label: string; value: number; selected?: boolean; onClick?: () => void }) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-left transition-colors ${
+        selected ? "border-transparent bg-[var(--chart-brand)]/12 ring-1 ring-[var(--chart-brand)]" : "border-border hover:bg-muted/50"
+      }`}
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--chart-brand)]/10 text-[var(--chart-brand)]">
+        <Building2 className="size-4" />
+      </span>
+      <span className="min-w-0">
+        <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
+        <p className="text-lg leading-none font-bold">{value}</p>
+      </span>
+    </Tag>
+  );
+}
+
+/** One Bộ phận cấp 2's full Khu vực → Tổ nhóm → Ca breakdown as a proper table — Khu vực
+ *  rowspans over its Tổ nhóm rows, matching how the numbers are actually structured. */
+function Level2Table({ l2, unspecified, unitLabel, t }: { l2: Level2Breakdown; unspecified: string; unitLabel: string; t: ReturnType<typeof useT> }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <div className="flex items-center gap-2.5 border-b border-border bg-muted/30 px-3 py-2">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--chart-brand)]/10 text-[var(--chart-brand)]">
+          <Building2 className="size-3.5" />
+        </span>
+        <span className="text-sm font-semibold">{name(l2.orgUnitLevel2, unspecified)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{t("employees.table.paginationSummary", { total: l2.count })}</span>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-28">{t("employees.filter.region")}</TableHead>
+            <TableHead>{t("employees.filter.team")}</TableHead>
+            <TableHead className="text-right">{unitLabel}</TableHead>
+            <TableHead className="w-24">{t("employees.chart.ratio")}</TableHead>
+            <TableHead>{t("employees.chart.shiftDetail")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {l2.regions.flatMap((r) =>
+            r.teams.map((tm, i) => (
+              <TableRow key={`${r.region ?? unspecified}-${tm.team ?? unspecified}`}>
+                {i === 0 && (
+                  <TableCell rowSpan={r.teams.length} className="align-top font-medium">
+                    {name(r.region, unspecified)}
+                    <div className="text-xs font-normal text-muted-foreground">{t("employees.table.paginationSummary", { total: r.count })}</div>
+                  </TableCell>
+                )}
+                <TableCell>{name(tm.team, unspecified)}</TableCell>
+                <TableCell className="text-right font-mono">{tm.count}</TableCell>
+                <TableCell>
+                  <ProportionBar value={tm.count} total={r.count} />
+                </TableCell>
+                <TableCell className="whitespace-normal text-xs text-muted-foreground">
+                  {tm.shifts.map((s) => `${name(s.shift, unspecified)} ${s.count}`).join(" · ")}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 /** "Xem chi tiết" on the department distribution chart — opens a large, screenshot-ready
- *  breakdown: every Bộ phận cấp 1 as a KPI overview strip (click to switch), then the selected
- *  one's full Bộ phận cấp 2 → Khu vực → Tổ nhóm → Ca headcount tree, fully expanded so the
- *  whole picture ("giống mở module mới") is readable at a glance without extra clicks. */
+ *  overview: every Bộ phận cấp 1 as a KPI strip (click to switch), then the selected one's
+ *  Bộ phận cấp 2 tiles, then each cấp 2's full Khu vực → Tổ nhóm → Ca table — so the whole
+ *  picture ("giống mở module mới") is readable at a glance, no extra clicks needed. */
 export function DepartmentDetailDialog({ data, defaultOrgUnitLevel1 }: { data: Level1Breakdown[]; defaultOrgUnitLevel1?: string }) {
   const t = useT();
   const unspecified = t("incidents.chart.unspecified");
@@ -44,30 +118,6 @@ export function DepartmentDetailDialog({ data, defaultOrgUnitLevel1 }: { data: L
 
   if (data.length === 0) return null;
 
-  function regionRow(r: RegionBreakdown, parentTotal: number) {
-    return (
-      <details key={r.region ?? unspecified} open className="rounded-md border border-border/50 bg-muted/20 p-2">
-        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-          <span className="flex-1">{name(r.region, unspecified)}</span>
-          <ProportionBar value={r.count} total={parentTotal} />
-          <span className="w-14 shrink-0 text-right text-muted-foreground">{t("employees.table.paginationSummary", { total: r.count })}</span>
-        </summary>
-        <div className="mt-1.5 flex flex-col gap-1 pl-4">
-          {r.teams.map((tm) => (
-            <div key={tm.team ?? unspecified} className="flex items-center gap-2 text-[13px]">
-              <span className="flex-1 truncate">{name(tm.team, unspecified)}</span>
-              <ProportionBar value={tm.count} total={r.count} />
-              <span className="w-14 shrink-0 text-right text-muted-foreground">{tm.count}</span>
-              <span className="w-[26%] shrink-0 truncate text-right text-xs text-muted-foreground">
-                {tm.shifts.map((s) => `${name(s.shift, unspecified)} ${s.count}`).join(" · ")}
-              </span>
-            </div>
-          ))}
-        </div>
-      </details>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button variant="ghost" size="sm" />}>{t("employees.chart.viewDetail")}</DialogTrigger>
@@ -77,31 +127,16 @@ export function DepartmentDetailDialog({ data, defaultOrgUnitLevel1 }: { data: L
         </DialogHeader>
 
         {/* Overview strip — every Bộ phận cấp 1 at once, so the full picture is visible before
-         *  drilling into any one of them (and a screenshot of just this row already tells the
+         *  drilling into any one of them (a screenshot of just this row already tells the
          *  story: who's biggest, who's smallest). */}
-        <div className="grid shrink-0 grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {data.map((d) => {
             const key = d.orgUnitLevel1 ?? unspecified;
-            const isSelected = key === selected;
-            const pct = grandTotal > 0 ? Math.round((d.count / grandTotal) * 100) : 0;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setSelected(key)}
-                className={`rounded-lg border p-2.5 text-left transition-colors ${
-                  isSelected ? "border-transparent bg-[var(--chart-brand)]/12 ring-1 ring-[var(--chart-brand)]" : "border-border hover:bg-muted/50"
-                }`}
-              >
-                <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{name(d.orgUnitLevel1, unspecified)}</p>
-                <p className="text-xl leading-none font-bold">{d.count}</p>
-                <p className="text-[11px] text-muted-foreground">{pct}%</p>
-              </button>
-            );
+            return <KpiTile key={key} label={name(d.orgUnitLevel1, unspecified)} value={d.count} selected={key === selected} onClick={() => setSelected(key)} />;
           })}
         </div>
 
-        {/* Selected department — total KPI, cấp-2 tiles, then the full nested breakdown. */}
+        {/* Selected department — total KPI, cấp-2 tiles, then each cấp-2's full table. */}
         {current && (
           <div className="flex-1 overflow-y-auto pt-1">
             <div className="mb-3 flex items-baseline justify-between border-b border-border pb-2">
@@ -109,27 +144,21 @@ export function DepartmentDetailDialog({ data, defaultOrgUnitLevel1 }: { data: L
               <span className="text-2xl leading-none font-bold">
                 {current.count}
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">{unitLabel}</span>
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  ({grandTotal > 0 ? Math.round((current.count / grandTotal) * 100) : 0}% {t("employees.chart.ofTotal")})
+                </span>
               </span>
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {current.level2.map((l2) => (
-                <div key={l2.orgUnitLevel2 ?? unspecified} className="rounded-lg border border-border p-2.5">
-                  <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{name(l2.orgUnitLevel2, unspecified)}</p>
-                  <p className="text-lg leading-none font-bold">{l2.count}</p>
-                </div>
+                <KpiTile key={l2.orgUnitLevel2 ?? unspecified} label={name(l2.orgUnitLevel2, unspecified)} value={l2.count} />
               ))}
             </div>
 
             <div className="flex flex-col gap-3">
               {current.level2.map((l2) => (
-                <details key={l2.orgUnitLevel2 ?? unspecified} open>
-                  <summary className="flex cursor-pointer items-center justify-between border-b border-border/50 py-1.5 text-sm font-semibold">
-                    <span>{name(l2.orgUnitLevel2, unspecified)}</span>
-                    <span className="text-muted-foreground">{t("employees.table.paginationSummary", { total: l2.count })}</span>
-                  </summary>
-                  <div className="flex flex-col gap-1.5 pt-2 pl-2">{l2.regions.map((r) => regionRow(r, l2.count))}</div>
-                </details>
+                <Level2Table key={l2.orgUnitLevel2 ?? unspecified} l2={l2} unspecified={unspecified} unitLabel={unitLabel} t={t} />
               ))}
             </div>
           </div>

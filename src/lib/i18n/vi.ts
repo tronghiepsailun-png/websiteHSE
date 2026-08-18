@@ -286,7 +286,9 @@ const vi = {
   "employees.chart.clearFilter": "Xóa bộ lọc",
   "employees.chart.viewDetail": "Xem chi tiết",
   "employees.chart.viewDetailTitle": "Chi tiết phân bổ theo bộ phận",
-  "employees.chart.selectDepartment": "Chọn bộ phận cấp 1",
+  "employees.chart.ratio": "Tỷ lệ",
+  "employees.chart.shiftDetail": "Chi tiết theo ca",
+  "employees.chart.ofTotal": "trên tổng nhân viên",
 
   "employees.field.employeeCode": "Mã nhân viên",
   "employees.field.fullName": "Họ tên (Tiếng Việt)",
