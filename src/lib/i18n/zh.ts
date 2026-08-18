@@ -323,6 +323,8 @@ const zh: Record<DictionaryKey, string> = {
   "employees.filter.allOrgUnitLevel2": "全部二级部门",
   "employees.filter.region": "区域",
   "employees.filter.allRegion": "全部区域",
+  "employees.filter.team": "班组",
+  "employees.filter.allTeam": "全部班组",
   "employees.filter.shift": "班次",
   "employees.filter.allShift": "全部班次",
   "employees.filter.position": "职位",

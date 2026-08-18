@@ -322,6 +322,8 @@ const vi = {
   "employees.filter.allOrgUnitLevel2": "Tất cả bộ phận cấp 2",
   "employees.filter.region": "Khu vực",
   "employees.filter.allRegion": "Tất cả khu vực",
+  "employees.filter.team": "Tổ nhóm",
+  "employees.filter.allTeam": "Tất cả tổ nhóm",
   "employees.filter.shift": "Ca làm việc",
   "employees.filter.allShift": "Tất cả ca",
   "employees.filter.position": "Chức vụ",

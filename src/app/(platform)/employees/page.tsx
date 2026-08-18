@@ -34,6 +34,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   const orgUnitLevel1 = parseFilterParam(params.orgUnitLevel1);
   const orgUnitLevel2 = parseFilterParam(params.orgUnitLevel2);
   const region = parseFilterParam(params.region);
+  const team = parseFilterParam(params.team);
   const shift = parseFilterParam(params.shift);
   const position = parseFilterParam(params.position);
   const status = parseFilterParam(params.status);
@@ -41,8 +42,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   const viewAll = params.viewAll === "1";
 
   const [{ items, total, pageSize }, options, stats, permissionKeys] = await Promise.all([
-    listEmployees(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status, page, viewAll }),
-    getEmployeeFilterOptions(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status }),
+    listEmployees(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, team, shift, position, status, page, viewAll }),
+    getEmployeeFilterOptions(ctx.organizationId, { search, orgUnitLevel1, orgUnitLevel2, region, team, shift, position, status }),
     getEmployeeStats(ctx.organizationId),
     ctx.isPlatformAdmin
       ? Promise.resolve(null)
@@ -141,6 +142,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
         orgUnitLevel1={orgUnitLevel1}
         orgUnitLevel2={orgUnitLevel2}
         region={region}
+        team={team}
         shift={shift}
         position={position}
         status={status}

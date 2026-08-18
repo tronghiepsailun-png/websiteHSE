@@ -9,12 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FilterCountBadge } from "@/components/ui/filter-count-badge";
 import { countActiveFilters } from "@/lib/count-active-filters";
 import { useT } from "@/lib/i18n/locale-context";
+import type { FacetOption } from "@/server/employees";
 
 export function EmployeeFilters({
   search,
   orgUnitLevel1,
   orgUnitLevel2,
   region,
+  team,
   shift,
   position,
   status,
@@ -24,13 +26,14 @@ export function EmployeeFilters({
   orgUnitLevel1?: string;
   orgUnitLevel2?: string;
   region?: string;
+  team?: string;
   shift?: string;
   position?: string;
   status?: string;
-  options: { orgUnitLevel1: string[]; orgUnitLevel2: string[]; region: string[]; shift: string[]; position: string[] };
+  options: { orgUnitLevel1: FacetOption[]; orgUnitLevel2: FacetOption[]; region: FacetOption[]; team: FacetOption[]; shift: FacetOption[]; position: FacetOption[] };
 }) {
   const t = useT();
-  const activeCount = countActiveFilters(search, orgUnitLevel1, orgUnitLevel2, region, shift, position, status);
+  const activeCount = countActiveFilters(search, orgUnitLevel1, orgUnitLevel2, region, team, shift, position, status);
   const formRef = useRef<HTMLFormElement>(null);
   // Selects apply immediately on change — no need to hit "Lọc" separately (the search box
   // still needs Enter, since submitting on every keystroke would be unusable). With no submit
@@ -44,7 +47,7 @@ export function EmployeeFilters({
     }
   };
 
-  const selectField = (name: string, value: string | undefined, items: string[], placeholderKey: Parameters<typeof t>[0], allKey: Parameters<typeof t>[0]) => (
+  const selectField = (name: string, value: string | undefined, items: FacetOption[], placeholderKey: Parameters<typeof t>[0], allKey: Parameters<typeof t>[0]) => (
     <Select key={`${name}-${value ?? "all"}`} name={name} defaultValue={value ?? "all"} onValueChange={submitOnChange}>
       <SelectTrigger>
         <SelectValue placeholder={t(placeholderKey)}>{(v: string) => (v === "all" ? t(allKey) : v)}</SelectValue>
@@ -52,8 +55,8 @@ export function EmployeeFilters({
       <SelectContent>
         <SelectItem value="all">{t(allKey)}</SelectItem>
         {items.map((item) => (
-          <SelectItem key={item} value={item}>
-            {item}
+          <SelectItem key={item.value} value={item.value}>
+            {item.value} ({item.count})
           </SelectItem>
         ))}
       </SelectContent>
@@ -75,6 +78,7 @@ export function EmployeeFilters({
             {selectField("orgUnitLevel1", orgUnitLevel1, options.orgUnitLevel1, "employees.filter.orgUnitLevel1", "employees.filter.allOrgUnitLevel1")}
             {selectField("orgUnitLevel2", orgUnitLevel2, options.orgUnitLevel2, "employees.filter.orgUnitLevel2", "employees.filter.allOrgUnitLevel2")}
             {selectField("region", region, options.region, "employees.filter.region", "employees.filter.allRegion")}
+            {selectField("team", team, options.team, "employees.filter.team", "employees.filter.allTeam")}
             {selectField("shift", shift, options.shift, "employees.filter.shift", "employees.filter.allShift")}
             {selectField("position", position, options.position, "employees.filter.position", "employees.filter.allPosition")}
             <Select key={`status-${status ?? "all"}`} name="status" defaultValue={status ?? "all"} onValueChange={submitOnChange}>

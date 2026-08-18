@@ -11,6 +11,7 @@ export type EmployeeFilters = {
   orgUnitLevel1?: string;
   orgUnitLevel2?: string;
   region?: string;
+  team?: string;
   shift?: string;
   position?: string;
   status?: string;
@@ -28,6 +29,7 @@ export async function listEmployees(organizationId: string, filters: EmployeeFil
     orgUnitLevel1: filters.orgUnitLevel1 || undefined,
     orgUnitLevel2: filters.orgUnitLevel2 || undefined,
     region: filters.region || undefined,
+    team: filters.team || undefined,
     shift: filters.shift || undefined,
     position: filters.position || undefined,
     status: filters.status || undefined,
@@ -84,8 +86,11 @@ export async function getEmployeeStats(organizationId: string) {
   return { total, active, resigned: total - active, byDepartment };
 }
 
-/** Distinct, non-empty values for each filter dropdown — same idea as the incident dashboard's availableYears/orgUnits. */
-type FacetField = "orgUnitLevel1" | "orgUnitLevel2" | "region" | "shift" | "position";
+/** Each dropdown option paired with how many employees currently match it — same idea as an
+ *  Excel AutoFilter's per-value counts, so the number is visible before actually picking it. */
+export type FacetOption = { value: string; count: number };
+
+type FacetField = "orgUnitLevel1" | "orgUnitLevel2" | "region" | "team" | "shift" | "position";
 
 /** Cascading facet options: each field's option list reflects every OTHER currently-active
  *  filter (so picking a department narrows what regions/shifts/positions show up next), but
@@ -97,6 +102,7 @@ export async function getEmployeeFilterOptions(organizationId: string, filters: 
     orgUnitLevel1: omit === "orgUnitLevel1" ? undefined : filters.orgUnitLevel1 || undefined,
     orgUnitLevel2: omit === "orgUnitLevel2" ? undefined : filters.orgUnitLevel2 || undefined,
     region: omit === "region" ? undefined : filters.region || undefined,
+    team: omit === "team" ? undefined : filters.team || undefined,
     shift: omit === "shift" ? undefined : filters.shift || undefined,
     position: omit === "position" ? undefined : filters.position || undefined,
     status: filters.status || undefined,
@@ -114,21 +120,30 @@ export async function getEmployeeFilterOptions(organizationId: string, filters: 
       : {}),
   });
 
-  const distinct = (values: (string | null)[]) => [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
+  const countBy = (values: (string | null)[]): FacetOption[] => {
+    const counts = new Map<string, number>();
+    for (const v of values) {
+      if (!v) continue;
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => a.value.localeCompare(b.value));
+  };
 
-  const [level1, level2, region, shift, position] = await Promise.all([
+  const [level1, level2, region, team, shift, position] = await Promise.all([
     prisma.employee.findMany({ where: facetWhere("orgUnitLevel1"), select: { orgUnitLevel1: true } }),
     prisma.employee.findMany({ where: facetWhere("orgUnitLevel2"), select: { orgUnitLevel2: true } }),
     prisma.employee.findMany({ where: facetWhere("region"), select: { region: true } }),
+    prisma.employee.findMany({ where: facetWhere("team"), select: { team: true } }),
     prisma.employee.findMany({ where: facetWhere("shift"), select: { shift: true } }),
     prisma.employee.findMany({ where: facetWhere("position"), select: { position: true } }),
   ]);
 
   return {
-    orgUnitLevel1: distinct(level1.map((e) => e.orgUnitLevel1)),
-    orgUnitLevel2: distinct(level2.map((e) => e.orgUnitLevel2)),
-    region: distinct(region.map((e) => e.region)),
-    shift: distinct(shift.map((e) => e.shift)),
-    position: distinct(position.map((e) => e.position)),
+    orgUnitLevel1: countBy(level1.map((e) => e.orgUnitLevel1)),
+    orgUnitLevel2: countBy(level2.map((e) => e.orgUnitLevel2)),
+    region: countBy(region.map((e) => e.region)),
+    team: countBy(team.map((e) => e.team)),
+    shift: countBy(shift.map((e) => e.shift)),
+    position: countBy(position.map((e) => e.position)),
   };
 }
