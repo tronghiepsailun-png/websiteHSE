@@ -369,15 +369,15 @@ async function main() {
   console.log("Seeding incidents & CAPA...");
   await seedIncidentsAndCapa(orgA, [
     { unitCode: "A-DEPT-PROD", categoryCode: "MACHINERY", severityCode: "C", employeeCode: "A-EMP-001", description: "Hand caught near conveyor guard, minor injury.", status: "closed", daysAgo: 40, withCapa: { action: "Install additional guarding on conveyor infeed.", dueInDays: -10, status: "completed" } },
-    { unitCode: "A-DEPT-MAINT", categoryCode: "ELECTRICAL", severityCode: "D", employeeCode: "A-EMP-002", description: "Minor electric shock while servicing panel.", status: "action_pending", daysAgo: 15, withCapa: { action: "Re-brief LOTO procedure to maintenance team.", dueInDays: 5, status: "in_progress" } },
+    { unitCode: "A-DEPT-MAINT", categoryCode: "ELECTRICAL", severityCode: "D", employeeCode: "A-EMP-002", description: "Minor electric shock while servicing panel.", status: "closed", daysAgo: 15, withCapa: { action: "Re-brief LOTO procedure to maintenance team.", dueInDays: 5, status: "in_progress" } },
     { unitCode: "A-DEPT-PROD", categoryCode: "FALL", severityCode: "E", employeeCode: "A-EMP-003", description: "Near-miss slip on wet floor near washdown area.", status: "investigating", daysAgo: 3 },
-    { unitCode: "A-DEPT-PROD", categoryCode: "FIRE", severityCode: "B", employeeCode: "A-EMP-001", description: "Small electrical fire in control cabinet, extinguished quickly.", status: "open", daysAgo: 1, withCapa: { action: "Inspect all control cabinets for overheating risk.", dueInDays: 14, status: "open" } },
+    { unitCode: "A-DEPT-PROD", categoryCode: "FIRE", severityCode: "B", employeeCode: "A-EMP-001", description: "Small electrical fire in control cabinet, extinguished quickly.", status: "investigating", daysAgo: 1, withCapa: { action: "Inspect all control cabinets for overheating risk.", dueInDays: 14, status: "open" } },
   ]);
 
   await seedIncidentsAndCapa(orgB, [
-    { unitCode: "B-ZONE-INBOUND", categoryCode: "VEHICLE", severityCode: "HIGH", employeeCode: "B-EMP-001", description: "Forklift collided with racking, no injuries.", status: "action_pending", daysAgo: 20, withCapa: { action: "Repaint floor markings and add mirrors at blind corner.", dueInDays: 7, status: "in_progress" } },
+    { unitCode: "B-ZONE-INBOUND", categoryCode: "VEHICLE", severityCode: "HIGH", employeeCode: "B-EMP-001", description: "Forklift collided with racking, no injuries.", status: "closed", daysAgo: 20, withCapa: { action: "Repaint floor markings and add mirrors at blind corner.", dueInDays: 7, status: "in_progress" } },
     { unitCode: "B-ZONE-OUTBOUND", categoryCode: "ERGONOMIC", severityCode: "LOW", employeeCode: "B-EMP-002", description: "Reported back strain from manual lifting.", status: "closed", daysAgo: 60, withCapa: { action: "Provide manual handling refresher training.", dueInDays: -30, status: "completed" } },
-    { unitCode: "B-ZONE-INBOUND", categoryCode: "SLIP_TRIP", severityCode: "MEDIUM", employeeCode: "B-EMP-001", description: "Slipped on spilled packaging material.", status: "open", daysAgo: 2 },
+    { unitCode: "B-ZONE-INBOUND", categoryCode: "SLIP_TRIP", severityCode: "MEDIUM", employeeCode: "B-EMP-001", description: "Slipped on spilled packaging material.", status: "investigating", daysAgo: 2 },
   ]);
 
   console.log("Seeding users...");

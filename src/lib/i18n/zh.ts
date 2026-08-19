@@ -141,11 +141,9 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.moduleName": "事故管理",
   "incidents.unitLabel": "起事故",
 
-  // ── Status labels (display only — stored values never change) ─────────
-  "status.incident.open": "打开",
+  // ── Status labels (display only) ───────────────────────────────────────
   "status.incident.investigating": "调查中",
-  "status.incident.action_pending": "待处理",
-  "status.incident.closed": "已关闭",
+  "status.incident.closed": "调查完成",
   "status.capa.open": "打开",
   "status.capa.in_progress": "进行中",
   "status.capa.completed": "已完成",

@@ -403,7 +403,7 @@ model Incident {
   dueDate             DateTime?
   completionDate       DateTime?
 
-  status String @default("open") // open | investigating | action_pending | closed
+  status String @default("investigating") // investigating | closed
   cost   Float?
   notes  String?
 

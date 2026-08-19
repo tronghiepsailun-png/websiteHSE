@@ -140,11 +140,9 @@ const vi = {
   "incidents.moduleName": "Quản lý Sự cố",
   "incidents.unitLabel": "sự cố",
 
-  // ── Status labels (display only — stored values never change) ─────────
-  "status.incident.open": "Mở",
+  // ── Status labels (display only) ───────────────────────────────────────
   "status.incident.investigating": "Đang điều tra",
-  "status.incident.action_pending": "Chờ hành động",
-  "status.incident.closed": "Đã đóng",
+  "status.incident.closed": "Hoàn tất điều tra",
   "status.capa.open": "Mở",
   "status.capa.in_progress": "Đang thực hiện",
   "status.capa.completed": "Hoàn thành",

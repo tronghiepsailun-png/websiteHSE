@@ -16,12 +16,9 @@ export function SeverityBadge({ name, colorHex }: { name: string; colorHex?: str
   );
 }
 
-// open/action_pending are workflow-stage colors (not risk tones), so they stay literal;
 // investigating/closed map cleanly onto the shared warning/success risk tones.
 const STATUS_VARIANTS: Record<string, string> = {
-  open: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   investigating: STATUS_FILLED_CLASS.warning,
-  action_pending: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
   closed: STATUS_FILLED_CLASS.success,
 };
 

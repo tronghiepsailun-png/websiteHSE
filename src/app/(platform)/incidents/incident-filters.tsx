@@ -70,9 +70,7 @@ export function IncidentFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("incidents.filter.allStatuses")}</SelectItem>
-                <SelectItem value="open">{t("status.incident.open")}</SelectItem>
                 <SelectItem value="investigating">{t("status.incident.investigating")}</SelectItem>
-                <SelectItem value="action_pending">{t("status.incident.action_pending")}</SelectItem>
                 <SelectItem value="closed">{t("status.incident.closed")}</SelectItem>
               </SelectContent>
             </Select>
