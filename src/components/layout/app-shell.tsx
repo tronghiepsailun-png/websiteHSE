@@ -10,7 +10,6 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
 
@@ -78,8 +77,6 @@ export function AppShell({
             <Button variant="ghost" size="icon" disabled title={t("common.notifications")}>
               <Bell className="size-4.5" />
             </Button>
-            <ThemeToggle />
-            <Separator orientation="vertical" className="mx-1 h-5" />
             <LanguageSwitcher />
             <Separator orientation="vertical" className="mx-1 h-5" />
             <UserMenu name={user.name} email={user.email} isPlatformAdmin={user.isPlatformAdmin} showSettings={showSettings} />

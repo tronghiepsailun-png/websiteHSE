@@ -47,7 +47,6 @@ const vi = {
   "common.days": "ngày",
   "common.comingSoon": "Sắp ra mắt",
   "common.notifications": "Thông báo (sắp ra mắt)",
-  "common.toggleTheme": "Chuyển giao diện sáng / tối",
   "common.testDataPrefix": "[DỮ LIỆU THỬ NGHIỆM]",
   "common.userFallback": "Người dùng",
   "common.code": "Mã",
@@ -111,7 +110,7 @@ const vi = {
 
   // ── Auth ──────────────────────────────────────────────────────────────
   "auth.signInToContinue": "Đăng nhập để tiếp tục",
-  "auth.email": "Email",
+  "auth.email": "Tài khoản",
   "auth.password": "Mật khẩu",
   "auth.signIn": "Đăng nhập",
   "auth.signingIn": "Đang đăng nhập...",

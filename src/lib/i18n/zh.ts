@@ -48,7 +48,6 @@ const zh: Record<DictionaryKey, string> = {
   "common.days": "天",
   "common.comingSoon": "即将推出",
   "common.notifications": "通知（即将推出）",
-  "common.toggleTheme": "切换明暗主题",
   "common.testDataPrefix": "【测试数据】",
   "common.userFallback": "用户",
   "common.code": "代码",
@@ -112,7 +111,7 @@ const zh: Record<DictionaryKey, string> = {
 
   // ── Auth ──────────────────────────────────────────────────────────────
   "auth.signInToContinue": "登录以继续",
-  "auth.email": "邮箱",
+  "auth.email": "账号",
   "auth.password": "密码",
   "auth.signIn": "登录",
   "auth.signingIn": "登录中...",
