@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { X } from "lucide-react";
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
-import { getIncidentById } from "@/server/incidents";
+import { getIncidentById, MAX_INCIDENT_PHOTOS } from "@/server/incidents";
 import { NotFoundError } from "@/server/errors";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { StatusForm } from "./status-form";
 import { CorrectiveActionForm } from "./corrective-action-form";
-import { uploadIncidentAttachmentAction, deleteIncidentAttachmentAction } from "./actions";
+import { AttachmentUploadForm } from "./attachment-upload-form";
+import { deleteIncidentAttachmentAction } from "./actions";
 import { DeleteIncidentButton } from "./delete-incident-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
@@ -56,6 +56,9 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
   const canUpload = hasPermission(permissionKeys, PERMISSIONS.DOCUMENT_UPLOAD);
   const canDeleteDoc = hasPermission(permissionKeys, PERMISSIONS.DOCUMENT_DELETE);
   const canDeleteIncident = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_DELETE);
+
+  const photoDocs = incident.documents.filter((doc) => doc.fileType.startsWith("image/"));
+  const otherDocs = incident.documents.filter((doc) => !doc.fileType.startsWith("image/"));
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -134,36 +137,68 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           <Card>
             <CardHeader><CardTitle className="text-base"><T k="incidents.detail.attachmentsPhotos" /></CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {canUpload && (
-                <form action={uploadIncidentAttachmentAction} className="flex flex-wrap items-end gap-3">
-                  <input type="hidden" name="incidentId" value={incident.id} />
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="file"><T k="common.upload" /></Label>
-                    <Input id="file" name="file" type="file" required />
+              {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
+
+              {photoDocs.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {photoDocs.map((doc) => (
+                      <div key={doc.id} className="group relative aspect-square overflow-hidden rounded-md border">
+                        <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer">
+                          <img src={`/api/documents/${doc.id}`} alt={doc.fileName} className="size-full object-cover" />
+                        </a>
+                        {canDeleteDoc && (
+                          <form action={deleteIncidentAttachmentAction} className="absolute top-1 right-1">
+                            <input type="hidden" name="documentId" value={doc.id} />
+                            <input type="hidden" name="incidentId" value={incident.id} />
+                            <Button
+                              type="submit"
+                              size="icon"
+                              variant="secondary"
+                              className="size-6 opacity-0 transition-opacity group-hover:opacity-100"
+                              title={t(locale, "common.delete")}
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <Button type="submit" size="sm" variant="outline"><T k="common.upload" /></Button>
-                </form>
+                </div>
               )}
-              <div className="flex flex-col divide-y">
-                {incident.documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between py-2 text-sm">
-                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                      {doc.fileName}
-                    </a>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{(doc.sizeBytes / 1024).toFixed(0)} KB</span>
-                      {canDeleteDoc && (
-                        <form action={deleteIncidentAttachmentAction}>
-                          <input type="hidden" name="documentId" value={doc.id} />
-                          <input type="hidden" name="incidentId" value={incident.id} />
-                          <Button type="submit" size="sm" variant="ghost"><T k="common.delete" /></Button>
-                        </form>
-                      )}
-                    </div>
+
+              {otherDocs.length > 0 && (
+                <div>
+                  {photoDocs.length > 0 && (
+                    <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.otherAttachments" /></p>
+                  )}
+                  <div className="flex flex-col divide-y">
+                    {otherDocs.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between py-2 text-sm">
+                        <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                          {doc.fileName}
+                        </a>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">{(doc.sizeBytes / 1024).toFixed(0)} KB</span>
+                          {canDeleteDoc && (
+                            <form action={deleteIncidentAttachmentAction}>
+                              <input type="hidden" name="documentId" value={doc.id} />
+                              <input type="hidden" name="incidentId" value={incident.id} />
+                              <Button type="submit" size="sm" variant="ghost"><T k="common.delete" /></Button>
+                            </form>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {incident.documents.length === 0 && <EmptyState message={<T k="incidents.detail.noAttachments" />} />}
-              </div>
+                </div>
+              )}
+
+              {incident.documents.length === 0 && <EmptyState message={<T k="incidents.detail.noAttachments" />} />}
             </CardContent>
           </Card>
         </div>

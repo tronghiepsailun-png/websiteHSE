@@ -8,7 +8,9 @@ import { PERMISSIONS } from "@/server/permissions";
 import { writeAuditLog, diffFields } from "@/server/audit";
 import { assertBelongsToOrg } from "@/server/org-context";
 import { storageService, ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/server/storage";
-import { INCIDENT_STATUSES } from "@/server/incidents";
+import { INCIDENT_STATUSES, MAX_INCIDENT_PHOTOS } from "@/server/incidents";
+import { getLocale } from "@/lib/i18n/get-locale.server";
+import { t } from "@/lib/i18n/translate";
 
 const updateSchema = z.object({
   incidentId: z.string().min(1),
@@ -108,17 +110,32 @@ export async function createCapaFromIncidentAction(formData: FormData) {
   revalidatePath(`/incidents/${parsed.incidentId}`);
 }
 
-export async function uploadIncidentAttachmentAction(formData: FormData) {
+export type UploadAttachmentState = { error?: string } | undefined;
+
+export async function uploadIncidentAttachmentAction(
+  _prevState: UploadAttachmentState,
+  formData: FormData
+): Promise<UploadAttachmentState> {
   const ctx = await requireOrgPermission(PERMISSIONS.DOCUMENT_UPLOAD);
   const incidentId = String(formData.get("incidentId"));
   const file = formData.get("file");
+  const locale = await getLocale();
 
   const incident = await prisma.incident.findUnique({ where: { id: incidentId } });
   assertBelongsToOrg(incident, ctx.organizationId);
 
-  if (!(file instanceof File) || file.size === 0) return;
-  if (file.size > MAX_UPLOAD_SIZE_BYTES) throw new Error("File is too large");
-  if (!ALLOWED_UPLOAD_TYPES.has(file.type)) throw new Error("File type not allowed");
+  if (!(file instanceof File) || file.size === 0) return { error: t(locale, "incidents.detail.uploadNoFile") };
+  if (file.size > MAX_UPLOAD_SIZE_BYTES) return { error: t(locale, "incidents.detail.uploadTooLarge") };
+  if (!ALLOWED_UPLOAD_TYPES.has(file.type)) return { error: t(locale, "incidents.detail.uploadTypeNotAllowed") };
+
+  if (file.type.startsWith("image/")) {
+    const photoCount = await prisma.document.count({
+      where: { organizationId: ctx.organizationId, module: "incident", recordId: incidentId, fileType: { startsWith: "image/" } },
+    });
+    if (photoCount >= MAX_INCIDENT_PHOTOS) {
+      return { error: t(locale, "incidents.detail.uploadPhotoLimit", { max: MAX_INCIDENT_PHOTOS }) };
+    }
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { storagePath } = await storageService.save({
@@ -153,6 +170,7 @@ export async function uploadIncidentAttachmentAction(formData: FormData) {
   });
 
   revalidatePath(`/incidents/${incidentId}`);
+  return undefined;
 }
 
 export async function deleteIncidentAction(incidentId: string) {
