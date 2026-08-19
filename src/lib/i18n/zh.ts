@@ -237,9 +237,8 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.new.errorGeneric": "请填写所有必填字段。",
 
   // ── Incident detail page ────────────────────────────────────────────
-  "incidents.detail.incidentInfo": "事故信息",
-  "incidents.detail.timelineRecorded": "事故已记录",
-  "incidents.detail.timelineProcessed": "已处理",
+  "incidents.detail.peopleAndInfo": "相关人员与基本信息",
+  "incidents.detail.updateTicket": "更新工单",
   "incidents.detail.description": "描述",
   "incidents.detail.rootCauseSection": "根本原因",
   "incidents.detail.responsiblePerson": "负责人",
@@ -257,11 +256,9 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.detail.uploadTooLarge": "文件过大。",
   "incidents.detail.uploadTypeNotAllowed": "不支持该文件格式。",
   "incidents.detail.uploadPhotoLimit": "该事故的照片已达到 {max} 张上限，请先删除旧照片再上传新照片。",
-  "incidents.detail.peopleInvolved": "相关人员",
   "incidents.detail.positionShift": "职位 / 班次",
   "incidents.detail.departmentAtTime": "部门（事故发生时）",
   "incidents.detail.reportedBy": "报告人",
-  "incidents.detail.timeline": "时间线",
   "incidents.detail.reportedLabel": "报告时间",
   "incidents.detail.lastUpdated": "最后更新",
   "incidents.detail.deleteButton": "删除事件",

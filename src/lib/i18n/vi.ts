@@ -236,9 +236,8 @@ const vi = {
   "incidents.new.errorGeneric": "Vui lòng điền đầy đủ các trường bắt buộc.",
 
   // ── Incident detail page ────────────────────────────────────────────
-  "incidents.detail.incidentInfo": "Thông tin sự cố",
-  "incidents.detail.timelineRecorded": "Sự cố được ghi nhận",
-  "incidents.detail.timelineProcessed": "Đã xử lý",
+  "incidents.detail.peopleAndInfo": "Người liên quan & Thông tin chung",
+  "incidents.detail.updateTicket": "Cập nhật phiếu",
   "incidents.detail.description": "Mô tả",
   "incidents.detail.rootCauseSection": "Nguyên nhân gốc rễ",
   "incidents.detail.responsiblePerson": "Người phụ trách",
@@ -256,11 +255,9 @@ const vi = {
   "incidents.detail.uploadTooLarge": "Tệp quá lớn.",
   "incidents.detail.uploadTypeNotAllowed": "Định dạng tệp không được hỗ trợ.",
   "incidents.detail.uploadPhotoLimit": "Đã đạt tối đa {max} hình ảnh cho sự cố này. Hãy xóa bớt ảnh cũ trước khi thêm ảnh mới.",
-  "incidents.detail.peopleInvolved": "Người liên quan",
   "incidents.detail.positionShift": "Vị trí công việc / Ca làm việc",
   "incidents.detail.departmentAtTime": "Bộ phận (tại thời điểm xảy ra sự cố)",
   "incidents.detail.reportedBy": "Người báo cáo",
-  "incidents.detail.timeline": "Dòng thời gian",
   "incidents.detail.reportedLabel": "Đã báo cáo",
   "incidents.detail.lastUpdated": "Cập nhật lần cuối",
   "incidents.detail.deleteButton": "Xóa sự cố",

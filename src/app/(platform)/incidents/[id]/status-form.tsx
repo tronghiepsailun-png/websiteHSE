@@ -32,7 +32,7 @@ export function StatusForm({ incident }: { incident: Incident }) {
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" size="sm">{t("common.saveChanges")}</Button>
+      <Button type="submit" size="sm">{t("incidents.detail.updateTicket")}</Button>
     </form>
   );
 }
