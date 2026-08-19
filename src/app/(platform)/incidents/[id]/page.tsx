@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/server/permissions";
 import { getIncidentById, MAX_INCIDENT_PHOTOS } from "@/server/incidents";
 import { NotFoundError } from "@/server/errors";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { StatusForm } from "./status-form";
@@ -14,7 +14,6 @@ import { CorrectiveActionForm } from "./corrective-action-form";
 import { AttachmentUploadForm } from "./attachment-upload-form";
 import { deleteIncidentAttachmentAction } from "./actions";
 import { DeleteIncidentButton } from "./delete-incident-button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
@@ -26,6 +25,15 @@ function hasPermission(permissionKeys: string[] | null, key: string) {
 
 function fmt(d: Date | null | undefined) {
   return d ? new Date(d).toLocaleString() : "—";
+}
+
+function Field({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-muted-foreground">{label}</p>
+      <p className="font-medium">{value}</p>
+    </div>
+  );
 }
 
 export default async function IncidentDetailPage({ params }: PageProps<"/incidents/[id]">) {
@@ -51,9 +59,12 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
   const photoDocs = incident.documents.filter((doc) => doc.fileType.startsWith("image/"));
   const otherDocs = incident.documents.filter((doc) => !doc.fileType.startsWith("image/"));
 
+  const isProcessed = incident.status === "action_pending" || incident.status === "closed";
+  const isClosed = incident.status === "closed";
+
   return (
     <div className="flex flex-col gap-2">
-      {/* 1. Overview */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <Link href="/incidents" className="text-sm text-muted-foreground hover:underline">
@@ -70,29 +81,21 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
         </div>
       </div>
 
-      {/* Row 1 — classification, description/corrective action, and people/timeline side by side
-          instead of stacked, so the page uses the full shell width and needs far less scrolling. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* 4. Classification / 5. Severity / 3. Location */}
-        <Card size="sm">
-          <CardHeader><CardTitle className="text-base"><T k="incidents.detail.classificationLocation" /></CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            <div><p className="text-muted-foreground"><T k="incidents.table.category" /></p><p className="font-medium">{incident.category.name}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.table.severity" /></p><p className="font-medium">{incident.severity.name}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.table.occurred" /></p><p className="font-medium">{fmt(incident.occurredAt)}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.new.fields.orgUnit" /></p><p className="font-medium">{incident.orgUnit?.name ?? "—"}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.new.fields.locationDetail" /></p><p className="font-medium">{incident.locationDetail ?? "—"}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.new.fields.equipment" /></p><p className="font-medium">{incident.equipment ?? "—"}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.table.department" /></p><p className="font-medium">{incident.orgUnit?.name ?? incident.departmentSnapshot ?? "—"}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.table.cost" /></p><p className="font-medium">{formatIncidentCost(incident)}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.detail.pointsDeducted" /></p><p className="font-medium">{incident.pointsDeducted ?? "—"}</p></div>
-            <div><p className="text-muted-foreground"><T k="incidents.detail.injuredBodyPart" /></p><p className="font-medium">{incident.injuredBodyPart ?? "—"}</p></div>
-          </CardContent>
-        </Card>
+      {/* Condensed key-facts strip */}
+      <Card size="sm">
+        <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <Field label={<T k="incidents.table.severity" />} value={<SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />} />
+          <Field label={<T k="incidents.table.occurred" />} value={fmt(incident.occurredAt)} />
+          <Field label={<T k="incidents.new.fields.locationDetail" />} value={incident.locationDetail ?? "—"} />
+          <Field label={<T k="incidents.new.fields.equipment" />} value={incident.equipment ?? "—"} />
+        </CardContent>
+      </Card>
 
-        {/* 6. Description + 7. Corrective action + Status, merged into one card */}
-        <Card size="sm">
-          <CardContent className="flex flex-col gap-3">
+      {/* Two-column body */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Left: description, corrective action, status, people */}
+        <Card size="sm" className="lg:col-span-2">
+          <CardContent className="flex flex-col gap-4">
             <div>
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.description" /></p>
               <p className="text-sm whitespace-pre-wrap">{incident.description}</p>
@@ -109,100 +112,121 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="common.status" /></p>
               {canEdit ? <StatusForm incident={incident} /> : <p className="text-sm">{incident.status}</p>}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 2. People involved + 12. Timeline, merged into one card */}
-        <Card size="sm">
-          <CardContent className="flex flex-col gap-3">
             <div>
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.peopleInvolved" /></p>
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-                <div><p className="text-muted-foreground"><T k="incidents.table.employee" /></p><p className="font-medium">{incident.employeeNameSnapshot ?? "—"}</p></div>
-                <div><p className="text-muted-foreground"><T k="incidents.detail.responsiblePerson" /></p><p>{incident.responsiblePerson?.fullName ?? incident.responsiblePersonNameSnapshot ?? "—"}</p></div>
-                <div><p className="text-muted-foreground"><T k="incidents.detail.reportedBy" /></p><p>{incident.reportedBy?.name ?? "—"}</p></div>
-                <div><p className="text-muted-foreground"><T k="incidents.detail.positionShift" /></p><p>{incident.positionSnapshot ?? "—"} / {incident.shiftSnapshot ?? "—"}</p></div>
-                <div><p className="text-muted-foreground"><T k="incidents.detail.departmentAtTime" /></p><p>{incident.departmentSnapshot ?? "—"}</p></div>
-              </div>
-            </div>
-            <div>
-              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.timeline" /></p>
-              <div className="flex flex-col gap-1 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.table.occurred" /></span><span>{fmt(incident.occurredAt)}</span></div>
+                <Field label={<T k="incidents.table.employee" />} value={incident.employeeNameSnapshot ?? "—"} />
+                <Field label={<T k="incidents.detail.responsiblePerson" />} value={incident.responsiblePerson?.fullName ?? incident.responsiblePersonNameSnapshot ?? "—"} />
+                <Field label={<T k="incidents.detail.reportedBy" />} value={incident.reportedBy?.name ?? "—"} />
+                <Field label={<T k="incidents.detail.positionShift" />} value={`${incident.positionSnapshot ?? "—"} / ${incident.shiftSnapshot ?? "—"}`} />
+                <Field label={<T k="incidents.detail.departmentAtTime" />} value={incident.departmentSnapshot ?? "—"} />
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Row 2 — photos & attachments, the most report-relevant section, given full width and room to breathe */}
-      <Card size="sm">
-        <CardHeader><CardTitle className="text-base"><T k="incidents.detail.attachmentsPhotos" /></CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
+        {/* Right: incident info, timeline, photos */}
+        <div className="flex flex-col gap-4">
+          <Card size="sm">
+            <CardContent className="flex flex-col gap-2 text-sm">
+              <p className="mb-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.incidentInfo" /></p>
+              <Field label={<T k="incidents.table.category" />} value={incident.category.name} />
+              <Field label={<T k="incidents.new.fields.orgUnit" />} value={incident.orgUnit?.name ?? "—"} />
+              <Field label={<T k="incidents.table.department" />} value={incident.orgUnit?.name ?? incident.departmentSnapshot ?? "—"} />
+              <Field label={<T k="incidents.table.cost" />} value={formatIncidentCost(incident)} />
+              <Field label={<T k="incidents.detail.pointsDeducted" />} value={incident.pointsDeducted ?? "—"} />
+              <Field label={<T k="incidents.detail.injuredBodyPart" />} value={incident.injuredBodyPart ?? "—"} />
+            </CardContent>
+          </Card>
 
-          {photoDocs.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Card size="sm">
+            <CardContent className="flex flex-col gap-2">
+              <p className="mb-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.timeline" /></p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-[var(--chart-brand)]" /><T k="incidents.detail.timelineRecorded" /></span>
+                <span className="text-muted-foreground">{fmt(incident.reportedAt)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <span className={`size-1.5 rounded-full ${isProcessed ? "bg-[var(--chart-brand)]" : "bg-muted-foreground/30"}`} />
+                  <T k="incidents.detail.timelineProcessed" />
+                </span>
+                <span className="text-muted-foreground">{incident.completionDate ? fmt(incident.completionDate) : "—"}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <span className={`size-1.5 rounded-full ${isClosed ? "bg-[var(--chart-brand)]" : "bg-muted-foreground/30"}`} />
+                  <T k="status.incident.closed" />
+                </span>
+                <span className="text-muted-foreground">{isClosed ? fmt(incident.updatedAt) : "—"}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardContent className="flex flex-col gap-3">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
               </p>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {photoDocs.map((doc) => (
-                  <div key={doc.id} className="group relative h-32 overflow-hidden rounded-lg border">
-                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer">
-                      <img src={`/api/documents/${doc.id}`} alt={doc.fileName} className="size-full object-cover" />
-                    </a>
-                    {canDeleteDoc && (
-                      <form action={deleteIncidentAttachmentAction} className="absolute top-1.5 right-1.5">
-                        <input type="hidden" name="documentId" value={doc.id} />
-                        <input type="hidden" name="incidentId" value={incident.id} />
-                        <Button
-                          type="submit"
-                          size="icon"
-                          variant="secondary"
-                          className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
-                          title={t(locale, "common.delete")}
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {otherDocs.length > 0 && (
-            <div>
+              {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
               {photoDocs.length > 0 && (
-                <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.otherAttachments" /></p>
-              )}
-              <div className="flex flex-col divide-y">
-                {otherDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between py-2 text-sm">
-                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                      {doc.fileName}
-                    </a>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{(doc.sizeBytes / 1024).toFixed(0)} KB</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {photoDocs.map((doc) => (
+                    <div key={doc.id} className="group relative aspect-square overflow-hidden rounded-lg border">
+                      <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer">
+                        <img src={`/api/documents/${doc.id}`} alt={doc.fileName} className="size-full object-cover" />
+                      </a>
                       {canDeleteDoc && (
-                        <form action={deleteIncidentAttachmentAction}>
+                        <form action={deleteIncidentAttachmentAction} className="absolute top-1 right-1">
                           <input type="hidden" name="documentId" value={doc.id} />
                           <input type="hidden" name="incidentId" value={incident.id} />
-                          <Button type="submit" size="sm" variant="ghost"><T k="common.delete" /></Button>
+                          <Button
+                            type="submit"
+                            size="icon"
+                            variant="secondary"
+                            className="size-6 opacity-0 transition-opacity group-hover:opacity-100"
+                            title={t(locale, "common.delete")}
+                          >
+                            <X className="size-3.5" />
+                          </Button>
                         </form>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
-          {incident.documents.length === 0 && <EmptyState message={<T k="incidents.detail.noAttachments" />} />}
-        </CardContent>
-      </Card>
+      {/* Other (non-image) attachments — only shown when present */}
+      {otherDocs.length > 0 && (
+        <Card size="sm">
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.otherAttachments" /></p>
+            <div className="flex flex-col divide-y">
+              {otherDocs.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between py-2 text-sm">
+                  <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    {doc.fileName}
+                  </a>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{(doc.sizeBytes / 1024).toFixed(0)} KB</span>
+                    {canDeleteDoc && (
+                      <form action={deleteIncidentAttachmentAction}>
+                        <input type="hidden" name="documentId" value={doc.id} />
+                        <input type="hidden" name="incidentId" value={incident.id} />
+                        <Button type="submit" size="sm" variant="ghost"><T k="common.delete" /></Button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

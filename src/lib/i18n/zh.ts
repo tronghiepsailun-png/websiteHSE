@@ -237,7 +237,9 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.new.errorGeneric": "请填写所有必填字段。",
 
   // ── Incident detail page ────────────────────────────────────────────
-  "incidents.detail.classificationLocation": "分类与位置",
+  "incidents.detail.incidentInfo": "事故信息",
+  "incidents.detail.timelineRecorded": "事故已记录",
+  "incidents.detail.timelineProcessed": "已处理",
   "incidents.detail.description": "描述",
   "incidents.detail.rootCauseSection": "根本原因",
   "incidents.detail.responsiblePerson": "负责人",
@@ -249,8 +251,6 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.detail.capaResponsible": "负责人",
   "incidents.detail.addCapa": "添加 CAPA",
   "incidents.detail.noCapa": "暂无 CAPA 项目。",
-  "incidents.detail.attachmentsPhotos": "附件与照片",
-  "incidents.detail.noAttachments": "暂无附件。",
   "incidents.detail.photos": "事故照片",
   "incidents.detail.otherAttachments": "其他文件",
   "incidents.detail.uploadNoFile": "请选择一个文件。",

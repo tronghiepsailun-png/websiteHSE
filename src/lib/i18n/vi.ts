@@ -236,7 +236,9 @@ const vi = {
   "incidents.new.errorGeneric": "Vui lòng điền đầy đủ các trường bắt buộc.",
 
   // ── Incident detail page ────────────────────────────────────────────
-  "incidents.detail.classificationLocation": "Phân loại & Vị trí",
+  "incidents.detail.incidentInfo": "Thông tin sự cố",
+  "incidents.detail.timelineRecorded": "Sự cố được ghi nhận",
+  "incidents.detail.timelineProcessed": "Đã xử lý",
   "incidents.detail.description": "Mô tả",
   "incidents.detail.rootCauseSection": "Nguyên nhân gốc rễ",
   "incidents.detail.responsiblePerson": "Người phụ trách",
@@ -248,8 +250,6 @@ const vi = {
   "incidents.detail.capaResponsible": "Người phụ trách",
   "incidents.detail.addCapa": "Thêm CAPA",
   "incidents.detail.noCapa": "Chưa có CAPA nào.",
-  "incidents.detail.attachmentsPhotos": "Tệp đính kèm & Hình ảnh",
-  "incidents.detail.noAttachments": "Chưa có tệp đính kèm nào.",
   "incidents.detail.photos": "Hình ảnh sự cố",
   "incidents.detail.otherAttachments": "Tài liệu khác",
   "incidents.detail.uploadNoFile": "Vui lòng chọn một tệp.",

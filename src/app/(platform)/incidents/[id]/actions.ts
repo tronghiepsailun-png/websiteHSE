@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
@@ -137,7 +138,16 @@ export async function uploadIncidentAttachmentAction(
     }
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
+  // Incident photos always render as a square tile, so crop server-side at upload time
+  // (attention-based crop keeps the most visually interesting region) rather than only
+  // relying on CSS object-fit — the stored file itself is square.
+  if (file.type.startsWith("image/")) {
+    buffer = await sharp(buffer)
+      .resize(1024, 1024, { fit: "cover", position: sharp.strategy.attention })
+      .toBuffer();
+  }
+
   const { storagePath } = await storageService.save({
     organizationId: ctx.organizationId,
     module: "incident",
@@ -153,7 +163,7 @@ export async function uploadIncidentAttachmentAction(
       recordId: incidentId,
       fileName: file.name,
       fileType: file.type,
-      sizeBytes: file.size,
+      sizeBytes: buffer.length,
       storageProvider: "local",
       storagePath,
       uploadedById: ctx.userId,
