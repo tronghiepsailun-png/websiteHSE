@@ -99,17 +99,6 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           </Card>
 
           <Card size="sm">
-            <CardContent>
-              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.new.fields.correctiveAction" /></p>
-              {canEdit ? (
-                <CorrectiveActionForm incident={incident} />
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card size="sm">
             <CardContent className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.peopleAndInfo" /></p>
               <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
@@ -128,6 +117,17 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
                 <Field label={<T k="incidents.detail.positionShift" />} value={`${incident.positionSnapshot ?? "—"} / ${incident.shiftSnapshot ?? "—"}`} />
                 <Field label={<T k="incidents.detail.departmentAtTime" />} value={incident.departmentSnapshot ?? "—"} />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card size="sm">
+            <CardContent>
+              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.new.fields.correctiveAction" /></p>
+              {canEdit ? (
+                <CorrectiveActionForm incident={incident} />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
+              )}
             </CardContent>
           </Card>
 
