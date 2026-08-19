@@ -139,18 +139,24 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           </Card>
         </div>
 
-        {/* Right: photos */}
-        <Card size="sm">
-          <CardContent className="flex flex-col gap-3">
+        {/* Right: photos — stretches to match the left column's height (grid row stretch),
+            and the photo tiles are flex-1 rather than aspect-square so 2 photos always share
+            exactly that height instead of growing past it. */}
+        <Card size="sm" className="flex h-full flex-col">
+          <CardContent className="flex flex-1 min-h-0 flex-col gap-3">
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
             </p>
             {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
             {photoDocs.length > 0 && (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex flex-1 min-h-0 flex-col gap-3">
                 {photoDocs.map((doc) => (
-                  <div key={doc.id} className="group relative aspect-square overflow-hidden rounded-lg border">
-                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer">
+                  <div key={doc.id} className="group relative min-h-0 flex-1 overflow-hidden rounded-lg border">
+                    {/* absolutely positioned so the image's own intrinsic size never leaks into
+                        this tile's flex sizing — otherwise the browser sizes the tile to the
+                        square photo's natural height before the stretch-to-match-left-column
+                        pass ever runs, and min-h-0/flex-1 above have no effect. */}
+                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
                       <img src={`/api/documents/${doc.id}`} alt={doc.fileName} className="size-full object-cover" />
                     </a>
                     {canDeleteDoc && (
