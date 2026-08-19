@@ -37,19 +37,11 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [auditLogs, permissionKeys] = await Promise.all([
-    prisma.auditLog.findMany({
-      where: { organizationId: ctx.organizationId, module: "incident", recordId: id },
-      include: { user: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    ctx.isPlatformAdmin
-      ? Promise.resolve(null)
-      : prisma.userOrganizationRole
-          .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
-          .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
-  ]);
+  const permissionKeys = ctx.isPlatformAdmin
+    ? null
+    : await prisma.userOrganizationRole
+        .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
+        .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key)));
 
   const canEdit = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_EDIT);
   const canUpload = hasPermission(permissionKeys, PERMISSIONS.DOCUMENT_UPLOAD);
@@ -137,8 +129,6 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.timeline" /></p>
               <div className="flex flex-col gap-1 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.table.occurred" /></span><span>{fmt(incident.occurredAt)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.detail.reportedLabel" /></span><span>{fmt(incident.reportedAt)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.detail.dueLabel" /></span><span>{fmt(incident.dueDate)}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.detail.completedLabel" /></span><span>{fmt(incident.completionDate)}</span></div>
               </div>
             </div>
@@ -212,26 +202,6 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           )}
 
           {incident.documents.length === 0 && <EmptyState message={<T k="incidents.detail.noAttachments" />} />}
-        </CardContent>
-      </Card>
-
-      {/* Row 4 — audit history: least relevant to a report screenshot, kept compact and self-scrolling */}
-      <Card size="sm">
-        <CardHeader><CardTitle className="text-base"><T k="incidents.detail.auditHistory" /></CardTitle></CardHeader>
-        <CardContent className="grid max-h-24 grid-cols-1 gap-x-6 gap-y-2 overflow-y-auto text-xs sm:grid-cols-2 lg:grid-cols-3">
-          {auditLogs.map((log) => (
-            <div key={log.id} className="border-b pb-2">
-              <p>
-                <span className="font-medium">{log.user?.name ?? t(locale, "incidents.detail.system")}</span> {log.action}
-                {log.fieldName && <> · <span className="font-mono">{log.fieldName}</span></>}
-              </p>
-              {(log.oldValue || log.newValue) && (
-                <p className="text-muted-foreground">{log.oldValue ?? "—"} → {log.newValue ?? "—"}</p>
-              )}
-              <p className="text-muted-foreground">{fmt(log.createdAt)}</p>
-            </div>
-          ))}
-          {auditLogs.length === 0 && <EmptyState message={<T k="incidents.detail.noHistory" />} className="py-4" />}
         </CardContent>
       </Card>
     </div>
