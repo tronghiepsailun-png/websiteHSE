@@ -37,8 +37,7 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [employees, auditLogs, permissionKeys] = await Promise.all([
-    prisma.employee.findMany({ where: { organizationId: ctx.organizationId, status: "active" }, orderBy: { fullName: "asc" } }),
+  const [auditLogs, permissionKeys] = await Promise.all([
     prisma.auditLog.findMany({
       where: { organizationId: ctx.organizationId, module: "incident", recordId: id },
       include: { user: true },
@@ -99,7 +98,7 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           </CardContent>
         </Card>
 
-        {/* 6. Description + 7. Corrective action, merged into one card */}
+        {/* 6. Description + 7. Corrective action + Status, merged into one card */}
         <Card size="sm">
           <CardContent className="flex flex-col gap-3">
             <div>
@@ -113,6 +112,10 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
               ) : (
                 <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
               )}
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="common.status" /></p>
+              {canEdit ? <StatusForm incident={incident} /> : <p className="text-sm">{incident.status}</p>}
             </div>
           </CardContent>
         </Card>
@@ -143,24 +146,7 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
         </Card>
       </div>
 
-      {/* Row 2 — handling status as one compact single-row form, full width */}
-      <Card size="sm">
-        <CardHeader><CardTitle className="text-base"><T k="incidents.detail.statusHandling" /></CardTitle></CardHeader>
-        <CardContent>
-          {canEdit ? (
-            <StatusForm incident={incident} employees={employees.map((e) => ({ id: e.id, name: e.fullName }))} />
-          ) : (
-            <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-              <div><p className="text-muted-foreground"><T k="common.status" /></p><p>{incident.status}</p></div>
-              <div><p className="text-muted-foreground"><T k="incidents.detail.responsiblePerson" /></p><p>{incident.responsiblePerson?.fullName ?? "—"}</p></div>
-              <div><p className="text-muted-foreground"><T k="incidents.detail.dueDate" /></p><p>{fmt(incident.dueDate)}</p></div>
-              <div><p className="text-muted-foreground"><T k="incidents.detail.completionDate" /></p><p>{fmt(incident.completionDate)}</p></div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Row 3 — photos & attachments, the most report-relevant section, given full width and room to breathe */}
+      {/* Row 2 — photos & attachments, the most report-relevant section, given full width and room to breathe */}
       <Card size="sm">
         <CardHeader><CardTitle className="text-base"><T k="incidents.detail.attachmentsPhotos" /></CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-4">

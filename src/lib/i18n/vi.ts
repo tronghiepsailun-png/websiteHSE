@@ -238,7 +238,6 @@ const vi = {
   // ── Incident detail page ────────────────────────────────────────────
   "incidents.detail.classificationLocation": "Phân loại & Vị trí",
   "incidents.detail.description": "Mô tả",
-  "incidents.detail.statusHandling": "Trạng thái xử lý",
   "incidents.detail.rootCauseSection": "Nguyên nhân gốc rễ",
   "incidents.detail.responsiblePerson": "Người phụ trách",
   "incidents.detail.dueDate": "Ngày đến hạn",
