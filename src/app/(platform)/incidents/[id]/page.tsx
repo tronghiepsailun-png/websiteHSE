@@ -129,7 +129,6 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
               <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.timeline" /></p>
               <div className="flex flex-col gap-1 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.table.occurred" /></span><span>{fmt(incident.occurredAt)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground"><T k="incidents.detail.completedLabel" /></span><span>{fmt(incident.completionDate)}</span></div>
               </div>
             </div>
           </CardContent>

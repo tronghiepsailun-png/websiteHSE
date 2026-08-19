@@ -262,7 +262,6 @@ const vi = {
   "incidents.detail.reportedBy": "Người báo cáo",
   "incidents.detail.timeline": "Dòng thời gian",
   "incidents.detail.reportedLabel": "Đã báo cáo",
-  "incidents.detail.completedLabel": "Đã hoàn thành",
   "incidents.detail.lastUpdated": "Cập nhật lần cuối",
   "incidents.detail.deleteButton": "Xóa sự cố",
   "incidents.detail.confirmDelete": "Bạn có chắc chắn muốn xóa sự cố {number} không? Hành động này không thể hoàn tác.",

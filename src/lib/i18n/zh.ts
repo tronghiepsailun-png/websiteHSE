@@ -263,7 +263,6 @@ const zh: Record<DictionaryKey, string> = {
   "incidents.detail.reportedBy": "报告人",
   "incidents.detail.timeline": "时间线",
   "incidents.detail.reportedLabel": "报告时间",
-  "incidents.detail.completedLabel": "完成时间",
   "incidents.detail.lastUpdated": "最后更新",
   "incidents.detail.deleteButton": "删除事件",
   "incidents.detail.confirmDelete": "确定要删除事件 {number} 吗?此操作无法撤销。",
