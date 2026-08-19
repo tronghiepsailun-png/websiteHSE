@@ -33,8 +33,8 @@ export function StatusForm({ incident, employees }: { incident: Incident; employ
     >
       <input type="hidden" name="incidentId" value={incident.id} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex min-w-36 flex-col gap-1.5">
           <Label>{t("common.status")}</Label>
           <Select name="status" defaultValue={incident.status}>
             <SelectTrigger>
@@ -48,7 +48,7 @@ export function StatusForm({ incident, employees }: { incident: Incident; employ
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-44 flex-col gap-1.5">
           <Label>{t("incidents.detail.responsiblePerson")}</Label>
           <Select name="responsiblePersonId" defaultValue={incident.responsiblePersonId ?? undefined}>
             <SelectTrigger>
@@ -61,17 +61,14 @@ export function StatusForm({ incident, employees }: { incident: Incident; employ
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-36 flex-col gap-1.5">
           <Label htmlFor="dueDate">{t("incidents.detail.dueDate")}</Label>
           <Input id="dueDate" name="dueDate" type="date" defaultValue={toDateInput(incident.dueDate)} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-36 flex-col gap-1.5">
           <Label htmlFor="completionDate">{t("incidents.detail.completionDate")}</Label>
           <Input id="completionDate" name="completionDate" type="date" defaultValue={toDateInput(incident.completionDate)} />
         </div>
-      </div>
-
-      <div className="flex justify-end">
         <Button type="submit" size="sm">{t("common.saveChanges")}</Button>
       </div>
     </form>
