@@ -12,7 +12,7 @@ import { INCIDENT_STATUSES } from "@/server/incidents";
 
 const updateSchema = z.object({
   incidentId: z.string().min(1),
-  status: z.enum(INCIDENT_STATUSES),
+  status: z.enum(INCIDENT_STATUSES).optional(),
   immediateCause: z.string().optional(),
   rootCause: z.string().optional(),
   correctiveAction: z.string().optional(),
@@ -23,6 +23,12 @@ const updateSchema = z.object({
   notes: z.string().optional(),
 });
 
+const TEXT_FIELDS = ["immediateCause", "rootCause", "correctiveAction", "preventiveAction", "responsiblePersonId", "notes"] as const;
+const DATE_FIELDS = ["dueDate", "completionDate"] as const;
+
+// Each detail-page form only submits the handful of fields it displays (status form,
+// corrective-action form, etc.), so this only touches fields actually present in the
+// FormData — anything not submitted is left untouched rather than nulled out.
 export async function updateIncidentAction(formData: FormData) {
   const ctx = await requireOrgPermission(PERMISSIONS.INCIDENT_EDIT);
   const parsed = updateSchema.parse(Object.fromEntries(formData.entries()));
@@ -30,23 +36,20 @@ export async function updateIncidentAction(formData: FormData) {
   const before = await prisma.incident.findUnique({ where: { id: parsed.incidentId } });
   assertBelongsToOrg(before, ctx.organizationId);
 
-  const nextValues = {
-    status: parsed.status,
-    immediateCause: parsed.immediateCause || null,
-    rootCause: parsed.rootCause || null,
-    correctiveAction: parsed.correctiveAction || null,
-    preventiveAction: parsed.preventiveAction || null,
-    responsiblePersonId: parsed.responsiblePersonId || null,
-    dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
-    completionDate: parsed.completionDate ? new Date(parsed.completionDate) : null,
-    notes: parsed.notes || null,
-  };
+  const nextValues: Record<string, unknown> = {};
+  if (formData.has("status") && parsed.status) nextValues.status = parsed.status;
+  for (const field of TEXT_FIELDS) {
+    if (formData.has(field)) nextValues[field] = parsed[field] || null;
+  }
+  for (const field of DATE_FIELDS) {
+    if (formData.has(field)) nextValues[field] = parsed[field] ? new Date(parsed[field] as string) : null;
+  }
 
   await prisma.incident.update({ where: { id: parsed.incidentId }, data: nextValues });
 
   const changes = diffFields(
     before as unknown as Record<string, unknown>,
-    nextValues as unknown as Record<string, unknown>,
+    nextValues,
     ["status", "immediateCause", "rootCause", "correctiveAction", "preventiveAction", "responsiblePersonId", "notes"]
   );
 

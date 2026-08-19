@@ -239,10 +239,8 @@ const zh: Record<DictionaryKey, string> = {
   // ── Incident detail page ────────────────────────────────────────────
   "incidents.detail.classificationLocation": "分类与位置",
   "incidents.detail.description": "描述",
-  "incidents.detail.investigationRootCause": "调查与根本原因",
-  "incidents.detail.investigation": "调查",
+  "incidents.detail.statusHandling": "处理状态",
   "incidents.detail.rootCauseSection": "根本原因",
-  "incidents.detail.rootCausePlaceholder": "潜在根本原因分析",
   "incidents.detail.responsiblePerson": "负责人",
   "incidents.detail.dueDate": "到期日",
   "incidents.detail.completionDate": "完成日期",

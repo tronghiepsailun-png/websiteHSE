@@ -238,10 +238,8 @@ const vi = {
   // ── Incident detail page ────────────────────────────────────────────
   "incidents.detail.classificationLocation": "Phân loại & Vị trí",
   "incidents.detail.description": "Mô tả",
-  "incidents.detail.investigationRootCause": "Điều tra & Nguyên nhân gốc rễ",
-  "incidents.detail.investigation": "Điều tra",
+  "incidents.detail.statusHandling": "Trạng thái xử lý",
   "incidents.detail.rootCauseSection": "Nguyên nhân gốc rễ",
-  "incidents.detail.rootCausePlaceholder": "Phân tích nguyên nhân gốc rễ tiềm ẩn",
   "incidents.detail.responsiblePerson": "Người phụ trách",
   "incidents.detail.dueDate": "Ngày đến hạn",
   "incidents.detail.completionDate": "Ngày hoàn thành",

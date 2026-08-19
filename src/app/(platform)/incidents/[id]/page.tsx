@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/severity-badge";
-import { InvestigationForm } from "./investigation-form";
+import { StatusForm } from "./status-form";
+import { CorrectiveActionForm } from "./corrective-action-form";
 import { uploadIncidentAttachmentAction, deleteIncidentAttachmentAction } from "./actions";
 import { DeleteIncidentButton } from "./delete-incident-button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -100,18 +101,30 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
             <CardContent className="text-sm whitespace-pre-wrap">{incident.description}</CardContent>
           </Card>
 
-          {/* 7. Investigation / 8. Root Cause */}
+          {/* 7. Corrective action — kept visible right below the description for report screenshots */}
           <Card>
-            <CardHeader><CardTitle className="text-base"><T k="incidents.detail.investigationRootCause" /></CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base"><T k="incidents.new.fields.correctiveAction" /></CardTitle></CardHeader>
             <CardContent>
               {canEdit ? (
-                <InvestigationForm incident={incident} employees={employees.map((e) => ({ id: e.id, name: e.fullName }))} />
+                <CorrectiveActionForm incident={incident} />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 8. Handling status — status / responsible person / dates only, investigation fields removed */}
+          <Card>
+            <CardHeader><CardTitle className="text-base"><T k="incidents.detail.statusHandling" /></CardTitle></CardHeader>
+            <CardContent>
+              {canEdit ? (
+                <StatusForm incident={incident} employees={employees.map((e) => ({ id: e.id, name: e.fullName }))} />
               ) : (
                 <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                  <div><p className="text-muted-foreground"><T k="incidents.new.fields.immediateCause" /></p><p>{incident.immediateCause ?? "—"}</p></div>
-                  <div><p className="text-muted-foreground"><T k="incidents.new.fields.rootCause" /></p><p>{incident.rootCause ?? "—"}</p></div>
-                  <div><p className="text-muted-foreground"><T k="incidents.new.fields.correctiveAction" /></p><p>{incident.correctiveAction ?? "—"}</p></div>
-                  <div><p className="text-muted-foreground"><T k="incidents.new.fields.preventiveAction" /></p><p>{incident.preventiveAction ?? "—"}</p></div>
+                  <div><p className="text-muted-foreground"><T k="common.status" /></p><p>{incident.status}</p></div>
+                  <div><p className="text-muted-foreground"><T k="incidents.detail.responsiblePerson" /></p><p>{incident.responsiblePerson?.fullName ?? "—"}</p></div>
+                  <div><p className="text-muted-foreground"><T k="incidents.detail.dueDate" /></p><p>{fmt(incident.dueDate)}</p></div>
+                  <div><p className="text-muted-foreground"><T k="incidents.detail.completionDate" /></p><p>{fmt(incident.completionDate)}</p></div>
                 </div>
               )}
             </CardContent>
