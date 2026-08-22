@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
@@ -59,5 +60,10 @@ export async function createRecordVersionAction(_prev: VersionFormState, formDat
     files,
   });
 
+  // A new version changes this entry's dataStatus/expiryStatus, which the overview and list
+  // dashboards aggregate — without this they'd keep showing the pre-version KPI/expiry counts.
+  revalidatePath(`/records/pccc/${data.entryId}`);
+  revalidatePath("/records/pccc");
+  revalidatePath("/records/pccc/list");
   redirect(`/records/pccc/${data.entryId}`);
 }

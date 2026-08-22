@@ -39,9 +39,17 @@ model Organization {
   idSequenceConfigs    IdSequenceConfig[]
   incidents            Incident[]
   capaItems            CapaItem[]
+  workPlanDocuments    WorkPlanDocument[]
+  attendanceRecords    AttendanceRecord[]
   auditLogs            AuditLog[]
   recordDomains        RecordDomain[]
   recordEntries        RecordEntry[]
+  safetyOfficers       SafetyOfficer[]
+  violationTypes       ViolationType[]
+  safetyViolations     SafetyViolation[]
+  safetyWorkshops      SafetyWorkshop[]
+  departmentAliases    DepartmentAlias[]
+  hseYearlyTargets     HseYearlyTarget[]
 
   @@map("organizations")
 }
@@ -105,6 +113,7 @@ model User {
   uploadedDocuments     Document[]             @relation("DocumentUploadedBy")
   reportedIncidents     Incident[]             @relation("IncidentReportedBy")
   createdCapaItems      CapaItem[]             @relation("CapaCreatedBy")
+  createdWorkPlanDocuments WorkPlanDocument[]   @relation("WorkPlanDocumentCreatedBy")
   enteredRecordVersions RecordVersion[]        @relation("RecordVersionEnteredBy")
   uploadedRecordFiles   RecordFile[]           @relation("RecordFileUploadedBy")
 
@@ -215,10 +224,36 @@ model Employee {
   incidentsInvolved       Incident[] @relation("IncidentEmployee")
   incidentsResponsible    Incident[] @relation("IncidentResponsiblePerson")
   capaItemsResponsible    CapaItem[] @relation("CapaResponsiblePerson")
+  safetyOfficerLinks      SafetyOfficer[]
+  attendanceOverrides     AttendanceRecord[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, nationalId])
   @@map("employees")
+}
+
+/// One manually-set override for a single employee's single calendar day. Absence of a row
+/// means "use the computed 3-team rotation default" (see src/server/attendance.ts) — only
+/// deviations from that default (shift swap, sick leave, ...) actually get written here, so a
+/// month with no exceptions needs zero rows.
+model AttendanceRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  employeeId     String
+  date           DateTime // stored at UTC midnight, date-only
+  status         String   // day | night | off
+  hours          Int? // actual worked hours if it differs from the shift's default 12 — null means "the default"
+  notes          String? // reason (sick leave, shift swap, ...) — shown on hover
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, employeeId, date])
+  @@index([organizationId, date])
+  @@map("attendance_records")
 }
 
 /// Append-only change history, used across every module.
@@ -412,6 +447,7 @@ model Incident {
   costVnd         Float?
   pointsDeducted  Float?
   injuredBodyPart String?
+  factoryCode     String? // 工厂代码 from the monthly HSE report's sheet 01, display-only
   sourceRowData   Json? // full original spreadsheet row, verbatim, so no imported data is ever lost
 
   reportedById String?
@@ -432,6 +468,62 @@ model Incident {
   @@index([organizationId, severityId])
   @@index([organizationId, occurredAt])
   @@map("incidents")
+}
+
+/// Canonical ~20-workshop catalog matching the monthly HSE report's fixed rows/columns
+/// (sheets 02-04 of the report Excel) — kept separate from OrgUnit, which is a flat,
+/// messy dedup of 5 years of free-text department names used for other purposes
+/// (Employee assignment, the Incidents dashboard's raw department filter/chart).
+model SafetyWorkshop {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  groupName      String
+  safetyCategory String? // 安全类别 from sheet 04 ("1类" / "2类"), display-only
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  aliases      DepartmentAlias[]
+  targets      HseYearlyTarget[]
+
+  @@unique([organizationId, code])
+  @@map("safety_workshops")
+}
+
+/// Maps a raw Incident.departmentSnapshot string to a canonical SafetyWorkshop.
+/// Resolved at report-read time (not frozen on the Incident), so correcting a mapping
+/// here immediately changes how past incidents are grouped in sheets 02-04.
+model DepartmentAlias {
+  id               String  @id @default(cuid())
+  organizationId   String
+  rawText          String // exact departmentSnapshot value, or "" for null/unset
+  safetyWorkshopId String? // null = "Chưa phân loại" — not counted in sheets 02-04
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  safetyWorkshop SafetyWorkshop? @relation(fields: [safetyWorkshopId], references: [id])
+
+  @@unique([organizationId, rawText])
+  @@map("department_aliases")
+}
+
+/// Leadership-set yearly targets/manual KPI actuals (sheets 04 and 05 of the report),
+/// which are not derived from incident data. One row per (workshop-or-null, year, metric).
+model HseYearlyTarget {
+  id               String @id @default(cuid())
+  organizationId   String
+  safetyWorkshopId String? // null = factory-wide target (sheet 05)
+  year             Int
+  metricKey        String
+  value            Float
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  safetyWorkshop SafetyWorkshop? @relation(fields: [safetyWorkshopId], references: [id])
+
+  @@unique([organizationId, safetyWorkshopId, year, metricKey])
+  @@map("hse_yearly_targets")
 }
 
 /// Polymorphic CAPA so Inspection/Audit/Risk/Violation modules can create CAPA later
@@ -464,6 +556,55 @@ model CapaItem {
   @@index([organizationId, sourceModule, sourceRecordId])
   @@index([organizationId, status])
   @@map("capa_items")
+}
+
+/// A self-contained, freely hand-maintained HSE work plan ("kế hoạch công việc") — e.g. one
+/// per quarter — that the HSE manager fills in and shares with leadership. Deliberately has
+/// NO relation to Incident/Employee/OrgUnit/CAPA: every field (owner name, dates, status,
+/// progress) is plain text/values the user types, so it can describe anything without first
+/// needing a matching record to exist elsewhere in the platform.
+model WorkPlanDocument {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?          @relation("WorkPlanDocumentCreatedBy", fields: [createdById], references: [id])
+  items        WorkPlanItem[]
+
+  @@index([organizationId])
+  @@map("work_plan_documents")
+}
+
+model WorkPlanItem {
+  id         String @id @default(cuid())
+  documentId String
+
+  /// Free-text phase/group label (e.g. "Giai đoạn 1: Nâng cấp UI Dashboard") — consecutive
+  /// items sharing the same phase render under one group banner; null items are ungrouped.
+  phase String?
+
+  title           String
+  responsibleName String? // plain text, not an Employee reference
+  startDate       DateTime?
+  endDate         DateTime?
+
+  status          String @default("not_started") // not_started | in_progress | delayed | completed
+  progressPercent Int    @default(0) // 0-100, entered by hand — never computed
+  notes           String? // one shared progress note per item, editable from the % quick-picker
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document WorkPlanDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, sortOrder])
+  @@map("work_plan_items")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -597,4 +738,62 @@ model RecordFile {
   uploadedBy User?         @relation("RecordFileUploadedBy", fields: [uploadedById], references: [id])
 
   @@map("record_files")
+}
+
+/// Roster of employees enrolled in the safety-officer (An toàn viên) monthly subsidy
+/// program. Wraps an existing Employee rather than duplicating name/department fields,
+/// which are always read live off the linked Employee record.
+model SafetyOfficer {
+  id                String   @id @default(cuid())
+  organizationId    String
+  employeeId        String
+  monthlySubsidyVnd Int      @default(0)
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee          @relation(fields: [employeeId], references: [id])
+  violations   SafetyViolation[]
+
+  @@unique([organizationId, employeeId])
+  @@map("safety_officers")
+}
+
+/// Organization-configurable catalog of standard violation descriptions, shown as a
+/// picklist when logging a SafetyViolation (mirrors IncidentCategory's role).
+model ViolationType {
+  id             String   @id @default(cuid())
+  organizationId String
+  labelVi        String
+  labelZh        String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  violations   SafetyViolation[]
+
+  @@map("violation_types")
+}
+
+/// One deduction entry against a safety officer's monthly subsidy.
+model SafetyViolation {
+  id              String   @id @default(cuid())
+  organizationId  String
+  safetyOfficerId String
+  violationTypeId String
+  occurredAt      DateTime
+  amountVnd       Int      @default(0)
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  safetyOfficer SafetyOfficer @relation(fields: [safetyOfficerId], references: [id], onDelete: Cascade)
+  violationType ViolationType @relation(fields: [violationTypeId], references: [id])
+
+  @@map("safety_violations")
 }

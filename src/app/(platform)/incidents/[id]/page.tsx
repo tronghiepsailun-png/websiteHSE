@@ -111,7 +111,7 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
                 <Field label={<T k="incidents.detail.injuredBodyPart" />} value={incident.injuredBodyPart ?? "—"} />
               </div>
               <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm sm:grid-cols-3">
-                <Field label={<T k="incidents.table.employee" />} value={incident.employeeNameSnapshot ?? "—"} />
+                <Field label={<T k="incidents.table.employee" />} value={incident.employee?.fullName ?? incident.employeeNameSnapshot ?? "—"} />
                 <Field label={<T k="incidents.detail.responsiblePerson" />} value={incident.responsiblePerson?.fullName ?? incident.responsiblePersonNameSnapshot ?? "—"} />
                 <Field label={<T k="incidents.detail.reportedBy" />} value={incident.reportedBy?.name ?? "—"} />
                 <Field label={<T k="incidents.detail.positionShift" />} value={`${incident.positionSnapshot ?? "—"} / ${incident.shiftSnapshot ?? "—"}`} />

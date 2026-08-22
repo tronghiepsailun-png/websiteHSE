@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
@@ -8,6 +9,23 @@ import { prisma } from "@/lib/prisma";
 import { assertBelongsToOrg } from "@/server/org-context";
 import { createRecordType, setRecordTypeActive, applyRecordTypeToSites } from "@/server/records-catalog";
 import { writeAuditLog } from "@/server/audit";
+
+// A crafted request can bypass the form's type="number" input, so a non-numeric string must
+// not reach Prisma as NaN — the Int column write would throw instead of failing validation.
+function toFiniteNumberOrNull(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Every mutation here changes data the /records/pccc overview and /records/pccc/list
+// dashboards aggregate (KPI counts, expiry status), so both must be revalidated alongside
+// the catalog page itself.
+function revalidateRecordsPaths() {
+  revalidatePath("/records/pccc/catalog");
+  revalidatePath("/records/pccc");
+  revalidatePath("/records/pccc/list");
+}
 
 const createSchema = z.object({
   groupId: z.string().min(1),
@@ -33,7 +51,7 @@ export async function createRecordTypeAction(formData: FormData) {
     name: parsed.name.trim(),
     legalBasis: parsed.legalBasis?.trim() || null,
     frequencyLabel: parsed.frequencyLabel?.trim() || null,
-    cycleMonths: parsed.cycleMonths ? Number(parsed.cycleMonths) : null,
+    cycleMonths: toFiniteNumberOrNull(parsed.cycleMonths),
     responsibleUnit: parsed.responsibleUnit?.trim() || null,
     sharedAcrossSites: parsed.sharedAcrossSites === "on",
   });
@@ -47,6 +65,7 @@ export async function createRecordTypeAction(formData: FormData) {
     action: "create",
   });
 
+  revalidateRecordsPaths();
   redirect("/records/pccc/catalog");
 }
 
@@ -70,6 +89,7 @@ export async function toggleRecordTypeActiveAction(formData: FormData) {
     changes: [{ field: "isActive", oldValue: String(!nextIsActive), newValue: String(nextIsActive) }],
   });
 
+  revalidateRecordsPaths();
   redirect("/records/pccc/catalog");
 }
 
@@ -93,5 +113,6 @@ export async function applyRecordTypeToSitesAction(formData: FormData) {
     changes: [{ field: "applyToSites", oldValue: null, newValue: `${result.created} created` }],
   });
 
+  revalidateRecordsPaths();
   redirect(`/records/pccc/catalog?applied=${result.created}`);
 }

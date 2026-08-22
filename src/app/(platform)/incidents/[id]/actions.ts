@@ -26,8 +26,17 @@ const updateSchema = z.object({
   notes: z.string().optional(),
 });
 
-const TEXT_FIELDS = ["immediateCause", "rootCause", "correctiveAction", "preventiveAction", "responsiblePersonId", "notes"] as const;
+const TEXT_FIELDS = ["immediateCause", "rootCause", "correctiveAction", "preventiveAction", "notes"] as const;
 const DATE_FIELDS = ["dueDate", "completionDate"] as const;
+
+// responsiblePersonId comes straight from a form field and references Employee, so it must be
+// re-checked against the caller's own org before being trusted — otherwise a stale or crafted
+// id could link another org's employee into this org's incident/CAPA record.
+async function resolveResponsiblePersonId(id: string | undefined, organizationId: string): Promise<string | null> {
+  if (!id) return null;
+  const employee = await prisma.employee.findUnique({ where: { id }, select: { organizationId: true } });
+  return employee && employee.organizationId === organizationId ? id : null;
+}
 
 // Each detail-page form only submits the handful of fields it displays (status form,
 // corrective-action form, etc.), so this only touches fields actually present in the
@@ -43,6 +52,9 @@ export async function updateIncidentAction(formData: FormData) {
   if (formData.has("status") && parsed.status) nextValues.status = parsed.status;
   for (const field of TEXT_FIELDS) {
     if (formData.has(field)) nextValues[field] = parsed[field] || null;
+  }
+  if (formData.has("responsiblePersonId")) {
+    nextValues.responsiblePersonId = await resolveResponsiblePersonId(parsed.responsiblePersonId, ctx.organizationId);
   }
   for (const field of DATE_FIELDS) {
     if (formData.has(field)) nextValues[field] = parsed[field] ? new Date(parsed[field] as string) : null;
@@ -86,6 +98,8 @@ export async function createCapaFromIncidentAction(formData: FormData) {
   const incident = await prisma.incident.findUnique({ where: { id: parsed.incidentId } });
   assertBelongsToOrg(incident, ctx.organizationId);
 
+  const responsiblePersonId = await resolveResponsiblePersonId(parsed.responsiblePersonId, ctx.organizationId);
+
   const capa = await prisma.capaItem.create({
     data: {
       organizationId: ctx.organizationId,
@@ -93,7 +107,7 @@ export async function createCapaFromIncidentAction(formData: FormData) {
       sourceRecordId: parsed.incidentId,
       action: parsed.action,
       rootCause: parsed.rootCause || null,
-      responsiblePersonId: parsed.responsiblePersonId || null,
+      responsiblePersonId,
       dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
       createdById: ctx.userId,
     },

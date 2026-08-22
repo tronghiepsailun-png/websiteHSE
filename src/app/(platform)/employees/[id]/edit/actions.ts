@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
@@ -101,5 +102,6 @@ export async function updateEmployeeAction(_prev: EmployeeFormState, formData: F
     });
   }
 
+  revalidatePath("/employees");
   redirect("/employees");
 }

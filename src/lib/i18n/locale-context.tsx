@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, t as translate, type DictionaryKey, type Locale } from "./translate";
 
 type LocaleContextValue = {
@@ -24,15 +25,24 @@ export function LocaleProvider({
   children: React.ReactNode;
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
+  const router = useRouter();
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    persistLocaleCookie(next);
-  }, []);
+  // Client components (via useT/<T>) update instantly from `locale` state alone, but any
+  // Server Component that reads getLocale() (e.g. report tables' translated labels) only
+  // re-renders with the new language on a fresh request — router.refresh() re-fetches the
+  // current route's RSC payload against the cookie just written, without a full page reload.
+  const setLocale = useCallback(
+    (next: Locale) => {
+      setLocaleState(next);
+      persistLocaleCookie(next);
+      router.refresh();
+    },
+    [router]
+  );
 
   const value = useMemo<LocaleContextValue>(
     () => ({

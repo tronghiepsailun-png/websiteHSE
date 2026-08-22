@@ -357,6 +357,17 @@ export async function commitEmployeeImport(params: {
     return created.id;
   }
 
+  // Batched once up front instead of one findUnique per row inside the loop below — an import
+  // of hundreds of employees would otherwise issue hundreds of sequential round trips just to
+  // re-check state the preview already computed.
+  const currentByCode = new Map(
+    (
+      await prisma.employee.findMany({
+        where: { organizationId, employeeCode: { in: writable.map((r) => r.data!.employeeCode) } },
+      })
+    ).map((e) => [e.employeeCode, e])
+  );
+
   let created = 0;
   let updated = 0;
 
@@ -383,9 +394,9 @@ export async function commitEmployeeImport(params: {
       sourceRowData: data,
     };
 
-    // Re-check current DB state defensively — the preview may be stale by the time the
-    // user confirms (another import/edit could have run in between).
-    const current = await prisma.employee.findUnique({ where: { organizationId_employeeCode: { organizationId, employeeCode: data.employeeCode } } });
+    // Defends against the preview being stale by the time the user confirms (another
+    // import/edit could have run in between) using the batch fetched above.
+    const current = currentByCode.get(data.employeeCode);
 
     if (!current) {
       const employee = await prisma.employee.create({ data: { organizationId, employeeCode: data.employeeCode, ...fields } });

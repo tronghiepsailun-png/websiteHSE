@@ -1,0 +1,173 @@
+import { Fragment } from "react";
+import { cn } from "@/lib/utils";
+import { requireApiAccess } from "@/server/api-guard";
+import { PERMISSIONS } from "@/server/permissions";
+import { prisma } from "@/lib/prisma";
+import {
+  listWorkPlanDocuments,
+  listWorkPlanItems,
+  getWorkPlanStats,
+  isWorkPlanItemOverdue,
+  groupByPhase,
+  type WorkPlanStatus,
+} from "@/server/work-plan";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DocumentToolbar } from "./document-toolbar";
+import { NewDocumentPrompt } from "./new-document-prompt";
+import { WorkPlanStatusBadge } from "./work-plan-status-badge";
+import { ProgressBar } from "./progress-bar";
+import { InlineProgressPicker } from "./inline-progress-picker";
+import { WorkPlanItemDialog } from "./work-plan-item-dialog";
+import { DeleteWorkPlanButton } from "./delete-work-plan-button";
+import { REPORT_GRID_CLASS } from "@/lib/table-grid";
+import { T } from "@/components/i18n/t";
+import { getLocale } from "@/lib/i18n/get-locale.server";
+
+function hasPermission(permissionKeys: string[] | null, key: string) {
+  return permissionKeys === null || permissionKeys.includes(key);
+}
+
+// Built manually rather than via toLocaleDateString — vi-VN's day/month-only format uses "-"
+// as its own separator, which then reads as indistinguishable from the " - " joining the
+// start/end range (e.g. "01-09 - 30-09" looks like one confusing dash-separated string).
+function fmtDate(d: Date | null) {
+  if (!d) return null;
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Alternating banner tints for each phase group, purely for visual separation — the color
+// carries no status meaning (unlike WorkPlanStatusBadge), so it just cycles by group index.
+const PHASE_BANNER_CLASS = [
+  "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  "bg-purple-500/10 text-purple-700 dark:text-purple-300",
+  "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+];
+
+export default async function PlanningPage({ searchParams }: PageProps<"/planning">) {
+  const ctx = await requireApiAccess(PERMISSIONS.WORKPLAN_VIEW);
+  const locale = await getLocale();
+  const params = await searchParams;
+
+  const [documents, permissionKeys] = await Promise.all([
+    listWorkPlanDocuments(ctx.organizationId),
+    ctx.isPlatformAdmin
+      ? Promise.resolve(null)
+      : prisma.userOrganizationRole
+          .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
+          .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
+  ]);
+
+  const canManage = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_MANAGE);
+  const requestedId = typeof params.doc === "string" ? params.doc : undefined;
+  const current = documents.find((d) => d.id === requestedId) ?? documents[0];
+
+  if (!current) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-xl font-semibold"><T k="workplan.pageTitle" /></h1>
+          <p className="text-sm text-muted-foreground"><T k="workplan.pageSubtitle" /></p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <EmptyState message={<T k="workplan.noDocuments" />} action={canManage ? <NewDocumentPrompt /> : undefined} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const items = await listWorkPlanItems(current.id);
+  const stats = getWorkPlanStats(items);
+  const groups = groupByPhase(items);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <DocumentToolbar current={current} documents={documents} />
+      <p className="-mt-4 text-sm text-muted-foreground"><T k="workplan.pageSubtitle" /></p>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.total" /></p><CardTitle className="text-2xl leading-none font-bold">{stats.total}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.avgProgress" /></p><CardTitle className="text-2xl leading-none font-bold">{stats.avgProgress}%</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{stats.overdue}</CardTitle></CardHeader></Card>
+      </div>
+
+      {canManage && (
+        <div className="flex justify-start">
+          <WorkPlanItemDialog documentId={current.id} phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]} />
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="overflow-x-auto pt-6">
+          <Table className={cn(REPORT_GRID_CLASS, "min-w-[900px] table-fixed")}>
+            <TableHeader>
+              <TableRow className="h-11">
+                <TableHead className="w-[28%]"><T k="workplan.table.title" /></TableHead>
+                <TableHead className="w-[16%]"><T k="workplan.table.responsible" /></TableHead>
+                <TableHead className="w-[14%]"><T k="workplan.table.expectedTime" /></TableHead>
+                <TableHead className="w-[13%]"><T k="common.status" /></TableHead>
+                <TableHead className="w-[21%]"><T k="workplan.table.progress" /></TableHead>
+                {canManage && <TableHead className="w-[8%] text-right"><T k="workplan.table.actions" /></TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {groups.map((group, gi) => (
+                <Fragment key={gi}>
+                  {group.phase && (
+                    <TableRow key={`phase-${gi}`} className="h-9">
+                      <TableCell colSpan={canManage ? 6 : 5} className={cn("py-2 text-sm font-semibold", PHASE_BANNER_CLASS[gi % PHASE_BANNER_CLASS.length])}>
+                        {group.phase}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {group.items.map((item) => {
+                    const overdue = isWorkPlanItemOverdue(item);
+                    const timeRange = [fmtDate(item.startDate), fmtDate(item.endDate)].filter(Boolean).join(" - ");
+                    return (
+                      <TableRow key={item.id} className="h-14">
+                        <TableCell className="py-3 pl-6 font-medium">{item.title}</TableCell>
+                        <TableCell className="py-3 text-muted-foreground">{item.responsibleName ?? "—"}</TableCell>
+                        <TableCell className={cn("py-3 whitespace-nowrap", overdue && "text-destructive")}>{timeRange || "—"}</TableCell>
+                        <TableCell className="py-3"><WorkPlanStatusBadge status={item.status as WorkPlanStatus} locale={locale} /></TableCell>
+                        <TableCell className="py-3">
+                          {canManage ? (
+                            <InlineProgressPicker id={item.id} percent={item.progressPercent} notes={item.notes} />
+                          ) : (
+                            <ProgressBar percent={item.progressPercent} />
+                          )}
+                        </TableCell>
+                        {canManage && (
+                          <TableCell className="py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <WorkPlanItemDialog
+                                documentId={current.id}
+                                phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]}
+                                item={item}
+                              />
+                              <DeleteWorkPlanButton id={item.id} />
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </Fragment>
+              ))}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={canManage ? 6 : 5}>
+                    <EmptyState message={<T k="workplan.table.noResults" />} />
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

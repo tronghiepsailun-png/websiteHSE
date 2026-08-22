@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
@@ -79,5 +80,8 @@ export async function createEmployeeAction(_prev: EmployeeFormState, formData: F
     action: "create",
   });
 
+  // Covers /employees list + dashboard tiles, which otherwise keep showing the
+  // pre-creation count/list until a manual hard refresh.
+  revalidatePath("/employees");
   redirect("/employees");
 }

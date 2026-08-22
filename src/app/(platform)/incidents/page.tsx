@@ -21,6 +21,21 @@ import { DaysSinceValue } from "./days-since-value";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { T } from "@/components/i18n/t";
+import { HeaderSlotContent } from "@/components/layout/header-slot";
+import { ReportTabs } from "./report-tabs";
+import { parseReportView } from "./report-view";
+import { ReportYearFilter } from "./report-year-filter";
+import { Sheet02Crosstab } from "./sheet02-crosstab";
+import { Sheet03ScoreTable } from "./sheet03-score-table";
+import { Sheet04DeductionTable } from "./sheet04-deduction-table";
+import { Sheet05KpiTable } from "./sheet05-kpi-table";
+import {
+  getAvailableReportYears,
+  getSheet02CrosstabData,
+  getSheet03ScoreData,
+  getSheet04DeductionData,
+  getSheet05KpiData,
+} from "@/server/incident-reports";
 
 const LIST_PAGE_SIZE = 20;
 
@@ -44,6 +59,64 @@ function parseNumberParam(value: unknown): number | undefined {
 export default async function IncidentsPage({ searchParams }: PageProps<"/incidents">) {
   const ctx = await requireApiAccess(PERMISSIONS.INCIDENT_VIEW);
   const params = await searchParams;
+  const view = parseReportView(params.view);
+
+  if (view !== "detail") {
+    const now = new Date();
+    const availableYears = await getAvailableReportYears(ctx.organizationId);
+    const year = parseNumberParam(params.year) ?? now.getFullYear();
+
+    const titleKey =
+      view === "stats"
+        ? "incidents.report.stats.title"
+        : view === "score"
+          ? "incidents.report.score.title"
+          : view === "deduction"
+            ? "incidents.report.deduction.title"
+            : "incidents.report.kpi.title";
+    const subtitleKey =
+      view === "stats"
+        ? "incidents.report.stats.subtitle"
+        : view === "score"
+          ? "incidents.report.score.subtitle"
+          : view === "deduction"
+            ? "incidents.report.deduction.subtitle"
+            : "incidents.report.kpi.subtitle";
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-xl font-semibold">
+            <T k="incidents.moduleName" />
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            <T k="incidents.pageSubtitle" />
+          </p>
+        </div>
+
+        <HeaderSlotContent>
+          <ReportTabs active={view} />
+        </HeaderSlotContent>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">
+              <T k={titleKey} />
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              <T k={subtitleKey} />
+            </p>
+          </div>
+          <ReportYearFilter view={view} year={year} availableYears={availableYears} />
+        </div>
+
+        {view === "stats" && <Sheet02Crosstab data={await getSheet02CrosstabData(ctx.organizationId, year)} />}
+        {view === "score" && <Sheet03ScoreTable data={await getSheet03ScoreData(ctx.organizationId, year)} />}
+        {view === "deduction" && <Sheet04DeductionTable data={await getSheet04DeductionData(ctx.organizationId, year)} />}
+        {view === "kpi" && <Sheet05KpiTable data={await getSheet05KpiData(ctx.organizationId, year)} />}
+      </div>
+    );
+  }
 
   // List section filters (search/status/category/severity) — unchanged from before.
   const status = parseFilterParam(params.status);
@@ -126,6 +199,10 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
 
   return (
     <div className="flex flex-col gap-6">
+      <HeaderSlotContent>
+        <ReportTabs active="detail" />
+      </HeaderSlotContent>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">
@@ -284,6 +361,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
           <Table>
             <TableHeader>
               <TableRow className="h-11">
+                <TableHead><T k="incidents.table.stt" /></TableHead>
                 <TableHead><T k="incidents.table.number" /></TableHead>
                 <TableHead><T k="incidents.table.occurred" /></TableHead>
                 <TableHead><T k="incidents.table.department" /></TableHead>
@@ -297,8 +375,11 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleIncidents.map((incident) => (
+              {visibleIncidents.map((incident, i) => (
                 <TableRow key={incident.id} className="h-14">
+                  <TableCell className="py-3 text-muted-foreground">
+                    {incidents.length - (listViewAll ? 0 : (listPageClamped - 1) * LIST_PAGE_SIZE) - i}
+                  </TableCell>
                   <TableCell className="py-3">
                     <Link href={`/incidents/${incident.id}`} className="font-medium text-primary hover:underline">
                       {incident.incidentNumber}
@@ -311,7 +392,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
                   <TableCell className="py-3">
                     <SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />
                   </TableCell>
-                  <TableCell className="py-3">{incident.employeeNameSnapshot ?? "—"}</TableCell>
+                  <TableCell className="py-3">{incident.employee?.fullName ?? incident.employeeNameSnapshot ?? "—"}</TableCell>
                   <TableCell className="py-3 text-right whitespace-nowrap">{formatIncidentCost(incident)}</TableCell>
                   <TableCell className="py-3">
                     <IncidentStatusBadge status={incident.status} />
@@ -323,7 +404,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
               ))}
               {incidents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={11}>
                     <EmptyState message={<T k="incidents.table.noResults" />} />
                   </TableCell>
                 </TableRow>

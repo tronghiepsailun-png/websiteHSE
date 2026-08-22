@@ -21,6 +21,7 @@ import {
   GraduationCap,
   BookOpen,
   Library,
+  ListTodo,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@/server/permissions";
@@ -37,6 +38,10 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     labelKey: "nav.groupOverview",
     items: [{ href: "/", labelKey: "nav.dashboard", icon: LayoutDashboard }],
+  },
+  {
+    labelKey: "nav.groupWorkPlan",
+    items: [{ href: "/planning", labelKey: "nav.workPlan", permission: PERMISSIONS.WORKPLAN_VIEW, icon: ListTodo }],
   },
   {
     labelKey: "nav.groupIncidentMgmt",
@@ -95,6 +100,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin/severities", labelKey: "nav.incidentSeverities", permission: PERMISSIONS.CONFIG_MANAGE, icon: Gauge },
   { href: "/admin/users", labelKey: "nav.usersRoles", permission: PERMISSIONS.USER_MANAGE, icon: Users },
   { href: "/records/pccc/catalog", labelKey: "nav.recordsCatalog", permission: PERMISSIONS.RECORDS_MANAGE, icon: ClipboardList },
+  { href: "/admin/hse-targets", labelKey: "nav.hseTargets", permission: PERMISSIONS.CONFIG_MANAGE, icon: Gauge },
 ];
 
 export const PLATFORM_NAV_ITEMS: NavItem[] = [{ href: "/admin/platform/organizations", labelKey: "nav.organizations", icon: Briefcase }];

@@ -44,11 +44,15 @@ const PERMISSION_DEFS = [
   { key: "document.delete", module: "document", description: "Delete attachments" },
   { key: "records.view", module: "records", description: "View compliance records (PCCC, ...)" },
   { key: "records.manage", module: "records", description: "Add/update compliance record versions and manage the standard-record catalog" },
+  { key: "violation.view", module: "violation", description: "View safety-officer violation log and subsidy report" },
+  { key: "violation.manage", module: "violation", description: "Log violations and manage the safety-officer roster/violation-type catalog" },
+  { key: "workplan.view", module: "workplan", description: "View the HSE work-plan tracker" },
+  { key: "workplan.manage", module: "workplan", description: "Create/edit/delete work-plan items" },
 ] as const;
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  viewer: ["organization.view", "employee.view", "incident.view", "capa.view", "records.view"],
-  org_admin: ["organization.view", "organization.manage", "user.manage", "config.manage", "employee.view", "employee.manage", "incident.view", "incident.create", "incident.edit", "incident.delete", "capa.view", "capa.create", "capa.edit", "capa.approve", "capa.close", "document.upload", "document.delete", "records.view", "records.manage"],
+  viewer: ["organization.view", "employee.view", "incident.view", "capa.view", "records.view", "violation.view", "workplan.view"],
+  org_admin: ["organization.view", "organization.manage", "user.manage", "config.manage", "employee.view", "employee.manage", "incident.view", "incident.create", "incident.edit", "incident.delete", "capa.view", "capa.create", "capa.edit", "capa.approve", "capa.close", "document.upload", "document.delete", "records.view", "records.manage", "violation.view", "violation.manage", "workplan.view", "workplan.manage"],
 };
 
 async function seedRolesAndPermissions() {

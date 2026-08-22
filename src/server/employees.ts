@@ -6,6 +6,29 @@ export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 
 export const EMPLOYEE_PAGE_SIZE = 20;
 
+export type EmployeeLite = { id: string; employeeCode: string; fullName: string; fullNameZh: string | null };
+
+/** Powers employee-picker comboboxes (incident create form, safety-officer roster, ...) —
+ *  searches server-side instead of shipping the full ~3000-row employee table to the client. */
+export async function searchEmployeesLite(organizationId: string, query: string, limit = 20): Promise<EmployeeLite[]> {
+  const q = query.trim();
+  if (!q) return [];
+  return prisma.employee.findMany({
+    where: {
+      organizationId,
+      status: "active",
+      OR: [
+        { employeeCode: { contains: q } },
+        { fullName: { contains: q } },
+        { fullNameZh: { contains: q } },
+      ],
+    },
+    orderBy: { fullName: "asc" },
+    take: limit,
+    select: { id: true, employeeCode: true, fullName: true, fullNameZh: true },
+  });
+}
+
 export type EmployeeFilters = {
   search?: string;
   orgUnitLevel1?: string;

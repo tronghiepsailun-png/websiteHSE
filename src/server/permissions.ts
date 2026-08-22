@@ -19,6 +19,10 @@ export const PERMISSIONS = {
   DOCUMENT_DELETE: "document.delete",
   RECORDS_VIEW: "records.view",
   RECORDS_MANAGE: "records.manage",
+  VIOLATION_VIEW: "violation.view",
+  VIOLATION_MANAGE: "violation.manage",
+  WORKPLAN_VIEW: "workplan.view",
+  WORKPLAN_MANAGE: "workplan.manage",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

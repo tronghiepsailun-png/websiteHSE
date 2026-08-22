@@ -10,6 +10,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { HeaderSlotProvider, HeaderSlotOutlet } from "@/components/layout/header-slot";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
 
@@ -34,6 +35,7 @@ export function AppShell({
   const t = useT();
 
   return (
+    <HeaderSlotProvider>
     <div className="flex min-h-screen flex-1">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 border-r bg-background md:flex md:flex-col">
@@ -73,6 +75,8 @@ export function AppShell({
             <OrgSwitcher activeOrg={activeOrg} organizations={organizations} />
           </div>
 
+          <HeaderSlotOutlet className="flex min-w-0 flex-1 items-center justify-center" />
+
           <div className="ml-auto flex items-center gap-1.5">
             <Button variant="ghost" size="icon" disabled title={t("common.notifications")}>
               <Bell className="size-4.5" />
@@ -92,5 +96,6 @@ export function AppShell({
         </main>
       </div>
     </div>
+    </HeaderSlotProvider>
   );
 }
