@@ -5,6 +5,7 @@ import { PERMISSIONS } from "@/server/permissions";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t, type DictionaryKey } from "@/lib/i18n/translate";
 import { employeeExportColumns } from "@/server/employee-export-columns";
+import { contentDisposition } from "@/server/storage";
 
 export async function GET() {
   return withApiErrorHandling(async () => {
@@ -25,7 +26,7 @@ export async function GET() {
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="DANH_SACH_NHAN_VIEN_TEMPLATE.xlsx"`,
+        "Content-Disposition": contentDisposition("Mẫu_Danh sách nhân viên.xlsx", "attachment"),
       },
     });
   });

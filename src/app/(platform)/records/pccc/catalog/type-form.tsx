@@ -39,20 +39,37 @@ export function TypeForm({ groups }: { groups: Group[] }) {
         <Input id="name" name="name" required />
       </div>
       <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <Label htmlFor="nameZh">{t("records.catalog.fields.nameZh")}</Label>
+        <Input id="nameZh" name="nameZh" />
+      </div>
+      <div className="flex flex-col gap-1.5 lg:col-span-2">
         <Label htmlFor="legalBasis">{t("records.catalog.fields.legalBasis")}</Label>
         <Input id="legalBasis" name="legalBasis" />
+      </div>
+      <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <Label htmlFor="legalBasisZh">{t("records.catalog.fields.legalBasisZh")}</Label>
+        <Input id="legalBasisZh" name="legalBasisZh" />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="frequencyLabel">{t("records.catalog.fields.frequencyLabel")}</Label>
         <Input id="frequencyLabel" name="frequencyLabel" />
       </div>
       <div className="flex flex-col gap-1.5">
+        <Label htmlFor="frequencyLabelZh">{t("records.catalog.fields.frequencyLabelZh")}</Label>
+        <Input id="frequencyLabelZh" name="frequencyLabelZh" />
+      </div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="cycleMonths">{t("records.catalog.fields.cycleMonths")}</Label>
         <Input id="cycleMonths" name="cycleMonths" type="number" min={0} />
       </div>
+      <div />
       <div className="flex flex-col gap-1.5 lg:col-span-2">
         <Label htmlFor="responsibleUnit">{t("records.catalog.fields.responsibleUnit")}</Label>
         <Input id="responsibleUnit" name="responsibleUnit" />
+      </div>
+      <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <Label htmlFor="responsibleUnitZh">{t("records.catalog.fields.responsibleUnitZh")}</Label>
+        <Input id="responsibleUnitZh" name="responsibleUnitZh" />
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="sharedAcrossSites" />

@@ -78,7 +78,7 @@ export async function Sheet04DeductionTable({ data }: { data: Awaited<ReturnType
                 <TableCell className="text-center font-semibold">{fmt(row.cumulative)}</TableCell>
                 {row.monthly.map((v, i) => (
                   <TableCell key={i} className="w-16 min-w-16 text-center whitespace-nowrap">
-                    {v ? fmt(v) : "—"}
+                    {v ? fmt(v) : ""}
                   </TableCell>
                 ))}
               </TableRow>
@@ -90,7 +90,7 @@ export async function Sheet04DeductionTable({ data }: { data: Awaited<ReturnType
               <TableCell className="text-center">{fmt(data.totalRow.cumulative)}</TableCell>
               {data.totalRow.monthly.map((v, i) => (
                 <TableCell key={i} className="w-16 min-w-16 text-center whitespace-nowrap">
-                  {v ? fmt(v) : "—"}
+                  {v ? fmt(v) : ""}
                 </TableCell>
               ))}
             </TableRow>

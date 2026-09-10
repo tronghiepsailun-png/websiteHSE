@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { ClipboardCheck, CheckCircle2, RefreshCw, FileX, Clock, AlertTriangle } from "lucide-react";
-import { requireApiAccess } from "@/server/api-guard";
+import { ClipboardCheck, CheckCircle2, RefreshCw, Clock, AlertTriangle, FileCheck2 } from "lucide-react";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
-import { getRecordsDashboardData } from "@/server/records";
+import { getRecordsDashboardData, localizeRecordType } from "@/server/records";
+import { getLocale } from "@/lib/i18n/get-locale.server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
@@ -13,30 +15,39 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { STATUS_TILE_CLASS, STATUS_TEXT_CLASS } from "@/lib/status-tone";
 
 export default async function RecordsPcccDashboardPage() {
-  const ctx = await requireApiAccess(PERMISSIONS.RECORDS_VIEW);
-  const data = await getRecordsDashboardData(ctx.organizationId, "PCCC");
+  const access = await tryApiAccess(PERMISSIONS.RECORDS_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
+  const locale = await getLocale();
+  const data = await getRecordsDashboardData(ctx.organizationId, "PCCC", locale);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">
-            <T k="records.moduleName" />
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            <T k="records.pageSubtitle" />
-          </p>
-        </div>
-        <Link href="/records/pccc/list" className={buttonVariants({ variant: "outline" })}>
-          <T k="records.viewList" />
-        </Link>
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
+              <FileCheck2 className="size-5" />
+            </span>
+            <div>
+              <h1 className="text-xl font-semibold">
+                <T k="records.moduleName" />
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                <T k="records.pageSubtitle" />
+              </p>
+            </div>
+          </div>
+          <Link href="/records/pccc/list" className={buttonVariants({ variant: "outline" })}>
+            <T k="records.viewList" />
+          </Link>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard labelKey="records.kpi.totalTracked" value={data.totalTracked} icon={ClipboardCheck} tone="neutral" />
         <KpiCard labelKey="records.kpi.sufficient" value={data.sufficientTotal} icon={CheckCircle2} tone="success" />
         <KpiCard labelKey="records.kpi.needsUpdate" value={data.needsUpdateTotal} icon={RefreshCw} tone="warning" />
-        <KpiCard labelKey="records.kpi.missing" value={data.missingTotal} icon={FileX} tone="critical" />
         <KpiCard labelKey="records.kpi.expiringSoon" value={data.expiringSoonTotal} icon={Clock} tone="warning" />
         <KpiCard labelKey="records.kpi.expired" value={data.expiredTotal} icon={AlertTriangle} tone="critical" />
       </div>
@@ -64,16 +75,18 @@ export default async function RecordsPcccDashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.warningList.slice(0, 15).map((e) => (
+              {data.warningList.slice(0, 15).map((e) => {
+                const recordType = localizeRecordType(e.recordType, locale);
+                return (
                 <TableRow key={e.id} className="h-14">
                   <TableCell className="py-3 font-medium">
                     <Link href={`/records/pccc/${e.id}`} className="text-primary hover:underline">
-                      {e.recordType.code}
+                      {recordType.code}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-3">{e.recordType.name}</TableCell>
+                  <TableCell className="py-3">{recordType.name}</TableCell>
                   <TableCell className="py-3">{e.orgUnit.name}</TableCell>
-                  <TableCell className="py-3">{e.currentVersion?.expiresAt ? new Date(e.currentVersion.expiresAt).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell className="py-3">{e.currentExpiresAt ? new Date(e.currentExpiresAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell className="py-3 text-right">
                     <span className={`font-medium ${e.expiryStatus === "expired" ? STATUS_TEXT_CLASS.critical : STATUS_TEXT_CLASS.warning}`}>
                       {e.daysUntilExpiry != null && e.daysUntilExpiry < 0 ? (
@@ -84,7 +97,8 @@ export default async function RecordsPcccDashboardPage() {
                     </span>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {data.warningList.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5}>

@@ -66,12 +66,22 @@ export async function getSubsidyReport(organizationId: string, filters: Violatio
   };
 }
 
-export function availableViolationMonths(): { year: number; month: number }[] {
-  // Simple rolling window (current month + 11 prior) — cheap and always covers real data
-  // without a dedicated "distinct months" query at this data scale.
+/** Only the months that actually have a violation logged — unlike a fixed rolling window,
+ *  this never shows an empty past month with nothing to view. The current month always stays
+ *  in the list even with zero violations yet, since that's where new ones get added. SQLite
+ *  has no clean "group by extracted year/month" in Prisma's query API, and this data stays
+ *  small at this org's scale, so distinct periods are computed in JS from the raw dates. */
+export async function availableViolationMonths(organizationId: string): Promise<{ year: number; month: number }[]> {
+  const rows = await prisma.safetyViolation.findMany({ where: { organizationId }, select: { occurredAt: true } });
+
   const now = new Date();
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    return { year: d.getFullYear(), month: d.getMonth() + 1 };
-  });
+  const periods = new Map<string, { year: number; month: number }>();
+  for (const row of rows) {
+    const year = row.occurredAt.getFullYear();
+    const month = row.occurredAt.getMonth() + 1;
+    periods.set(`${year}-${month}`, { year, month });
+  }
+  periods.set(`${now.getFullYear()}-${now.getMonth() + 1}`, { year: now.getFullYear(), month: now.getMonth() + 1 });
+
+  return Array.from(periods.values()).sort((a, b) => b.year - a.year || b.month - a.month);
 }

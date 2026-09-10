@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, ListTodo } from "lucide-react";
 import { renameWorkPlanDocumentAction } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -66,24 +67,37 @@ export function DocumentToolbar({ current, documents }: { current: DocOption; do
   const router = useRouter();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-1.5">
-        <h1 className="text-xl font-semibold">{current.name}</h1>
-        <RenameDocumentDialog id={current.id} name={current.name} />
-      </div>
-      <div className="flex items-center gap-2">
-        <Select value={current.id} onValueChange={(id) => router.push(`/planning?doc=${id}`)}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder={t("workplan.pageTitle")}>
-              {(id: string) => documents.find((d) => d.id === id)?.name ?? id}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {documents.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <NewDocumentPrompt />
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600">
+            <ListTodo className="size-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold">{t("workplan.pageTitle")}</h1>
+            <p className="text-sm text-muted-foreground">{t("workplan.pageSubtitle")}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-base font-medium">{current.name}</h2>
+            <RenameDocumentDialog id={current.id} name={current.name} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={current.id} onValueChange={(id) => router.push(`/planning?doc=${id}`)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder={t("workplan.pageTitle")}>
+                  {(id: string) => documents.find((d) => d.id === id)?.name ?? id}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {documents.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <NewDocumentPrompt />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

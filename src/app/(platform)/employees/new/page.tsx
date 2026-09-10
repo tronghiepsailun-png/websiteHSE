@@ -5,7 +5,7 @@ import { EmployeeForm } from "../employee-form";
 import { createEmployeeAction } from "./actions";
 
 export default async function NewEmployeePage() {
-  await requireApiAccess(PERMISSIONS.EMPLOYEE_MANAGE);
+  await requireApiAccess(PERMISSIONS.EMPLOYEE_EDIT);
 
   return (
     <div className="mx-auto max-w-3xl">

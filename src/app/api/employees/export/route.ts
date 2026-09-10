@@ -6,10 +6,11 @@ import { PERMISSIONS } from "@/server/permissions";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t, type DictionaryKey } from "@/lib/i18n/translate";
 import { employeeExportColumns } from "@/server/employee-export-columns";
+import { contentDisposition } from "@/server/storage";
 
 export async function GET() {
   return withApiErrorHandling(async () => {
-    const ctx = await requireApiAccess(PERMISSIONS.EMPLOYEE_VIEW);
+    const ctx = await requireApiAccess(PERMISSIONS.EMPLOYEE_DOWNLOAD);
     const locale = await getLocale();
     const tr = (key: DictionaryKey) => t(locale, key);
 
@@ -51,12 +52,12 @@ export async function GET() {
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     const fileDate = new Date().toISOString().slice(0, 10);
-    const fileName = `employees-${ctx.organizationId.slice(0, 6)}-${fileDate}.xlsx`;
+    const fileName = `Danh sách nhân viên ${fileDate}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": contentDisposition(fileName, "attachment"),
       },
     });
   });

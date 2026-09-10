@@ -6,8 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { writeAuditLog } from "@/server/audit";
+import { assertBelongsToOrg } from "@/server/org-context";
+import { getLocale } from "@/lib/i18n/get-locale.server";
+import { t } from "@/lib/i18n/translate";
 
-const createSchema = z.object({
+export type ViolationRowState = { error: string } | { success: true; year: number; month: number } | undefined;
+
+const rowSchema = z.object({
+  violationId: z.string().optional(),
   safetyOfficerId: z.string().min(1),
   violationTypeId: z.string().min(1),
   occurredAt: z.string().min(1),
@@ -15,71 +21,65 @@ const createSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
-export type CreateViolationState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+/** One inline table row's Save — same compact-row pattern as CAPA/"Vi phạm liên đế": clicking
+ *  "Thêm vi phạm" opens the row directly in the table instead of a separate form card. The
+ *  officer/department columns aren't snapshotted here (unlike liên đế) since they come from a
+ *  live SafetyOfficer→Employee join, same as before this rework — only the row's own fields
+ *  (date, type, amount, note) are actually stored. */
+export async function saveViolationRowAction(_prev: ViolationRowState, formData: FormData): Promise<ViolationRowState> {
+  const isUpdate = !!formData.get("violationId");
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
+  const locale = await getLocale();
 
-export async function createViolationAction(_prev: CreateViolationState, formData: FormData): Promise<CreateViolationState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = rowSchema.safeParse(raw);
+  if (!parsed.success) return { error: t(locale, "records.form.errorGeneric") };
+  const data = parsed.data;
 
-  const parsed = createSchema.safeParse({
-    safetyOfficerId: formData.get("safetyOfficerId"),
-    violationTypeId: formData.get("violationTypeId"),
-    occurredAt: formData.get("occurredAt"),
-    amountVnd: formData.get("amountVnd"),
-    note: formData.get("note") || undefined,
-  });
-  if (!parsed.success) {
-    return { error: "Vui lòng kiểm tra lại các trường bắt buộc." };
+  const officer = await prisma.safetyOfficer.findUnique({ where: { id: data.safetyOfficerId } });
+  if (!officer || officer.organizationId !== ctx.organizationId) return { error: t(locale, "violations.form.needsSetup") };
+  const violationType = await prisma.violationType.findUnique({ where: { id: data.violationTypeId } });
+  if (!violationType || violationType.organizationId !== ctx.organizationId) return { error: t(locale, "violations.form.needsSetup") };
+
+  // Same convention as "Vi phạm liên đế": which month a row belongs to is always the month its
+  // own date falls in, never whichever month tab happened to be open when it was added/edited.
+  const occurredAt = new Date(data.occurredAt);
+  const periodYear = occurredAt.getFullYear();
+  const periodMonth = occurredAt.getMonth() + 1;
+
+  const fields = {
+    safetyOfficerId: data.safetyOfficerId,
+    violationTypeId: data.violationTypeId,
+    occurredAt,
+    amountVnd: data.amountVnd,
+    note: data.note?.trim() || null,
+  };
+
+  let violationId: string;
+  if (isUpdate) {
+    violationId = data.violationId!;
+    const before = await prisma.safetyViolation.findUnique({ where: { id: violationId } });
+    assertBelongsToOrg(before, ctx.organizationId);
+    await prisma.safetyViolation.update({ where: { id: violationId }, data: fields });
+    await writeAuditLog({ organizationId: ctx.organizationId, userId: ctx.userId, module: "violation", recordType: "SafetyViolation", recordId: violationId, action: "update" });
+  } else {
+    const created = await prisma.safetyViolation.create({ data: { ...fields, organizationId: ctx.organizationId } });
+    violationId = created.id;
+    await writeAuditLog({ organizationId: ctx.organizationId, userId: ctx.userId, module: "violation", recordType: "SafetyViolation", recordId: violationId, action: "create" });
   }
-
-  const officer = await prisma.safetyOfficer.findUnique({ where: { id: parsed.data.safetyOfficerId } });
-  if (!officer || officer.organizationId !== ctx.organizationId) {
-    return { error: "Nhân viên an toàn không hợp lệ." };
-  }
-  const violationType = await prisma.violationType.findUnique({ where: { id: parsed.data.violationTypeId } });
-  if (!violationType || violationType.organizationId !== ctx.organizationId) {
-    return { error: "Nội dung vi phạm không hợp lệ." };
-  }
-
-  const created = await prisma.safetyViolation.create({
-    data: {
-      organizationId: ctx.organizationId,
-      safetyOfficerId: parsed.data.safetyOfficerId,
-      violationTypeId: parsed.data.violationTypeId,
-      occurredAt: new Date(parsed.data.occurredAt),
-      amountVnd: parsed.data.amountVnd,
-      note: parsed.data.note || null,
-    },
-  });
-
-  await writeAuditLog({
-    organizationId: ctx.organizationId,
-    userId: ctx.userId,
-    module: "violation",
-    recordType: "SafetyViolation",
-    recordId: created.id,
-    action: "create",
-  });
 
   revalidatePath("/violations/internal");
-  return undefined;
+  return { success: true, year: periodYear, month: periodMonth };
 }
 
 export async function deleteViolationAction(id: string) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_DELETE);
 
   const violation = await prisma.safetyViolation.findUnique({ where: { id } });
-  if (!violation || violation.organizationId !== ctx.organizationId) return;
+  assertBelongsToOrg(violation, ctx.organizationId);
 
   await prisma.safetyViolation.delete({ where: { id } });
-
-  await writeAuditLog({
-    organizationId: ctx.organizationId,
-    userId: ctx.userId,
-    module: "violation",
-    recordType: "SafetyViolation",
-    recordId: id,
-    action: "delete",
-  });
+  await writeAuditLog({ organizationId: ctx.organizationId, userId: ctx.userId, module: "violation", recordType: "SafetyViolation", recordId: id, action: "delete" });
 
   revalidatePath("/violations/internal");
 }

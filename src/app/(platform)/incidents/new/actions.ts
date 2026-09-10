@@ -11,12 +11,29 @@ import { writeAuditLog } from "@/server/audit";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 import { zodFieldErrors, type FieldErrors } from "@/lib/form-errors";
+import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY } from "@/lib/incident-constants";
 
 // Historical CCG data shows pointsDeducted is a fixed function of severity, never a freely
 // assessed number (every B incident is exactly 0.1, every C exactly 0.3, every D exactly 0.5;
-// A never deducts). Auto-filled below when the form field is left blank, since a reporter has
-// no way to know this business rule; the form field still allows a manual override.
-const DEFAULT_POINTS_DEDUCTED_BY_SEVERITY: Record<string, number> = { B: 0.1, C: 0.3, D: 0.5 };
+// A never deducts). The form now auto-fills this the instant severity is picked, so this stays
+// only as a fallback for a server action invoked directly (bypassing the client-side auto-fill).
+
+/** Live preview of what "Số hiệu sự cố" will be for the currently-entered "Ngày xảy ra" — the
+ *  form calls this on every date change so the (read-only) field always shows the number that
+ *  will actually be saved, without the reporter needing to know/compute the day-based
+ *  convention themselves. Purely a preview: createIncidentAction recomputes independently at
+ *  submit time rather than trusting whatever this returned, so a stale preview can never save
+ *  a wrong or colliding number. */
+export async function previewIncidentNumberAction(occurredAtLocal: string): Promise<string | null> {
+  const ctx = await requireOrgPermission(PERMISSIONS.INCIDENT_CREATE);
+  const date = new Date(occurredAtLocal);
+  if (isNaN(date.getTime())) return null;
+  try {
+    return await generateIncidentNumber(ctx.organizationId, date);
+  } catch {
+    return null;
+  }
+}
 
 // Form fields are type="number" client-side, but a server action can be invoked directly
 // (bypassing that constraint), so a non-numeric string must not reach Prisma as NaN — a Float
@@ -28,7 +45,6 @@ function toFiniteNumberOrNull(value: string | undefined): number | null {
 }
 
 const schema = z.object({
-  incidentNumber: z.string().max(100).optional(),
   factoryCode: z.string().max(50).optional(),
   occurredAt: z.string().min(1),
   orgUnitId: z.string().optional(),
@@ -87,10 +103,10 @@ export async function createIncidentAction(_prev: CreateIncidentState, formData:
     };
   }
 
-  // A manually-typed number lets the user keep their own numbering convention (e.g.
-  // "CCG/AT{date}-{seq}") instead of the platform's auto-generated format; blank falls
-  // back to the configured sequence like before.
-  const incidentNumber = data.incidentNumber?.trim() || (await generateIncidentNumber(ctx.organizationId));
+  // Always derived from the incident's own occurredAt date — never taken from the form, so
+  // the number the reporter sees as a live preview and the number actually saved can never
+  // drift apart (e.g. from a second incident being created in between).
+  const incidentNumber = await generateIncidentNumber(ctx.organizationId, new Date(data.occurredAt));
 
   let pointsDeducted = toFiniteNumberOrNull(data.pointsDeducted);
   if (pointsDeducted === null) {

@@ -1,8 +1,20 @@
 import Link from "next/link";
-import { ShieldAlert, Wallet, CalendarCheck, TrendingDown } from "lucide-react";
-import { requireApiAccess } from "@/server/api-guard";
+import { cookies } from "next/headers";
+import { ShieldAlert, Wallet, CalendarCheck, TrendingDown, Download } from "lucide-react";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
-import { listIncidents, getIncidentDashboardData } from "@/server/incidents";
+import {
+  listIncidents,
+  getIncidentDashboardData,
+  getIncidentFactoryCode,
+  localizeCategoryName,
+  localizeDepartmentName,
+  buildOrgUnitNameViMap,
+  resolveEmployeeSnapshotNames,
+  localizeEmployeeDisplayName,
+} from "@/server/incidents";
+import { getLocale } from "@/lib/i18n/get-locale.server";
 import { prisma } from "@/lib/prisma";
 import { formatIncidentCost } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +33,7 @@ import { DaysSinceValue } from "./days-since-value";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { T } from "@/components/i18n/t";
-import { HeaderSlotContent } from "@/components/layout/header-slot";
-import { ReportTabs } from "./report-tabs";
+import { ModuleHeader } from "./module-header";
 import { parseReportView } from "./report-view";
 import { ReportYearFilter } from "./report-year-filter";
 import { Sheet02Crosstab } from "./sheet02-crosstab";
@@ -36,6 +47,22 @@ import {
   getSheet04DeductionData,
   getSheet05KpiData,
 } from "@/server/incident-reports";
+import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
+import { parseHiddenColumns, type ToggleableColumn } from "@/lib/column-visibility";
+
+const INCIDENT_COLUMNS_COOKIE = "incidents_hidden_columns";
+
+const INCIDENT_TOGGLEABLE_COLUMNS: ToggleableColumn[] = [
+  { id: "factoryCode", labelKey: "incidents.table.factoryCode" },
+  { id: "occurred", labelKey: "incidents.table.occurred" },
+  { id: "department", labelKey: "incidents.table.department" },
+  { id: "location", labelKey: "incidents.table.location" },
+  { id: "category", labelKey: "incidents.table.category" },
+  { id: "severity", labelKey: "incidents.table.severity" },
+  { id: "employee", labelKey: "incidents.new.fields.employee" },
+  { id: "cost", labelKey: "incidents.table.cost" },
+  { id: "status", labelKey: "common.status" },
+];
 
 const LIST_PAGE_SIZE = 20;
 
@@ -57,9 +84,14 @@ function parseNumberParam(value: unknown): number | undefined {
 }
 
 export default async function IncidentsPage({ searchParams }: PageProps<"/incidents">) {
-  const ctx = await requireApiAccess(PERMISSIONS.INCIDENT_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.INCIDENT_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
+  const locale = await getLocale();
   const params = await searchParams;
   const view = parseReportView(params.view);
+  const cookieStore = await cookies();
+  const hiddenColumns = parseHiddenColumns(cookieStore.get(INCIDENT_COLUMNS_COOKIE)?.value, INCIDENT_TOGGLEABLE_COLUMNS);
 
   if (view !== "detail") {
     const now = new Date();
@@ -85,18 +117,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
 
     return (
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-xl font-semibold">
-            <T k="incidents.moduleName" />
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            <T k="incidents.pageSubtitle" />
-          </p>
-        </div>
-
-        <HeaderSlotContent>
-          <ReportTabs active={view} />
-        </HeaderSlotContent>
+        <ModuleHeader active={view} />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -145,7 +166,9 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
     getIncidentDashboardData(ctx.organizationId, { year: dYear, month: dMonth, week: dWeek, orgUnitId: dOrgUnitId }),
     prisma.incidentCategory.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { sortOrder: "asc" } }),
     prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { rank: "desc" } }),
-    prisma.orgUnit.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Department-level units only — "Site" (Khu A/B/C) are PCCC record zones, not a place an
+    // incident happened, and don't belong in this filter.
+    prisma.orgUnit.findMany({ where: { organizationId: ctx.organizationId, isActive: true, unitType: { code: "DEPT" } }, orderBy: { name: "asc" }, select: { id: true, name: true, nameVi: true } }),
     ctx.isPlatformAdmin ? Promise.resolve(null) : prisma.userOrganizationRole
         .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
         .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
@@ -153,6 +176,14 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
 
   const canCreate = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_CREATE);
   const canDelete = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_DELETE);
+  const canDownload = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_DOWNLOAD);
+
+  // "Bộ phận"/"Nhân viên bị thương" need to display in whichever locale is active even for
+  // incidents whose department/employee only ever exist as a plain snapshot string (older
+  // imports) rather than a live catalog link — see localizeDepartmentName/
+  // localizeEmployeeDisplayName in server/incidents.ts.
+  const nameViByName = buildOrgUnitNameViMap(orgUnits);
+  const employeeSnapshotNamesByCode = await resolveEmployeeSnapshotNames(ctx.organizationId, incidents);
 
   const totalCostDisplay =
     dashboard.totalIncidents === 0
@@ -199,23 +230,16 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
 
   return (
     <div className="flex flex-col gap-6">
-      <HeaderSlotContent>
-        <ReportTabs active="detail" />
-      </HeaderSlotContent>
+      <ModuleHeader active="detail" />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">
-            <T k="incidents.moduleName" />
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            <T k="incidents.pageSubtitle" />
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <a href="/api/incidents/export" className={buttonVariants({ variant: "outline" })}>
-            <T k="incidents.download.button" />
-          </a>
+          {canDownload && (
+            <a href="/api/incidents/export" className={buttonVariants({ variant: "outline" })}>
+              <Download className="size-4" />
+              <T k="incidents.download.button" />
+            </a>
+          )}
           {canCreate && <ImportDialog />}
           {canCreate && (
             <Link href="/incidents/new" className={buttonVariants()}>
@@ -326,9 +350,12 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
       </div>
 
       {/* 4. Incident list — search/filter/view-details kept as-is */}
-      <h2 id="incidents-list" className="scroll-mt-4 text-lg font-semibold">
-        <T k="incidents.dashboard.listTitle" />
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="incidents-list" className="scroll-mt-4 text-lg font-semibold">
+          <T k="incidents.dashboard.listTitle" />
+        </h2>
+        <ColumnVisibilityMenu columns={INCIDENT_TOGGLEABLE_COLUMNS} hiddenColumns={[...hiddenColumns]} cookieName={INCIDENT_COLUMNS_COOKIE} />
+      </div>
 
       <IncidentFilters
         search={search}
@@ -363,14 +390,15 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
               <TableRow className="h-11">
                 <TableHead><T k="incidents.table.stt" /></TableHead>
                 <TableHead><T k="incidents.table.number" /></TableHead>
-                <TableHead><T k="incidents.table.occurred" /></TableHead>
-                <TableHead><T k="incidents.table.department" /></TableHead>
-                <TableHead><T k="incidents.table.location" /></TableHead>
-                <TableHead><T k="incidents.table.category" /></TableHead>
-                <TableHead><T k="incidents.table.severity" /></TableHead>
-                <TableHead><T k="incidents.table.employee" /></TableHead>
-                <TableHead className="text-right"><T k="incidents.table.cost" /></TableHead>
-                <TableHead><T k="common.status" /></TableHead>
+                {!hiddenColumns.has("factoryCode") && <TableHead><T k="incidents.table.factoryCode" /></TableHead>}
+                {!hiddenColumns.has("occurred") && <TableHead><T k="incidents.table.occurred" /></TableHead>}
+                {!hiddenColumns.has("department") && <TableHead><T k="incidents.table.department" /></TableHead>}
+                {!hiddenColumns.has("location") && <TableHead><T k="incidents.table.location" /></TableHead>}
+                {!hiddenColumns.has("category") && <TableHead><T k="incidents.table.category" /></TableHead>}
+                {!hiddenColumns.has("severity") && <TableHead><T k="incidents.table.severity" /></TableHead>}
+                {!hiddenColumns.has("employee") && <TableHead><T k="incidents.new.fields.employee" /></TableHead>}
+                {!hiddenColumns.has("cost") && <TableHead className="text-right"><T k="incidents.table.cost" /></TableHead>}
+                {!hiddenColumns.has("status") && <TableHead><T k="common.status" /></TableHead>}
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -385,18 +413,33 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
                       {incident.incidentNumber}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-3">{incident.occurredAt.toLocaleDateString()}</TableCell>
-                  <TableCell className="py-3">{incident.orgUnit?.name ?? incident.departmentSnapshot ?? "—"}</TableCell>
-                  <TableCell className="py-3">{incident.locationDetail ?? "—"}</TableCell>
-                  <TableCell className="py-3">{incident.category.name}</TableCell>
-                  <TableCell className="py-3">
-                    <SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />
-                  </TableCell>
-                  <TableCell className="py-3">{incident.employee?.fullName ?? incident.employeeNameSnapshot ?? "—"}</TableCell>
-                  <TableCell className="py-3 text-right whitespace-nowrap">{formatIncidentCost(incident)}</TableCell>
-                  <TableCell className="py-3">
-                    <IncidentStatusBadge status={incident.status} />
-                  </TableCell>
+                  {!hiddenColumns.has("factoryCode") && (
+                    <TableCell className="py-3 font-semibold">{getIncidentFactoryCode(incident)}</TableCell>
+                  )}
+                  {!hiddenColumns.has("occurred") && <TableCell className="py-3">{incident.occurredAt.toLocaleDateString()}</TableCell>}
+                  {!hiddenColumns.has("department") && (
+                    <TableCell className="py-3">
+                      {localizeDepartmentName(incident.orgUnit?.name ?? incident.departmentSnapshot ?? null, locale, nameViByName)}
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("location") && <TableCell className="py-3">{incident.locationDetail ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("category") && <TableCell className="py-3">{localizeCategoryName(incident.category, locale)}</TableCell>}
+                  {!hiddenColumns.has("severity") && (
+                    <TableCell className="py-3">
+                      <SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />
+                    </TableCell>
+                  )}
+                  {!hiddenColumns.has("employee") && (
+                    <TableCell className="py-3">{localizeEmployeeDisplayName(incident, employeeSnapshotNamesByCode)}</TableCell>
+                  )}
+                  {!hiddenColumns.has("cost") && (
+                    <TableCell className="py-3 text-right whitespace-nowrap">{formatIncidentCost(incident)}</TableCell>
+                  )}
+                  {!hiddenColumns.has("status") && (
+                    <TableCell className="py-3">
+                      <IncidentStatusBadge status={incident.status} />
+                    </TableCell>
+                  )}
                   <TableCell className="py-3 text-right">
                     <IncidentRowActions incidentId={incident.id} incidentNumber={incident.incidentNumber} canDelete={canDelete} />
                   </TableCell>
@@ -404,7 +447,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
               ))}
               {incidents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11}>
+                  <TableCell colSpan={3 + INCIDENT_TOGGLEABLE_COLUMNS.length - hiddenColumns.size}>
                     <EmptyState message={<T k="incidents.table.noResults" />} />
                   </TableCell>
                 </TableRow>

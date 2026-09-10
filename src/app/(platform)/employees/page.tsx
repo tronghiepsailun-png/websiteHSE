@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Users, UserCheck, UserX } from "lucide-react";
-import { requireApiAccess } from "@/server/api-guard";
+import { cookies } from "next/headers";
+import { Users, UserCheck, UserX, Download, IdCard } from "lucide-react";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { listEmployees, getEmployeeFilterOptions, getEmployeeStats, getEmployeeHierarchy } from "@/server/employees";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +18,20 @@ import { EmployeeRowActions } from "./employee-row-actions";
 import { ImportDialog } from "./import-dialog";
 import { DepartmentChart } from "./department-chart";
 import { STATUS_TILE_CLASS, STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
+import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
+import { parseHiddenColumns, type ToggleableColumn } from "@/lib/column-visibility";
+
+const EMPLOYEES_COLUMNS_COOKIE = "employees_hidden_columns";
+
+const EMPLOYEES_TOGGLEABLE_COLUMNS: ToggleableColumn[] = [
+  { id: "nameZh", labelKey: "employees.table.nameZh" },
+  { id: "orgUnitLevel1", labelKey: "employees.field.orgUnitLevel1" },
+  { id: "orgUnitLevel2", labelKey: "employees.field.orgUnitLevel2" },
+  { id: "region", labelKey: "employees.field.region" },
+  { id: "shift", labelKey: "employees.field.shift" },
+  { id: "position", labelKey: "employees.field.position" },
+  { id: "status", labelKey: "common.status" },
+];
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -27,8 +43,12 @@ function parseFilterParam(value: unknown): string | undefined {
 }
 
 export default async function EmployeesPage({ searchParams }: PageProps<"/employees">) {
-  const ctx = await requireApiAccess(PERMISSIONS.EMPLOYEE_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.EMPLOYEE_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
   const params = await searchParams;
+  const cookieStore = await cookies();
+  const hiddenColumns = parseHiddenColumns(cookieStore.get(EMPLOYEES_COLUMNS_COOKIE)?.value, EMPLOYEES_TOGGLEABLE_COLUMNS);
 
   const search = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
   const orgUnitLevel1 = parseFilterParam(params.orgUnitLevel1);
@@ -53,7 +73,8 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
   ]);
 
-  const canManage = hasPermission(permissionKeys, PERMISSIONS.EMPLOYEE_MANAGE);
+  const canManage = hasPermission(permissionKeys, PERMISSIONS.EMPLOYEE_EDIT);
+  const canDownload = hasPermission(permissionKeys, PERMISSIONS.EMPLOYEE_DOWNLOAD);
 
   // "Xem chi tiết" defaults to whichever Bộ phận cấp 1 contains the department currently
   // selected on the chart (via orgUnitLevel2), so it opens already scoped to what's on screen.
@@ -78,27 +99,37 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">
-            <T k="employees.moduleName" />
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            <T k="employees.pageSubtitle" />
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <a href="/api/employees/export" className={buttonVariants({ variant: "outline" })}>
-            <T k="employees.download.button" />
-          </a>
-          {canManage && <ImportDialog />}
-          {canManage && (
-            <Link href="/employees/new" className={buttonVariants()}>
-              <T k="employees.addButton" />
-            </Link>
-          )}
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+              <IdCard className="size-5" />
+            </span>
+            <div>
+              <h1 className="text-xl font-semibold">
+                <T k="employees.moduleName" />
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                <T k="employees.pageSubtitle" />
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {canDownload && (
+              <a href="/api/employees/export" className={buttonVariants({ variant: "outline" })}>
+                <Download className="size-4" />
+                <T k="employees.download.button" />
+              </a>
+            )}
+            {canManage && <ImportDialog />}
+            {canManage && (
+              <Link href="/employees/new" className={buttonVariants()}>
+                <T k="employees.addButton" />
+              </Link>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-3 gap-3">
         <Card>
@@ -183,18 +214,21 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
 
       <Card>
         <CardContent className="pt-6">
+          <div className="mb-3 flex justify-end">
+            <ColumnVisibilityMenu columns={EMPLOYEES_TOGGLEABLE_COLUMNS} hiddenColumns={[...hiddenColumns]} cookieName={EMPLOYEES_COLUMNS_COOKIE} />
+          </div>
           <Table>
             <TableHeader>
               <TableRow className="h-11">
                 <TableHead><T k="employees.table.code" /></TableHead>
                 <TableHead><T k="employees.table.nameVi" /></TableHead>
-                <TableHead><T k="employees.table.nameZh" /></TableHead>
-                <TableHead><T k="employees.field.orgUnitLevel1" /></TableHead>
-                <TableHead><T k="employees.field.orgUnitLevel2" /></TableHead>
-                <TableHead><T k="employees.field.region" /></TableHead>
-                <TableHead><T k="employees.field.shift" /></TableHead>
-                <TableHead><T k="employees.field.position" /></TableHead>
-                <TableHead><T k="common.status" /></TableHead>
+                {!hiddenColumns.has("nameZh") && <TableHead><T k="employees.table.nameZh" /></TableHead>}
+                {!hiddenColumns.has("orgUnitLevel1") && <TableHead><T k="employees.field.orgUnitLevel1" /></TableHead>}
+                {!hiddenColumns.has("orgUnitLevel2") && <TableHead><T k="employees.field.orgUnitLevel2" /></TableHead>}
+                {!hiddenColumns.has("region") && <TableHead><T k="employees.field.region" /></TableHead>}
+                {!hiddenColumns.has("shift") && <TableHead><T k="employees.field.shift" /></TableHead>}
+                {!hiddenColumns.has("position") && <TableHead><T k="employees.field.position" /></TableHead>}
+                {!hiddenColumns.has("status") && <TableHead><T k="common.status" /></TableHead>}
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -203,20 +237,22 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
                 <TableRow key={employee.id} className="h-14">
                   <TableCell className="py-3 font-medium">{employee.employeeCode}</TableCell>
                   <TableCell className="py-3">{employee.fullName}</TableCell>
-                  <TableCell className="py-3">{employee.fullNameZh ?? "—"}</TableCell>
-                  <TableCell className="py-3">{employee.orgUnitLevel1 ?? "—"}</TableCell>
-                  <TableCell className="py-3">{employee.orgUnitLevel2 ?? "—"}</TableCell>
-                  <TableCell className="py-3">{employee.region ?? "—"}</TableCell>
-                  <TableCell className="py-3">{employee.shift ?? "—"}</TableCell>
-                  <TableCell className="py-3">{employee.position ?? "—"}</TableCell>
-                  <TableCell className="py-3">
-                    <Badge
-                      variant={employee.status === "active" ? "outline" : "secondary"}
-                      className={employee.status === "active" ? STATUS_OUTLINE_CLASS.success : ""}
-                    >
-                      <T k={employee.status === "active" ? "employees.status.active" : "employees.status.resigned"} />
-                    </Badge>
-                  </TableCell>
+                  {!hiddenColumns.has("nameZh") && <TableCell className="py-3">{employee.fullNameZh ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("orgUnitLevel1") && <TableCell className="py-3">{employee.orgUnitLevel1 ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("orgUnitLevel2") && <TableCell className="py-3">{employee.orgUnitLevel2 ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("region") && <TableCell className="py-3">{employee.region ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("shift") && <TableCell className="py-3">{employee.shift ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("position") && <TableCell className="py-3">{employee.position ?? "—"}</TableCell>}
+                  {!hiddenColumns.has("status") && (
+                    <TableCell className="py-3">
+                      <Badge
+                        variant={employee.status === "active" ? "outline" : "secondary"}
+                        className={employee.status === "active" ? STATUS_OUTLINE_CLASS.success : ""}
+                      >
+                        <T k={employee.status === "active" ? "employees.status.active" : "employees.status.resigned"} />
+                      </Badge>
+                    </TableCell>
+                  )}
                   <TableCell className="py-3 text-right">
                     <EmployeeRowActions employee={employee} canManage={canManage} />
                   </TableCell>
@@ -224,7 +260,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={3 + EMPLOYEES_TOGGLEABLE_COLUMNS.length - hiddenColumns.size}>
                     <EmptyState message={<T k="employees.table.noResults" />} />
                   </TableCell>
                 </TableRow>

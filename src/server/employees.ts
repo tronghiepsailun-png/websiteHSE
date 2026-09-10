@@ -18,7 +18,10 @@ export async function searchEmployeesLite(organizationId: string, query: string,
       organizationId,
       status: "active",
       OR: [
-        { employeeCode: { contains: q } },
+        // MSNV is matched by prefix only — typing "538" should never surface an id like
+        // "47538" just because the digits appear in the middle. Name search stays
+        // contains, since people search by any part of a name.
+        { employeeCode: { startsWith: q } },
         { fullName: { contains: q } },
         { fullNameZh: { contains: q } },
       ],
@@ -98,7 +101,7 @@ export async function getEmployeeStats(organizationId: string) {
   const [total, active, byOrgUnitLevel2] = await Promise.all([
     prisma.employee.count({ where: { organizationId } }),
     prisma.employee.count({ where: { organizationId, status: "active" } }),
-    prisma.employee.groupBy({ by: ["orgUnitLevel2"], where: { organizationId }, _count: { _all: true } }),
+    prisma.employee.groupBy({ by: ["orgUnitLevel2"], where: { organizationId, status: "active" }, _count: { _all: true } }),
   ]);
 
   const byDepartment = byOrgUnitLevel2
@@ -199,8 +202,12 @@ type HierarchyRow = { orgUnitLevel1: string | null; orgUnitLevel2: string | null
  *  Missing values at any level stay `null` (not resolved to a display label) so the client
  *  can localize "Không xác định"/"未指定" itself. */
 export async function getEmployeeHierarchy(organizationId: string): Promise<Level1Breakdown[]> {
+  // Active only — same reasoning as getEmployeeStats' byDepartment: this counts who's actually
+  // on the floor today, not every historical record (a resigned employee still keeps their old
+  // department/shift data, so without this filter they'd keep padding out headcounts here
+  // indefinitely after leaving).
   const rows: HierarchyRow[] = await prisma.employee.findMany({
-    where: { organizationId },
+    where: { organizationId, status: "active" },
     select: { orgUnitLevel1: true, orgUnitLevel2: true, region: true, team: true, shift: true },
   });
 

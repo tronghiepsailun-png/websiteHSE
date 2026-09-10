@@ -19,15 +19,23 @@ export function EmployeeCombobox({
   placeholder,
   emptyLabel,
   className,
+  defaultValue,
+  formId,
 }: {
   name: string;
   placeholder: string;
   emptyLabel: string;
   className?: string;
+  /** Pre-selects an employee (e.g. editing a record that already has one) without an extra
+   *  search round-trip — the caller already has the full row loaded. */
+  defaultValue?: EmployeeLite | null;
+  /** Associates the hidden value input with a <form> elsewhere in the DOM (e.g. a table row's
+   *  cells sitting outside any <form> ancestor) via the native form="" attribute. */
+  formId?: string;
 }) {
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState(defaultValue ? formatEmployee(defaultValue) : "");
   const [options, setOptions] = useState<EmployeeLite[]>([]);
-  const [selected, setSelected] = useState<EmployeeLite | null>(null);
+  const [selected, setSelected] = useState<EmployeeLite | null>(defaultValue ?? null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Base UI fires onValueChange (a pick) and onInputValueChange (syncing the input to that
   // item's label) in the same synchronous batch. Reading React state inside
@@ -65,7 +73,7 @@ export function EmployeeCombobox({
       {/* Rendered as a sibling of Root, not a child — Base UI's own `name` prop doesn't
           generate a form-submittable hidden input for object-typed item values, and an
           extra child inside Root risks confusing its internal item collection. */}
-      <input type="hidden" name={name} value={selected?.id ?? ""} />
+      <input type="hidden" name={name} form={formId} value={selected?.id ?? ""} />
       <Combobox.Root<EmployeeLite>
         items={options}
         itemToStringLabel={formatEmployee}
@@ -91,7 +99,7 @@ export function EmployeeCombobox({
         </div>
         <Combobox.Portal>
           <Combobox.Positioner className="isolate z-50" sideOffset={4} side="bottom" align="start">
-            <Combobox.Popup className="max-h-64 w-(--anchor-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
+            <Combobox.Popup className="max-h-64 w-max min-w-(--anchor-width) max-w-(--available-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
               <Combobox.Empty className="px-2 py-4 text-center text-sm text-muted-foreground">
                 {emptyLabel}
               </Combobox.Empty>

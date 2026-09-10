@@ -21,10 +21,14 @@ export async function createRecordType(params: {
   groupId: string;
   code: string;
   name: string;
+  nameZh?: string | null;
   legalBasis?: string | null;
+  legalBasisZh?: string | null;
   frequencyLabel?: string | null;
+  frequencyLabelZh?: string | null;
   cycleMonths?: number | null;
   responsibleUnit?: string | null;
+  responsibleUnitZh?: string | null;
   sharedAcrossSites: boolean;
 }) {
   const maxSortOrder = await prisma.recordType.aggregate({
@@ -40,10 +44,14 @@ export async function updateRecordType(
   id: string,
   params: {
     name: string;
+    nameZh?: string | null;
     legalBasis?: string | null;
+    legalBasisZh?: string | null;
     frequencyLabel?: string | null;
+    frequencyLabelZh?: string | null;
     cycleMonths?: number | null;
     responsibleUnit?: string | null;
+    responsibleUnitZh?: string | null;
     sharedAcrossSites: boolean;
   }
 ) {

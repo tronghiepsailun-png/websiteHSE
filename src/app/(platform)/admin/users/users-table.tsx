@@ -3,19 +3,38 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { removeRoleAction, setMembershipStatusAction } from "./actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { setMembershipStatusAction, deleteMembershipAction } from "./actions";
+import { EditPermissionsDialog } from "./edit-permissions-dialog";
 import { useT } from "@/lib/i18n/locale-context";
-import { roleLabelKey } from "@/lib/i18n/role-label";
+import { PERMISSION_MODULES } from "@/server/permissions";
 
-type RoleAssignment = { assignmentId: string; roleKey: string; roleName: string };
 type Membership = { id: string; userId: string; status: string; user: { name: string; email: string } };
+type TFunc = ReturnType<typeof useT>;
+
+const ACTION_COLUMNS = ["edit", "delete", "upload", "download"] as const;
+
+function summarize(permissions: string[], t: TFunc) {
+  if (permissions.length === 0) return t("admin.users.summaryNone");
+
+  const set = new Set(permissions);
+  const hasAll = (keys: string[] | null) => keys !== null && keys.every((k) => set.has(k));
+
+  const allGranted = PERMISSION_MODULES.every((mod) => ACTION_COLUMNS.every((c) => mod[c] === null || hasAll(mod[c])));
+  if (allGranted) return t("admin.users.summaryFullAccess");
+
+  const anyGranted = PERMISSION_MODULES.some((mod) => ACTION_COLUMNS.some((c) => mod[c] !== null && hasAll(mod[c])));
+  if (!anyGranted) return t("admin.users.summaryViewOnly");
+
+  return t("admin.users.summaryCustom", { count: permissions.length });
+}
 
 export function UsersTable({
   memberships,
-  rolesByUser,
+  permissionsByUser,
 }: {
   memberships: Membership[];
-  rolesByUser: Record<string, RoleAssignment[]>;
+  permissionsByUser: Record<string, string[]>;
 }) {
   const t = useT();
 
@@ -24,35 +43,23 @@ export function UsersTable({
       <TableHeader>
         <TableRow className="h-11">
           <TableHead>{t("common.name")}</TableHead>
-          <TableHead>{t("common.email")}</TableHead>
-          <TableHead>{t("common.roles")}</TableHead>
+          <TableHead>{t("admin.users.username")}</TableHead>
+          <TableHead>{t("admin.users.permissionsTitle")}</TableHead>
           <TableHead>{t("common.status")}</TableHead>
           <TableHead />
         </TableRow>
       </TableHeader>
       <TableBody>
         {memberships.map((m) => {
-          const roles = rolesByUser[m.userId] ?? [];
+          const permissions = permissionsByUser[m.userId] ?? [];
           return (
             <TableRow key={m.id} className="h-14">
               <TableCell className="py-3 font-medium">{m.user.name}</TableCell>
               <TableCell className="py-3">{m.user.email}</TableCell>
               <TableCell className="py-3">
-                <div className="flex flex-wrap gap-1">
-                  {roles.map((r) => {
-                    const key = roleLabelKey(r.roleKey);
-                    return (
-                      <form action={removeRoleAction} key={r.assignmentId}>
-                        <input type="hidden" name="assignmentId" value={r.assignmentId} />
-                        <button type="submit" title={t("admin.users.removeRoleTitle")}>
-                          <Badge variant="outline" className="cursor-pointer hover:bg-destructive/10">
-                            {key ? t(key) : r.roleName} ✕
-                          </Badge>
-                        </button>
-                      </form>
-                    );
-                  })}
-                  {roles.length === 0 && <span className="text-xs text-muted-foreground">{t("admin.users.noRoles")}</span>}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{summarize(permissions, t)}</Badge>
+                  <EditPermissionsDialog userId={m.userId} userName={m.user.name} currentPermissions={permissions} />
                 </div>
               </TableCell>
               <TableCell className="py-3">
@@ -61,13 +68,30 @@ export function UsersTable({
                 </Badge>
               </TableCell>
               <TableCell className="py-3">
-                <form action={setMembershipStatusAction}>
-                  <input type="hidden" name="userId" value={m.userId} />
-                  <input type="hidden" name="status" value={m.status === "active" ? "disabled" : "active"} />
-                  <Button type="submit" size="sm" variant="ghost">
-                    {m.status === "active" ? t("common.disable") : t("common.reactivate")}
-                  </Button>
-                </form>
+                <div className="flex items-center gap-1">
+                  <form action={setMembershipStatusAction}>
+                    <input type="hidden" name="userId" value={m.userId} />
+                    <input type="hidden" name="status" value={m.status === "active" ? "disabled" : "active"} />
+                    <Button type="submit" size="sm" variant="ghost">
+                      {m.status === "active" ? t("common.disable") : t("common.reactivate")}
+                    </Button>
+                  </form>
+                  <ConfirmDialog
+                    trigger={
+                      <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                        {t("admin.users.deleteMember")}
+                      </Button>
+                    }
+                    title={t("admin.users.deleteMemberConfirmTitle")}
+                    description={t("admin.users.deleteMemberConfirmDescription", { name: m.user.name })}
+                    confirmLabel={t("common.delete")}
+                    onConfirm={() => {
+                      const formData = new FormData();
+                      formData.set("userId", m.userId);
+                      deleteMembershipAction(formData);
+                    }}
+                  />
+                </div>
               </TableCell>
             </TableRow>
           );

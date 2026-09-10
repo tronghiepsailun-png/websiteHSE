@@ -12,15 +12,11 @@ import { T } from "@/components/i18n/t";
 import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { AddOfficerForm } from "./add-officer-form";
-import {
-  createViolationTypeAction,
-  toggleViolationTypeActiveAction,
-  updateSafetyOfficerSubsidyAction,
-  toggleSafetyOfficerActiveAction,
-} from "./actions";
+import { OfficerCatalogTable } from "./officer-catalog-table";
+import { createViolationTypeAction, toggleViolationTypeActiveAction } from "./actions";
 
 export default async function ViolationCatalogPage() {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const locale = await getLocale();
 
   const [violationTypes, officers] = await Promise.all([
@@ -103,62 +99,7 @@ export default async function ViolationCatalogPage() {
         <CardContent className="flex flex-col gap-4">
           <AddOfficerForm />
 
-          <Table>
-            <TableHeader>
-              <TableRow className="h-11">
-                <TableHead><T k="violations.table.stt" /></TableHead>
-                <TableHead><T k="incidents.table.employee" /></TableHead>
-                <TableHead><T k="violations.table.department" /></TableHead>
-                <TableHead className="text-right"><T k="violations.catalog.baseSubsidy" /></TableHead>
-                <TableHead><T k="common.status" /></TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {officers.map((o, i) => (
-                <TableRow key={o.id} className="h-14">
-                  <TableCell className="py-3 text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell className="py-3">
-                    <div className="font-medium">{o.employee.fullName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {o.employee.employeeCode} {o.employee.fullNameZh ? `· ${o.employee.fullNameZh}` : ""}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 text-muted-foreground">
-                    {[o.employee.orgUnitLevel1, o.employee.orgUnitLevel2].filter(Boolean).join(" / ") || "—"}
-                  </TableCell>
-                  <TableCell className="py-3 text-right">
-                    <form action={updateSafetyOfficerSubsidyAction} className="flex items-center justify-end gap-2">
-                      <input type="hidden" name="id" value={o.id} />
-                      <Input
-                        name="monthlySubsidyVnd"
-                        type="number"
-                        step="1000"
-                        min="0"
-                        defaultValue={o.monthlySubsidyVnd}
-                        className="h-8 w-28 text-right"
-                      />
-                      <Button type="submit" size="sm" variant="outline"><T k="common.save" /></Button>
-                    </form>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <Badge variant={o.isActive ? "default" : "secondary"}>
-                      {o.isActive ? <T k="common.active" /> : <T k="common.inactive" />}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <form action={toggleSafetyOfficerActiveAction}>
-                      <input type="hidden" name="id" value={o.id} />
-                      <input type="hidden" name="isActive" value={(!o.isActive).toString()} />
-                      <Button type="submit" size="sm" variant="ghost">
-                        {o.isActive ? <T k="common.deactivate" /> : <T k="common.activate" />}
-                      </Button>
-                    </form>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <OfficerCatalogTable officers={officers} />
         </CardContent>
       </Card>
     </div>

@@ -8,12 +8,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterCountBadge } from "@/components/ui/filter-count-badge";
 import { countActiveFilters } from "@/lib/count-active-filters";
+import { CAPA_CLASSIFICATIONS } from "@/lib/capa-constants";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 
-export function CapaFilters({ search, status }: { search?: string; status?: string }) {
+export function CapaFilters({ search, status, classification }: { search?: string; status?: string; classification?: string }) {
   const t = useT();
-  const activeCount = countActiveFilters(search, status);
+  const activeCount = countActiveFilters(search, status, classification);
   const formRef = useRef<HTMLFormElement>(null);
   // The status Select applies immediately on change — no need to hit "Lọc" separately (the
   // search box still needs Enter, since submitting on every keystroke would be unusable). With
@@ -30,9 +31,9 @@ export function CapaFilters({ search, status }: { search?: string; status?: stri
   return (
     <Card>
       <CardContent className="pt-6">
-        <form ref={formRef} className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_auto]">
+        <form ref={formRef} className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_1fr_auto]">
           <Input name="q" placeholder={t("capa.filter.searchPlaceholder")} defaultValue={search} onKeyDown={submitOnEnter} />
-          <Select key={status ?? "all"} name="status" defaultValue={status ?? "all"} onValueChange={submitOnChange}>
+          <Select key={`status-${status ?? "all"}`} name="status" defaultValue={status ?? "all"} onValueChange={submitOnChange}>
             <SelectTrigger>
               <SelectValue placeholder={t("common.status")}>
                 {(value: string) => (value === "all" ? t("capa.filter.allStatuses") : t(`status.capa.${value}` as DictionaryKey))}
@@ -41,10 +42,22 @@ export function CapaFilters({ search, status }: { search?: string; status?: stri
             <SelectContent>
               <SelectItem value="all">{t("capa.filter.allStatuses")}</SelectItem>
               <SelectItem value="open">{t("status.capa.open")}</SelectItem>
-              <SelectItem value="in_progress">{t("status.capa.in_progress")}</SelectItem>
               <SelectItem value="completed">{t("status.capa.completed")}</SelectItem>
-              <SelectItem value="overdue">{t("status.capa.overdue")}</SelectItem>
-              <SelectItem value="closed">{t("status.capa.closed")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select key={`classification-${classification ?? "all"}`} name="classification" defaultValue={classification ?? "all"} onValueChange={submitOnChange}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("capa.table.classification")}>
+                {(value: string) => (value === "all" ? t("capa.filter.allClassifications") : t(`capa.classification.${value}` as DictionaryKey))}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("capa.filter.allClassifications")}</SelectItem>
+              {CAPA_CLASSIFICATIONS.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {t(`capa.classification.${c}` as DictionaryKey)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2">

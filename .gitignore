@@ -24,6 +24,11 @@
 # local file storage (documents/photos uploaded by users)
 /storage
 
+# raw source dumps for one-off import scripts — already processed into /storage or the DB;
+# these are large (500+ MB) and not meant to live in git history
+/Hình ảnh sản phẩm PCCC
+/Hồ sơ pháp lý PCCC
+
 # logs
 npm-debug.log*
 yarn-debug.log*

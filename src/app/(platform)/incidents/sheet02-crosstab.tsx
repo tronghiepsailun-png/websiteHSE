@@ -56,7 +56,7 @@ export async function Sheet02Crosstab({ data }: { data: Awaited<ReturnType<typeo
                 </TableCell>
                 {row.cells.map((v, i) => (
                   <TableCell key={data.columns[i].id} className="text-center">
-                    {v || "—"}
+                    {v || ""}
                   </TableCell>
                 ))}
                 <TableCell className="sticky right-0 z-10 bg-card text-center font-semibold">{row.rowTotal}</TableCell>

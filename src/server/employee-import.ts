@@ -1,6 +1,5 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
-import { writeAuditLog } from "@/server/audit";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import {
   type ClassifiedEmployeeRow,
@@ -56,11 +55,19 @@ function normalizeHeader(value: unknown): string {
 
 function cellText(value: ExcelJS.CellValue): string {
   if (value == null) return "";
-  if (typeof value === "object" && "richText" in value) {
-    return (value as { richText: { text: string }[] }).richText.map((t) => t.text).join("");
-  }
-  if (typeof value === "object" && "result" in value) {
-    return String((value as { result: unknown }).result ?? "");
+  if (typeof value === "object") {
+    if ("richText" in value) {
+      return (value as { richText: { text: string }[] }).richText.map((t) => t.text).join("").trim();
+    }
+    if ("result" in value) {
+      return cellText((value as { result: ExcelJS.CellValue }).result ?? "");
+    }
+    // Hyperlink cells ({ text, hyperlink }) — recurse into `text` rather than stringifying the
+    // whole object (which previously produced the literal text "[object Object]").
+    if ("text" in value) {
+      return cellText((value as { text: ExcelJS.CellValue }).text);
+    }
+    if ("error" in value) return "";
   }
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : value.toISOString();
   return String(value).trim();
@@ -368,14 +375,17 @@ export async function commitEmployeeImport(params: {
     ).map((e) => [e.employeeCode, e])
   );
 
-  let created = 0;
-  let updated = 0;
+  // Every distinct department resolved once up front (a full-roster import of thousands of rows
+  // realistically touches a few dozen distinct department names) — keeps the row loops below
+  // free of any awaited DB round trip, which is what actually made batching them worthwhile.
+  const distinctOrgUnitLevel1 = [...new Set(writable.map((r) => r.data!.orgUnitLevel1))];
+  const orgUnitIdByRowValue = new Map<string, string>();
+  for (const name of distinctOrgUnitLevel1) {
+    orgUnitIdByRowValue.set(name, await resolveOrgUnitId(name));
+  }
 
-  for (const classified of writable) {
-    const data = classified.data!;
-    const orgUnitId = await resolveOrgUnitId(data.orgUnitLevel1);
-
-    const fields = {
+  function toFields(data: ParsedEmployeeFields) {
+    return {
       fullName: data.fullName,
       fullNameZh: data.fullNameZh,
       gender: data.gender,
@@ -389,51 +399,104 @@ export async function commitEmployeeImport(params: {
       team: data.team,
       shift: data.shift,
       position: data.position,
-      orgUnitId,
-      status: "active",
+      orgUnitId: orgUnitIdByRowValue.get(data.orgUnitLevel1)!,
+      status: "active" as const,
       sourceRowData: data,
     };
+  }
 
-    // Defends against the preview being stale by the time the user confirms (another
-    // import/edit could have run in between) using the batch fetched above.
-    const current = currentByCode.get(data.employeeCode);
+  // Defends against the preview being stale by the time the user confirms (another import/edit
+  // could have run in between) using the batch fetched above — same split the original per-row
+  // "if (!current) create else update" logic made, just grouped ahead of time so each branch can
+  // run as one bulk operation instead of one round trip per employee. A full-roster update
+  // (thousands of rows) previously meant thousands of individually auto-committed statements —
+  // each one its own disk fsync on SQLite — which is what made this take several minutes and
+  // occasionally made the underlying connection give out entirely partway through.
+  const toCreate = writable.filter((r) => !currentByCode.has(r.data!.employeeCode));
+  const toUpdate = writable.filter((r) => currentByCode.has(r.data!.employeeCode));
 
-    if (!current) {
-      const employee = await prisma.employee.create({ data: { organizationId, employeeCode: data.employeeCode, ...fields } });
-      await writeAuditLog({ organizationId, userId, module: "employee", recordType: "Employee", recordId: employee.id, action: "create" });
-      created += 1;
-    } else {
-      await prisma.employee.update({ where: { id: current.id }, data: fields });
-      await writeAuditLog({
+  // Chunk size for the update transactions below — bounds how much work (and how long) any
+  // single transaction holds the SQLite write lock for, rather than one transaction spanning
+  // every row in a multi-thousand-row import.
+  const CHUNK_SIZE = 500;
+  function chunk<T>(items: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+    return chunks;
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  if (toCreate.length > 0) {
+    await prisma.employee.createMany({
+      data: toCreate.map((r) => ({ organizationId, employeeCode: r.data!.employeeCode, ...toFields(r.data!) })),
+    });
+    const createdEmployees = await prisma.employee.findMany({
+      where: { organizationId, employeeCode: { in: toCreate.map((r) => r.data!.employeeCode) } },
+      select: { id: true },
+    });
+    await prisma.auditLog.createMany({
+      data: createdEmployees.map((e) => ({
         organizationId,
         userId,
         module: "employee",
         recordType: "Employee",
-        recordId: current.id,
-        action: "update",
-        changes: [{ field: "source", oldValue: null, newValue: "excel_import" }],
-      });
-      updated += 1;
-    }
+        recordId: e.id,
+        action: "create" as const,
+      })),
+    });
+    created = toCreate.length;
   }
+
+  for (const rowsChunk of chunk(toUpdate, CHUNK_SIZE)) {
+    await prisma.$transaction(
+      [
+        ...rowsChunk.map((r) => prisma.employee.update({ where: { id: currentByCode.get(r.data!.employeeCode)!.id }, data: toFields(r.data!) })),
+        prisma.auditLog.createMany({
+          data: rowsChunk.map((r) => ({
+            organizationId,
+            userId,
+            module: "employee",
+            recordType: "Employee",
+            recordId: currentByCode.get(r.data!.employeeCode)!.id,
+            action: "update" as const,
+            fieldName: "source",
+            oldValue: null,
+            newValue: "excel_import",
+          })),
+        }),
+      ],
+      { timeout: 30_000 }
+    );
+  }
+  updated = toUpdate.length;
 
   let departed = 0;
   if (departedEmployeeCodes.length > 0) {
     const toDepart = await prisma.employee.findMany({
       where: { organizationId, employeeCode: { in: departedEmployeeCodes }, status: "active" },
+      select: { id: true },
     });
-    for (const employee of toDepart) {
-      await prisma.employee.update({ where: { id: employee.id }, data: { status: "resigned" } });
-      await writeAuditLog({
-        organizationId,
-        userId,
-        module: "employee",
-        recordType: "Employee",
-        recordId: employee.id,
-        action: "update",
-        changes: [{ field: "status", oldValue: "active", newValue: "resigned" }],
+    if (toDepart.length > 0) {
+      await prisma.employee.updateMany({
+        where: { id: { in: toDepart.map((e) => e.id) } },
+        data: { status: "resigned" },
       });
-      departed += 1;
+      await prisma.auditLog.createMany({
+        data: toDepart.map((e) => ({
+          organizationId,
+          userId,
+          module: "employee",
+          recordType: "Employee",
+          recordId: e.id,
+          action: "update" as const,
+          fieldName: "status",
+          oldValue: "active",
+          newValue: "resigned",
+        })),
+      });
+      departed = toDepart.length;
     }
   }
 

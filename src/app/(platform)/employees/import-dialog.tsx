@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -28,6 +28,51 @@ export function ImportDialog() {
   const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Bumped every time the dialog closes or the user hits "Quay lại" — remounts ImportDialogBody
+  // (the step/useActionState/commitResult owner) with fresh state. Without this, the old preview
+  // result (from useActionState, which has no reset API of its own) stayed in memory forever:
+  // "Quay lại" flipped `step` back to "select" for one render, but the very next render saw the
+  // same stale `preview.ok` and immediately snapped back to "preview" — same thing happened
+  // re-opening the dialog later. Deliberately keyed on an inner child, NOT on <DialogContent>
+  // itself: keying the Popup/Portal/Close primitives directly tore down and rebuilt Base UI's
+  // own open/close transition tracking mid-close, which is exactly what broke the X button after
+  // the first version of this fix — Base UI needs that element's identity stable across the
+  // open→closed transition to actually finish closing.
+  const [instanceKey, setInstanceKey] = useState(0);
+
+  function handleClose(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) setInstanceKey((k) => k + 1);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <Upload className="size-4" />
+        {t("employees.upload.button")}
+      </DialogTrigger>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+        <ImportDialogBody
+          key={instanceKey}
+          onReset={() => setInstanceKey((k) => k + 1)}
+          onCommitted={() => router.refresh()}
+          onRequestClose={() => handleClose(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ImportDialogBody({
+  onReset,
+  onCommitted,
+  onRequestClose,
+}: {
+  onReset: () => void;
+  onCommitted: () => void;
+  onRequestClose: () => void;
+}) {
+  const t = useT();
   const [step, setStep] = useState<Step>("select");
   const [state, formAction, previewPending] = useActionState<PreviewActionState, FormData>(previewEmployeeImportAction, undefined);
   const [commitResult, setCommitResult] = useState<EmployeeImportCommitResult | null>(null);
@@ -48,24 +93,15 @@ export function ImportDialog() {
     });
   }
 
-  function handleClose(nextOpen: boolean) {
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      setStep("select");
-      setCommitResult(null);
-      if (commitResult) router.refresh();
-    }
+  function handleDone() {
+    onRequestClose();
+    if (commitResult) onCommitted();
   }
 
   const rowsToReview = preview?.ok ? preview.rows.filter((r) => r.status !== "existing") : [];
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogTrigger render={<Button variant="outline" />}>
-        <Upload className="size-4" />
-        {t("employees.upload.button")}
-      </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+    <>
         <DialogHeader>
           <DialogTitle>{t("employees.upload.button")}</DialogTitle>
           <DialogDescription>
@@ -79,7 +115,7 @@ export function ImportDialog() {
           <form action={formAction} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="import-file">{t("incidents.upload.selectFile")}</Label>
-              <Input id="import-file" name="file" type="file" accept=".xlsx" required />
+              <FileInput id="import-file" name="file" accept=".xlsx" required />
             </div>
             <div className="flex items-center justify-between">
               <a href="/api/employees/template" className="text-sm text-primary hover:underline">
@@ -117,6 +153,7 @@ export function ImportDialog() {
                   <TableRow>
                     <TableHead>{t("employees.upload.rowColumn")}</TableHead>
                     <TableHead>{t("employees.field.employeeCode")}</TableHead>
+                    <TableHead>{t("employees.upload.nameColumn")}</TableHead>
                     <TableHead>{t("common.status")}</TableHead>
                     <TableHead>{t("employees.upload.detailColumn")}</TableHead>
                   </TableRow>
@@ -127,7 +164,7 @@ export function ImportDialog() {
                   ))}
                   {rowsToReview.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="py-6 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
                         {t("employees.upload.noChanges")}
                       </TableCell>
                     </TableRow>
@@ -151,7 +188,7 @@ export function ImportDialog() {
             )}
 
             <div className="flex items-center justify-between">
-              <Button variant="outline" onClick={() => setStep("select")} disabled={confirmPending}>
+              <Button variant="outline" onClick={onReset} disabled={confirmPending}>
                 {t("employees.upload.back")}
               </Button>
               <Button onClick={handleConfirm} disabled={confirmPending}>
@@ -169,13 +206,12 @@ export function ImportDialog() {
               <SummaryPill label={t("employees.upload.summaryDeparted")} value={commitResult.departed} tone="departed" />
               <SummaryPill label={t("employees.upload.summaryError")} value={commitResult.skippedErrors} tone="error" />
             </div>
-            <Button onClick={() => handleClose(false)} className="self-end">
+            <Button onClick={handleDone} className="self-end">
               {t("common.close")}
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
 
@@ -212,6 +248,16 @@ function ReviewRow({ row }: { row: ClassifiedEmployeeRow }) {
     <TableRow>
       <TableCell className="text-muted-foreground">{row.row}</TableCell>
       <TableCell className="font-medium">{row.employeeCode || "—"}</TableCell>
+      <TableCell>
+        {row.data ? (
+          <div className="flex flex-col">
+            <span>{row.data.fullName}</span>
+            {row.data.fullNameZh && <span className="text-xs text-muted-foreground">{row.data.fullNameZh}</span>}
+          </div>
+        ) : (
+          "—"
+        )}
+      </TableCell>
       <TableCell>{statusLabel[row.status] ?? row.status}</TableCell>
       <TableCell className="text-xs">
         {row.status === "updated" &&

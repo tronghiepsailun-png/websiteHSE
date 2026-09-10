@@ -12,6 +12,14 @@ import { AddUnitForm } from "./add-unit-form";
 import { T } from "@/components/i18n/t";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
+import type { DictionaryKey } from "@/lib/i18n/translate";
+
+// Fixed, app-level fact (not per-org configurable): which modules actually read each unit
+// type. Shown as a caption so this page is self-explanatory instead of just a bare table.
+const UNIT_TYPE_USAGE_KEY: Record<string, DictionaryKey> = {
+  DEPT: "admin.orgUnits.usageDept",
+  SITE: "admin.orgUnits.usageSite",
+};
 
 export default async function OrgUnitsPage() {
   const ctx = await requireOrgPermission(PERMISSIONS.CONFIG_MANAGE);
@@ -60,19 +68,23 @@ export default async function OrgUnitsPage() {
           <Table>
             <TableHeader>
               <TableRow className="h-11">
-                <TableHead><T k="common.level" /></TableHead>
-                <TableHead><T k="common.code" /></TableHead>
                 <TableHead><T k="common.name" /></TableHead>
+                <TableHead><T k="common.code" /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {unitTypes.map((t) => (
-                <TableRow key={t.id} className="h-14">
-                  <TableCell className="py-3">{t.level}</TableCell>
-                  <TableCell className="py-3">{t.code}</TableCell>
-                  <TableCell className="py-3">{t.name}</TableCell>
-                </TableRow>
-              ))}
+              {unitTypes.map((ut) => {
+                const usageKey = UNIT_TYPE_USAGE_KEY[ut.code];
+                return (
+                  <TableRow key={ut.id} className="h-14">
+                    <TableCell className="py-3">
+                      <p className="font-medium">{ut.name}</p>
+                      {usageKey && <p className="text-xs text-muted-foreground"><T k={usageKey} /></p>}
+                    </TableCell>
+                    <TableCell className="py-3 text-muted-foreground">{ut.code}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

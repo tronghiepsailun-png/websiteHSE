@@ -25,7 +25,7 @@ const createDocumentSchema = z.object({ name: z.string().min(1) });
 export type CreateDocumentState = { error?: string } | undefined;
 
 export async function createWorkPlanDocumentAction(_prev: CreateDocumentState, formData: FormData): Promise<CreateDocumentState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
   const parsed = createDocumentSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: t(await getLocale(), "workplan.form.errorGeneric") };
 
@@ -47,7 +47,7 @@ export async function createWorkPlanDocumentAction(_prev: CreateDocumentState, f
 }
 
 export async function renameWorkPlanDocumentAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
   const id = String(formData.get("id"));
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
@@ -69,7 +69,7 @@ export async function renameWorkPlanDocumentAction(formData: FormData) {
 }
 
 export async function deleteWorkPlanDocumentAction(id: string) {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_DELETE);
   const doc = await prisma.workPlanDocument.findUnique({ where: { id } });
   if (!doc || doc.organizationId !== ctx.organizationId) return;
 
@@ -106,7 +106,7 @@ const itemSchema = z.object({
 export type ItemFormState = { success: true } | { error: string; fieldErrors?: FieldErrors } | undefined;
 
 export async function createWorkPlanItemAction(_prev: ItemFormState, formData: FormData): Promise<ItemFormState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
   const parsed = itemSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: t(await getLocale(), "workplan.form.errorGeneric"), fieldErrors: zodFieldErrors(parsed.error) };
   const data = parsed.data;
@@ -145,7 +145,7 @@ export async function createWorkPlanItemAction(_prev: ItemFormState, formData: F
 const updateItemSchema = itemSchema.extend({ id: z.string().min(1) });
 
 export async function updateWorkPlanItemAction(_prev: ItemFormState, formData: FormData): Promise<ItemFormState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
   const parsed = updateItemSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { error: t(await getLocale(), "workplan.form.errorGeneric"), fieldErrors: zodFieldErrors(parsed.error) };
   const data = parsed.data;
@@ -190,7 +190,7 @@ async function getItemInOrg(id: string, organizationId: string) {
 /** Quick-pick from the table row's % buttons — sets progress straight to that milestone and
  *  updates the item's one shared note in a single action, no need to open the full edit dialog. */
 export async function setWorkPlanProgressAction(id: string, percent: number, notes: string) {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
   const item = await getItemInOrg(id, ctx.organizationId);
   if (!item) return;
 
@@ -208,7 +208,7 @@ export async function setWorkPlanProgressAction(id: string, percent: number, not
 }
 
 export async function deleteWorkPlanItemAction(id: string) {
-  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_DELETE);
   const item = await getItemInOrg(id, ctx.organizationId);
   if (!item) return;
 

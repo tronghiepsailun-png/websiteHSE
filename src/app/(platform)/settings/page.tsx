@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { getPermissionKeysForUserInOrg } from "@/server/rbac";
-import { ADMIN_NAV_ITEMS, PLATFORM_NAV_ITEMS, canSee } from "@/lib/nav";
+import { ADMIN_NAV_ITEMS, canSee } from "@/lib/nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { T } from "@/components/i18n/t";
 
@@ -11,7 +11,7 @@ export default async function SettingsPage() {
 
   const permissionKeys = ctx.isPlatformAdmin ? null : Array.from(await getPermissionKeysForUserInOrg(ctx.userId, ctx.organizationId));
 
-  const tiles = [...ADMIN_NAV_ITEMS, ...(ctx.isPlatformAdmin ? PLATFORM_NAV_ITEMS : [])].filter((item) => canSee(item, permissionKeys));
+  const tiles = ADMIN_NAV_ITEMS.filter((item) => canSee(item, permissionKeys));
 
   return (
     <div className="flex flex-col gap-6">

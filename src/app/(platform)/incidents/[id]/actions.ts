@@ -21,6 +21,8 @@ const updateSchema = z.object({
   correctiveAction: z.string().optional(),
   preventiveAction: z.string().optional(),
   responsiblePersonId: z.string().optional(),
+  severityId: z.string().optional(),
+  costVnd: z.string().optional(),
   dueDate: z.string().optional(),
   completionDate: z.string().optional(),
   notes: z.string().optional(),
@@ -36,6 +38,14 @@ async function resolveResponsiblePersonId(id: string | undefined, organizationId
   if (!id) return null;
   const employee = await prisma.employee.findUnique({ where: { id }, select: { organizationId: true } });
   return employee && employee.organizationId === organizationId ? id : null;
+}
+
+// severityId comes straight from a form field too — re-check it belongs to this org's own
+// IncidentSeverity list before trusting it, same reasoning as resolveResponsiblePersonId.
+async function resolveSeverityId(id: string | undefined, organizationId: string): Promise<string | undefined> {
+  if (!id) return undefined;
+  const severity = await prisma.incidentSeverity.findUnique({ where: { id }, select: { organizationId: true } });
+  return severity && severity.organizationId === organizationId ? id : undefined;
 }
 
 // Each detail-page form only submits the handful of fields it displays (status form,
@@ -56,6 +66,15 @@ export async function updateIncidentAction(formData: FormData) {
   if (formData.has("responsiblePersonId")) {
     nextValues.responsiblePersonId = await resolveResponsiblePersonId(parsed.responsiblePersonId, ctx.organizationId);
   }
+  if (formData.has("severityId")) {
+    const resolved = await resolveSeverityId(parsed.severityId, ctx.organizationId);
+    if (resolved) nextValues.severityId = resolved;
+  }
+  if (formData.has("costVnd")) {
+    const trimmed = parsed.costVnd?.trim();
+    const n = trimmed ? Number(trimmed) : NaN;
+    nextValues.costVnd = trimmed && Number.isFinite(n) ? n : null;
+  }
   for (const field of DATE_FIELDS) {
     if (formData.has(field)) nextValues[field] = parsed[field] ? new Date(parsed[field] as string) : null;
   }
@@ -65,7 +84,7 @@ export async function updateIncidentAction(formData: FormData) {
   const changes = diffFields(
     before as unknown as Record<string, unknown>,
     nextValues,
-    ["status", "immediateCause", "rootCause", "correctiveAction", "preventiveAction", "responsiblePersonId", "notes"]
+    ["status", "immediateCause", "rootCause", "correctiveAction", "preventiveAction", "responsiblePersonId", "severityId", "costVnd", "notes"]
   );
 
   if (changes.length > 0) {
@@ -81,6 +100,129 @@ export async function updateIncidentAction(formData: FormData) {
   }
 
   revalidatePath(`/incidents/${parsed.incidentId}`);
+}
+
+// categoryId comes straight from a form field too — same org-ownership re-check as severityId.
+async function resolveCategoryId(id: string | undefined, organizationId: string): Promise<string | undefined> {
+  if (!id) return undefined;
+  const category = await prisma.incidentCategory.findUnique({ where: { id }, select: { organizationId: true } });
+  return category && category.organizationId === organizationId ? id : undefined;
+}
+
+function toFiniteNumberOrNull(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+const fullUpdateSchema = z.object({
+  incidentId: z.string().min(1),
+  occurredAt: z.string().min(1),
+  orgUnitId: z.string().optional(),
+  factoryCode: z.string().optional(),
+  locationDetail: z.string().max(200).optional(),
+  equipment: z.string().max(200).optional(),
+  employeeId: z.string().optional(),
+  responsiblePersonId: z.string().optional(),
+  categoryId: z.string().min(1),
+  severityId: z.string().min(1),
+  description: z.string().min(1),
+  correctiveAction: z.string().optional(),
+  costVnd: z.string().optional(),
+  costRmb: z.string().optional(),
+  pointsDeducted: z.string().optional(),
+  injuredBodyPart: z.string().max(200).optional(),
+  notes: z.string().optional(),
+  status: z.enum(INCIDENT_STATUSES),
+});
+
+export type UpdateIncidentFullState = { error: string } | { success: true } | undefined;
+
+/** Full edit — every field the create form exposes, plus status. Unlike updateIncidentAction
+ *  (which only ever touches the handful of fields its own small quick-edit form submits), this
+ *  always submits the whole record, so every field here is written unconditionally. */
+export async function updateIncidentFullAction(_prev: UpdateIncidentFullState, formData: FormData): Promise<UpdateIncidentFullState> {
+  const ctx = await requireOrgPermission(PERMISSIONS.INCIDENT_EDIT);
+  const locale = await getLocale();
+
+  const parsed = fullUpdateSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: t(locale, "incidents.new.errorGeneric") };
+  const data = parsed.data;
+
+  const before = await prisma.incident.findUnique({ where: { id: data.incidentId } });
+  assertBelongsToOrg(before, ctx.organizationId);
+
+  const categoryId = await resolveCategoryId(data.categoryId, ctx.organizationId);
+  const severityId = await resolveSeverityId(data.severityId, ctx.organizationId);
+  if (!categoryId || !severityId) return { error: t(locale, "incidents.new.errorGeneric") };
+
+  const responsiblePersonId = await resolveResponsiblePersonId(data.responsiblePersonId, ctx.organizationId);
+
+  // Only refill the name-snapshot fields when a real employee gets linked here — clearing the
+  // picker just nulls employeeId, it must never wipe an existing manually-typed name snapshot.
+  let employeeId: string | null = null;
+  let employeeSnapshot: Record<string, string | null> = {};
+  if (data.employeeId) {
+    const employee = await prisma.employee.findUnique({ where: { id: data.employeeId }, include: { orgUnit: true } });
+    if (employee && employee.organizationId === ctx.organizationId) {
+      employeeId = employee.id;
+      employeeSnapshot = {
+        employeeNameSnapshot: employee.fullName,
+        employeeCodeSnapshot: employee.employeeCode,
+        departmentSnapshot: employee.orgUnit?.name ?? null,
+        positionSnapshot: employee.position,
+        shiftSnapshot: employee.shift,
+      };
+    }
+  }
+
+  // "工厂代码" lives inside sourceRowData (see getIncidentFactoryCode in server/incidents.ts) —
+  // merge into whatever's already there rather than overwriting the whole blob, so other keys
+  // an import may have set (e.g. raw source columns) survive an edit made through this form.
+  const existingSourceRowData = { ...((before?.sourceRowData as Record<string, unknown> | null) ?? {}) };
+  const factoryCode = data.factoryCode?.trim();
+  if (factoryCode) existingSourceRowData["工厂代码"] = factoryCode;
+  else delete existingSourceRowData["工厂代码"];
+
+  const nextValues: Record<string, unknown> = {
+    occurredAt: new Date(data.occurredAt),
+    orgUnitId: data.orgUnitId || null,
+    locationDetail: data.locationDetail || null,
+    equipment: data.equipment || null,
+    employeeId,
+    ...employeeSnapshot,
+    responsiblePersonId,
+    categoryId,
+    severityId,
+    description: data.description,
+    correctiveAction: data.correctiveAction || null,
+    costVnd: toFiniteNumberOrNull(data.costVnd),
+    costRmb: toFiniteNumberOrNull(data.costRmb),
+    pointsDeducted: toFiniteNumberOrNull(data.pointsDeducted),
+    injuredBodyPart: data.injuredBodyPart || null,
+    notes: data.notes || null,
+    status: data.status,
+    sourceRowData: existingSourceRowData,
+  };
+
+  await prisma.incident.update({ where: { id: data.incidentId }, data: nextValues });
+
+  const changes = diffFields(before as unknown as Record<string, unknown>, nextValues, Object.keys(nextValues));
+  if (changes.length > 0) {
+    await writeAuditLog({
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      module: "incident",
+      recordType: "Incident",
+      recordId: data.incidentId,
+      action: "update",
+      changes,
+    });
+  }
+
+  revalidatePath(`/incidents/${data.incidentId}`);
+  revalidatePath("/incidents");
+  return { success: true };
 }
 
 const createCapaSchema = z.object({

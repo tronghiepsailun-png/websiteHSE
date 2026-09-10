@@ -6,7 +6,7 @@ import { EmployeeForm } from "../../employee-form";
 import { updateEmployeeAction } from "./actions";
 
 export default async function EditEmployeePage({ params }: PageProps<"/employees/[id]/edit">) {
-  const ctx = await requireApiAccess(PERMISSIONS.EMPLOYEE_MANAGE);
+  const ctx = await requireApiAccess(PERMISSIONS.EMPLOYEE_EDIT);
   const { id } = await params;
   const employee = await getEmployeeById(ctx.organizationId, id);
 

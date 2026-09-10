@@ -5,7 +5,7 @@ import { signIn } from "@/auth";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 
-export type LoginState = { error?: string } | undefined;
+export type LoginState = { error: string; email: string } | undefined;
 
 export async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "");
@@ -21,7 +21,8 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     return undefined;
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: t(await getLocale(), "auth.invalidCredentials") };
+      // Echo the email back so a wrong-password retry doesn't force retyping it too.
+      return { error: t(await getLocale(), "auth.invalidCredentials"), email };
     }
     throw error;
   }

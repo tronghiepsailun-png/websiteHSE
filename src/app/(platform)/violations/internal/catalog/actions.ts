@@ -13,7 +13,7 @@ const typeSchema = z.object({
 });
 
 export async function createViolationTypeAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const parsed = typeSchema.parse({
     labelVi: formData.get("labelVi"),
     labelZh: formData.get("labelZh") || undefined,
@@ -37,7 +37,7 @@ export async function createViolationTypeAction(formData: FormData) {
 }
 
 export async function toggleViolationTypeActiveAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const id = String(formData.get("id"));
   const nextIsActive = formData.get("isActive") === "true";
 
@@ -54,7 +54,7 @@ const officerSchema = z.object({
 });
 
 export async function addSafetyOfficerAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const parsed = officerSchema.parse({
     employeeId: formData.get("employeeId"),
     monthlySubsidyVnd: formData.get("monthlySubsidyVnd"),
@@ -93,7 +93,7 @@ const updateSubsidySchema = z.object({
 });
 
 export async function updateSafetyOfficerSubsidyAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const parsed = updateSubsidySchema.parse({
     id: formData.get("id"),
     monthlySubsidyVnd: formData.get("monthlySubsidyVnd"),
@@ -106,8 +106,21 @@ export async function updateSafetyOfficerSubsidyAction(formData: FormData) {
   revalidatePath("/violations/internal/catalog");
 }
 
+/** Persists a drag-and-drop reorder of the officer list — `orderedIds` is the full list of
+ *  officer ids in their new display order, and each one's sortOrder becomes its index. */
+export async function reorderSafetyOfficersAction(orderedIds: string[]) {
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
+
+  const rows = await prisma.safetyOfficer.findMany({ where: { id: { in: orderedIds }, organizationId: ctx.organizationId } });
+  if (rows.length !== orderedIds.length) return;
+
+  await prisma.$transaction(orderedIds.map((id, index) => prisma.safetyOfficer.update({ where: { id }, data: { sortOrder: index } })));
+
+  revalidatePath("/violations/internal/catalog");
+}
+
 export async function toggleSafetyOfficerActiveAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.VIOLATION_EDIT);
   const id = String(formData.get("id"));
   const nextIsActive = formData.get("isActive") === "true";
 

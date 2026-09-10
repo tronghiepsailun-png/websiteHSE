@@ -5,14 +5,11 @@ import {
   Tags,
   Gauge,
   Users,
-  Briefcase,
   IdCard,
   FileCheck2,
   ClipboardList,
-  Star,
-  Clock,
+  ShieldCheck,
   ShieldX,
-  AlertOctagon,
   FileText,
   Leaf,
   ShoppingCart,
@@ -22,6 +19,8 @@ import {
   BookOpen,
   Library,
   ListTodo,
+  Package,
+  ClipboardCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@/server/permissions";
@@ -45,23 +44,21 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     labelKey: "nav.groupIncidentMgmt",
-    items: [{ href: "/incidents", labelKey: "nav.incidents", permission: PERMISSIONS.INCIDENT_VIEW, icon: AlertTriangle }],
+    items: [
+      { href: "/incidents", labelKey: "nav.incidents", permission: PERMISSIONS.INCIDENT_VIEW, icon: AlertTriangle },
+      { href: "/capa", labelKey: "nav.capa", permission: PERMISSIONS.CAPA_VIEW, icon: ClipboardCheck },
+    ],
   },
   {
     labelKey: "nav.groupEmployeeMgmt",
     items: [
       { href: "/employees", labelKey: "nav.employees", permission: PERMISSIONS.EMPLOYEE_VIEW, icon: IdCard },
-      { href: "/employees/evaluation", labelKey: "nav.employeeEvaluation", icon: Star },
-      { href: "/employees/attendance", labelKey: "nav.employeeAttendance", icon: Clock },
+      { href: "/employees/security", labelKey: "nav.employeeSecurity", icon: ShieldCheck },
     ],
   },
   {
     labelKey: "nav.groupViolationMgmt",
-    items: [
-      { href: "/violations/5s", labelKey: "nav.violations5s", icon: AlertOctagon },
-      { href: "/violations/internal", labelKey: "nav.violationsInternal", icon: ShieldX },
-      { href: "/violations/external", labelKey: "nav.violationsExternal", icon: AlertTriangle },
-    ],
+    items: [{ href: "/violations", labelKey: "nav.violations", permission: PERMISSIONS.VIOLATION_VIEW, icon: ShieldX }],
   },
   {
     labelKey: "nav.groupDocumentMgmt",
@@ -75,7 +72,7 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: "nav.groupProcurementMgmt",
     items: [
       { href: "/procurement", labelKey: "nav.procurement", icon: ShoppingCart },
-      { href: "/inventory", labelKey: "nav.inventory", icon: Warehouse },
+      { href: "/inventory", labelKey: "nav.inventory", permission: PERMISSIONS.INVENTORY_VIEW, icon: Warehouse },
       { href: "/forms", labelKey: "nav.forms", icon: FileSpreadsheet },
     ],
   },
@@ -99,11 +96,10 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin/categories", labelKey: "nav.incidentCategories", permission: PERMISSIONS.CONFIG_MANAGE, icon: Tags },
   { href: "/admin/severities", labelKey: "nav.incidentSeverities", permission: PERMISSIONS.CONFIG_MANAGE, icon: Gauge },
   { href: "/admin/users", labelKey: "nav.usersRoles", permission: PERMISSIONS.USER_MANAGE, icon: Users },
-  { href: "/records/pccc/catalog", labelKey: "nav.recordsCatalog", permission: PERMISSIONS.RECORDS_MANAGE, icon: ClipboardList },
+  { href: "/records/pccc/catalog", labelKey: "nav.recordsCatalog", permission: PERMISSIONS.RECORDS_EDIT, icon: ClipboardList },
   { href: "/admin/hse-targets", labelKey: "nav.hseTargets", permission: PERMISSIONS.CONFIG_MANAGE, icon: Gauge },
+  { href: "/inventory/catalog", labelKey: "nav.inventoryCatalog", permission: PERMISSIONS.INVENTORY_EDIT, icon: Package },
 ];
-
-export const PLATFORM_NAV_ITEMS: NavItem[] = [{ href: "/admin/platform/organizations", labelKey: "nav.organizations", icon: Briefcase }];
 
 export function canSee(item: NavItem, permissionKeys: string[] | null) {
   if (!item.permission) return true;

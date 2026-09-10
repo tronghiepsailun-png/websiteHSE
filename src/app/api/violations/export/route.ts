@@ -1,37 +1,101 @@
 import ExcelJS from "exceljs";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { requireApiAccess, withApiErrorHandling } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { listViolations, getSubsidyReport } from "@/server/violations";
+import { contentDisposition } from "@/server/storage";
 
-// Colors/fonts/column widths/number formats below are copied verbatim from the reference
-// workbook this module replaces ("Biểu khảo hạch ATV tháng 8 - v1.xlsx") so a downloaded
-// file needs no re-formatting before being sent to leadership.
-const GREEN_DARK = "FF4E8325";
-const GREEN_MID = "FF78AC30";
-const BORDER_GRAY = "FFD9D4C4";
-const BLUE_HEADER = "FFB7DDE8";
-const BLUE_TOTAL = "FFDBEEF3";
+// This route loads the ORIGINAL reference workbook as a template and only overwrites data-cell
+// VALUES at their known positions — every color/font/border/merge/column-width in the downloaded
+// file comes straight from that template, untouched, so the export can't drift from "identical to
+// the real report" the way the previous from-scratch ExcelJS reconstruction inevitably did (it
+// approximated the same colors/fonts by hand and quietly drifted: wrong font family on sheet 2,
+// slightly different title styling, etc).
+const TEMPLATE_PATH = path.join(process.cwd(), "src/server/templates/safety-officer-violation-template.xlsx");
+const SHEET1_NAME = "01.安全员考核表";
+const SHEET2_NAME = "02.安全员补贴明细";
+const SHEET1_COLS = 9; // A..I — 序号 through 备注
+const SHEET2_COLS = 10; // A..J — TT through 实发
+const SHEET1_FIRST_DATA_ROW = 3;
+const SHEET2_FIRST_DATA_ROW = 3;
+const SHEET1_ORIGINAL_TOTAL_ROW = 20;
+const SHEET2_ORIGINAL_TOTAL_ROW = 29;
 
-const ARIAL_WHITE_BOLD = (size: number): Partial<ExcelJS.Font> => ({ name: "Arial", size, bold: true, color: { argb: "FFFFFFFF" } });
-const ARIAL_WHITE = (size: number): Partial<ExcelJS.Font> => ({ name: "Arial", size, color: { argb: "FFFFFFFF" } });
-const ARIAL_DATA: Partial<ExcelJS.Font> = { name: "Arial", size: 10, color: { argb: "FF3A3A30" } };
-const CENTER_WRAP: Partial<ExcelJS.Alignment> = { horizontal: "center", vertical: "middle", wrapText: true };
-const THIN_BORDER: Partial<ExcelJS.Borders> = {
-  top: { style: "thin", color: { argb: BORDER_GRAY } },
-  bottom: { style: "thin", color: { argb: BORDER_GRAY } },
-  left: { style: "thin", color: { argb: BORDER_GRAY } },
-  right: { style: "thin", color: { argb: BORDER_GRAY } },
+type CellStyleSnapshot = {
+  font: Partial<ExcelJS.Font>;
+  alignment: Partial<ExcelJS.Alignment>;
+  border: Partial<ExcelJS.Borders>;
+  fill: Partial<ExcelJS.Fill>;
+  numFmt: string;
 };
-const SOLID = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+
+function captureRowStyle(ws: ExcelJS.Worksheet, rowNumber: number, colCount: number): CellStyleSnapshot[] {
+  const row = ws.getRow(rowNumber);
+  const styles: CellStyleSnapshot[] = [];
+  for (let c = 1; c <= colCount; c++) {
+    const cell = row.getCell(c);
+    styles.push({ font: cell.font, alignment: cell.alignment, border: cell.border, fill: cell.fill, numFmt: cell.numFmt });
+  }
+  return styles;
+}
+
+// Assigns the whole `style` object in one go rather than setting cell.font/fill/border/...
+// individually — ExcelJS interns identical styles, so many cells across the template's original
+// rows share the exact same style object by reference, and setting a sub-property mutates that
+// shared object in place, silently reformatting every OTHER cell that happened to share it too
+// (first found and worked around in the safety-5s-violation export route).
+function applyRowStyle(ws: ExcelJS.Worksheet, rowNumber: number, styles: CellStyleSnapshot[]) {
+  const row = ws.getRow(rowNumber);
+  styles.forEach((s, i) => {
+    const cell = row.getCell(i + 1);
+    cell.style = {
+      font: s.font as ExcelJS.Font,
+      alignment: s.alignment as ExcelJS.Alignment,
+      border: s.border as ExcelJS.Borders,
+      fill: s.fill as ExcelJS.Fill,
+      numFmt: s.numFmt,
+    };
+  });
+}
 
 function deptOf(e: { orgUnitLevel1: string | null; orgUnitLevel2: string | null }) {
   return [e.orgUnitLevel1, e.orgUnitLevel2].filter(Boolean).join(" - ") || "";
 }
 
+/** Rebuilds the template's own mixed-font title run for sheet 1 ("2026" + "年" + "8" +
+ *  "月安全员违规考核扣款登记表" + the Vietnamese line) for the requested year/month — every run's
+ *  font is copied verbatim from the original file. */
+function buildSheet1Title(year: number, month: number): ExcelJS.CellRichTextValue {
+  const cjk: Partial<ExcelJS.Font> = { bold: true, size: 14, color: { theme: 1 }, name: "SimSun", charset: 134 };
+  const num: Partial<ExcelJS.Font> = { bold: true, size: 14, color: { theme: 1 }, name: "Arial", charset: 134 };
+  return {
+    richText: [
+      { font: num as ExcelJS.Font, text: String(year) },
+      { font: cjk as ExcelJS.Font, text: "年" },
+      { font: num as ExcelJS.Font, text: String(month) },
+      { font: cjk as ExcelJS.Font, text: "月安全员违规考核扣款登记表" },
+      { font: num as ExcelJS.Font, text: `\nBẢNG ĐÁNH GIÁ VI PHẠM & TRỪ TIỀN NHÂN VIÊN AN TOÀN XƯỞNG — Tháng ${month}/${year}` },
+    ],
+  };
+}
+
+/** Same idea for sheet 2's title ("8" + "月份安全员补贴名单" + the Vietnamese line). */
+function buildSheet2Title(month: number): ExcelJS.CellRichTextValue {
+  const num: Partial<ExcelJS.Font> = { bold: true, size: 16, name: "Arial", charset: 134 };
+  const cjk: Partial<ExcelJS.Font> = { bold: true, size: 16, name: "Microsoft YaHei", charset: 134 };
+  return {
+    richText: [
+      { font: num as ExcelJS.Font, text: String(month) },
+      { font: cjk as ExcelJS.Font, text: "月份安全员补贴名单" },
+      { font: num as ExcelJS.Font, text: `\nDANH SÁCH PHỤ CẤP NHÂN VIÊN AN TOÀN THÁNG ${month}` },
+    ],
+  };
+}
+
 export async function GET(request: Request) {
   return withApiErrorHandling(async () => {
-    const ctx = await requireApiAccess(PERMISSIONS.VIOLATION_VIEW);
+    const ctx = await requireApiAccess(PERMISSIONS.VIOLATION_DOWNLOAD);
     const url = new URL(request.url);
     const now = new Date();
     const year = Number(url.searchParams.get("year")) || now.getFullYear();
@@ -43,124 +107,66 @@ export async function GET(request: Request) {
     ]);
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = "HSE Management Platform";
-    workbook.created = new Date();
+    await workbook.xlsx.readFile(TEMPLATE_PATH);
 
-    // ---- Sheet 1: violation log (mirrors "01.安全员考核表") ----
-    const sheet1 = workbook.addWorksheet("01.安全员考核表", {
-      views: [{ state: "frozen", ySplit: 2, showGridLines: false }],
-      pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true },
-      properties: { tabColor: { argb: GREEN_MID } },
-    });
-    sheet1.columns = [
-      { width: 6 }, { width: 12 }, { width: 10 }, { width: 26 }, { width: 19.7 },
-      { width: 30 }, { width: 44 }, { width: 16 }, { width: 22 },
-    ];
+    // ---- Sheet 1: violation log (01.安全员考核表) ----
+    const ws1 = workbook.getWorksheet(SHEET1_NAME);
+    if (!ws1) throw new Error("Export template sheet missing: " + SHEET1_NAME);
 
-    sheet1.mergeCells("A1:I1");
-    const title1 = sheet1.getCell("A1");
-    title1.value = `安全员违规考核扣款登记表\nBẢNG ĐÁNH GIÁ VI PHẠM & TRỪ TIỀN NHÂN VIÊN AN TOÀN XƯỞNG — Tháng ${month}/${year}`;
-    title1.font = ARIAL_WHITE_BOLD(14);
-    title1.alignment = CENTER_WRAP;
-    title1.fill = SOLID(GREEN_DARK);
-    sheet1.getRow(1).height = 42;
+    const s1DataStyle = captureRowStyle(ws1, SHEET1_FIRST_DATA_ROW, SHEET1_COLS);
+    const s1TotalStyle = captureRowStyle(ws1, SHEET1_ORIGINAL_TOTAL_ROW, SHEET1_COLS);
+    const s1DataRowHeight = ws1.getRow(SHEET1_FIRST_DATA_ROW).height;
+    ws1.unMergeCells(`A${SHEET1_ORIGINAL_TOTAL_ROW}:G${SHEET1_ORIGINAL_TOTAL_ROW}`);
 
-    const headers1 = [
-      "序号\nSTT", "日期\nNGÀY THÁNG", "工号\nMSNV", "中文\nHỌ TÊN (Trung)", "越文\nHỌ VÀ TÊN (Việt)",
-      "部门/区域\nBỘ PHẬN/KHU VỰC", "考核内容（违规情况）\nNỘI DUNG ĐÁNH GIÁ (VI PHẠM)",
-      "扣款金额(VNĐ)\nSỐ TIỀN BỊ TRỪ", "备注\nGHI CHÚ",
-    ];
-    const headerRow = sheet1.getRow(2);
-    headers1.forEach((h, i) => {
-      const cell = headerRow.getCell(i + 1);
-      cell.value = h;
-      cell.font = ARIAL_WHITE(10);
-      cell.alignment = CENTER_WRAP;
-      cell.fill = SOLID(GREEN_MID);
-    });
-    headerRow.height = 32;
+    ws1.getCell("A1").value = buildSheet1Title(year, month);
 
-    let r = 3;
-    for (const v of violations) {
-      const row = sheet1.getRow(r);
+    violations.forEach((v, i) => {
+      const r = SHEET1_FIRST_DATA_ROW + i;
+      const excelRow = ws1.getRow(r);
       const e = v.safetyOfficer.employee;
-      row.getCell(1).value = r - 2;
-      row.getCell(2).value = v.occurredAt;
-      row.getCell(2).numFmt = "d/m/yyyy";
-      row.getCell(3).value = e.employeeCode;
-      row.getCell(4).value = e.fullNameZh ?? "";
-      row.getCell(5).value = e.fullName;
-      row.getCell(6).value = deptOf(e);
-      row.getCell(7).value = v.violationType.labelZh ? `${v.violationType.labelZh}\n${v.violationType.labelVi}` : v.violationType.labelVi;
-      row.getCell(8).value = v.amountVnd;
-      row.getCell(8).numFmt = `#,##0" đ"`;
-      row.getCell(9).value = v.note ?? "";
-      for (let c = 1; c <= 9; c++) {
-        const cell = row.getCell(c);
-        cell.font = ARIAL_DATA;
-        cell.alignment = CENTER_WRAP;
-        cell.border = THIN_BORDER;
-        if (c === 6 || c === 7 || c === 9) cell.alignment = { ...CENTER_WRAP, horizontal: "left" };
-      }
-      row.height = 30;
-      r++;
-    }
-
-    const totalRow = sheet1.getRow(r);
-    totalRow.getCell(7).value = "TỔNG CỘNG / 合计";
-    totalRow.getCell(7).font = ARIAL_WHITE_BOLD(11);
-    totalRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
-    totalRow.getCell(8).value = violations.reduce((s, v) => s + v.amountVnd, 0);
-    totalRow.getCell(8).numFmt = `#,##0" đ"`;
-    for (let c = 1; c <= 9; c++) {
-      const cell = totalRow.getCell(c);
-      cell.fill = SOLID(GREEN_DARK);
-      cell.border = THIN_BORDER;
-      if (c === 8) {
-        cell.font = ARIAL_WHITE_BOLD(12);
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-      }
-    }
-    totalRow.height = 24;
-
-    // ---- Sheet 2: monthly subsidy report (mirrors "02.安全员补贴明细") ----
-    const sheet2 = workbook.addWorksheet("02.安全员补贴明细", {
-      views: [{ state: "frozen", ySplit: 1, showGridLines: false }],
-      pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true },
-      properties: { tabColor: { argb: BLUE_HEADER } },
+      excelRow.getCell(1).value = i + 1;
+      excelRow.getCell(2).value = v.occurredAt;
+      excelRow.getCell(3).value = /^\d+$/.test(e.employeeCode) ? Number(e.employeeCode) : e.employeeCode;
+      excelRow.getCell(4).value = e.fullNameZh ?? "";
+      excelRow.getCell(5).value = e.fullName;
+      excelRow.getCell(6).value = deptOf(e);
+      excelRow.getCell(7).value = v.violationType.labelZh ? `${v.violationType.labelZh}\n${v.violationType.labelVi}` : v.violationType.labelVi;
+      excelRow.getCell(8).value = v.amountVnd;
+      excelRow.getCell(9).value = v.note ?? "";
+      applyRowStyle(ws1, r, s1DataStyle);
+      excelRow.getCell(2).numFmt = "d/m/yyyy";
+      if (s1DataRowHeight) excelRow.height = s1DataRowHeight;
     });
-    sheet2.columns = [
-      { width: 6 }, { width: 11 }, { width: 16 }, { width: 27 }, { width: 24 },
-      { width: 12 }, { width: 8 }, { width: 15 }, { width: 15 }, { width: 15 },
-    ];
 
-    sheet2.mergeCells("A1:J1");
-    const title2 = sheet2.getCell("A1");
-    title2.value = `DANH SÁCH PHỤ CẤP NHÂN VIÊN AN TOÀN THÁNG ${month}\n${month}月份安全员补贴名单`;
-    title2.font = { name: "Times New Roman", size: 12, bold: true };
-    title2.alignment = CENTER_WRAP;
-    sheet2.getRow(1).height = 34;
+    const s1TotalRowNumber = SHEET1_FIRST_DATA_ROW + violations.length;
+    const s1TotalRow = ws1.getRow(s1TotalRowNumber);
+    s1TotalRow.getCell(1).value = "TỔNG CỘNG / 合计";
+    for (let c = 2; c <= 7; c++) s1TotalRow.getCell(c).value = null;
+    s1TotalRow.getCell(8).value = violations.length > 0 ? { formula: `SUM(H${SHEET1_FIRST_DATA_ROW}:H${s1TotalRowNumber - 1})` } : 0;
+    s1TotalRow.getCell(9).value = null;
+    applyRowStyle(ws1, s1TotalRowNumber, s1TotalStyle);
+    ws1.mergeCells(`A${s1TotalRowNumber}:G${s1TotalRowNumber}`);
 
-    const headers2 = [
-      "TT\n序号", "MSNV\n工号", "中文\nHỌ TÊN (Trung)", "越文\nHỌ VÀ TÊN (Việt)", "BỘ PHẬN\n部门",
-      "Khu vực\n区域", "班组\nCa", "SỐ TIỀN (VNĐ)\n金额", "TRỪ TIỀN\n扣款", "THỰC NHẬN\n实发",
-    ];
-    const headerRow2 = sheet2.getRow(2);
-    headers2.forEach((h, i) => {
-      const cell = headerRow2.getCell(i + 1);
-      cell.value = h;
-      cell.font = { name: "Times New Roman", size: 11, bold: true };
-      cell.alignment = CENTER_WRAP;
-      cell.fill = SOLID(BLUE_HEADER);
-    });
-    headerRow2.height = 30;
+    const s1Rows = (ws1 as unknown as { _rows: unknown[] })._rows;
+    if (s1Rows.length > s1TotalRowNumber) s1Rows.length = s1TotalRowNumber;
 
-    let r2 = 3;
-    for (const row of subsidy.rows) {
+    // ---- Sheet 2: monthly subsidy report (02.安全员补贴明细) ----
+    const ws2 = workbook.getWorksheet(SHEET2_NAME);
+    if (!ws2) throw new Error("Export template sheet missing: " + SHEET2_NAME);
+
+    const s2DataStyle = captureRowStyle(ws2, SHEET2_FIRST_DATA_ROW, SHEET2_COLS);
+    const s2TotalStyle = captureRowStyle(ws2, SHEET2_ORIGINAL_TOTAL_ROW, SHEET2_COLS);
+    const s2DataRowHeight = ws2.getRow(SHEET2_FIRST_DATA_ROW).height;
+    ws2.unMergeCells(`A${SHEET2_ORIGINAL_TOTAL_ROW}:G${SHEET2_ORIGINAL_TOTAL_ROW}`);
+
+    ws2.getCell("A1").value = buildSheet2Title(month);
+
+    subsidy.rows.forEach((row, i) => {
+      const r = SHEET2_FIRST_DATA_ROW + i;
+      const excelRow = ws2.getRow(r);
       const e = row.safetyOfficer.employee;
-      const excelRow = sheet2.getRow(r2);
-      excelRow.getCell(1).value = r2 - 2;
-      excelRow.getCell(2).value = e.employeeCode;
+      excelRow.getCell(1).value = i + 1;
+      excelRow.getCell(2).value = /^\d+$/.test(e.employeeCode) ? Number(e.employeeCode) : e.employeeCode;
       excelRow.getCell(3).value = e.fullNameZh ?? "";
       excelRow.getCell(4).value = e.fullName;
       excelRow.getCell(5).value = deptOf(e);
@@ -169,38 +175,31 @@ export async function GET(request: Request) {
       excelRow.getCell(8).value = row.baseAmountVnd;
       excelRow.getCell(9).value = row.deductionVnd;
       excelRow.getCell(10).value = row.netAmountVnd;
-      for (let c = 1; c <= 10; c++) {
-        const cell = excelRow.getCell(c);
-        cell.font = { name: "Times New Roman", size: 11 };
-        cell.alignment = c >= 3 && c <= 5 ? { ...CENTER_WRAP, horizontal: "left" } : CENTER_WRAP;
-        if (c >= 8) cell.numFmt = "#,##0";
-      }
-      excelRow.height = 20;
-      r2++;
-    }
+      applyRowStyle(ws2, r, s2DataStyle);
+      if (s2DataRowHeight) excelRow.height = s2DataRowHeight;
+    });
 
-    const totalRow2 = sheet2.getRow(r2);
-    sheet2.mergeCells(`A${r2}:G${r2}`);
-    totalRow2.getCell(1).value = "TỔNG CỘNG / 合计";
-    totalRow2.getCell(8).value = subsidy.totalBaseVnd;
-    totalRow2.getCell(9).value = subsidy.totalDeductionVnd;
-    totalRow2.getCell(10).value = subsidy.totalNetVnd;
-    for (let c = 1; c <= 10; c++) {
-      const cell = totalRow2.getCell(c);
-      cell.font = { name: "Times New Roman", size: 11, bold: true };
-      cell.fill = SOLID(BLUE_TOTAL);
-      cell.alignment = c === 1 ? { horizontal: "center", vertical: "middle" } : CENTER_WRAP;
-      if (c >= 8) cell.numFmt = "#,##0";
-    }
-    totalRow2.height = 22;
+    const s2TotalRowNumber = SHEET2_FIRST_DATA_ROW + subsidy.rows.length;
+    const s2TotalRow = ws2.getRow(s2TotalRowNumber);
+    s2TotalRow.getCell(1).value = "TỔNG CỘNG / 合计";
+    for (let c = 2; c <= 7; c++) s2TotalRow.getCell(c).value = null;
+    const hasSubsidyRows = subsidy.rows.length > 0;
+    s2TotalRow.getCell(8).value = hasSubsidyRows ? { formula: `SUM(H${SHEET2_FIRST_DATA_ROW}:H${s2TotalRowNumber - 1})` } : 0;
+    s2TotalRow.getCell(9).value = hasSubsidyRows ? { formula: `SUM(I${SHEET2_FIRST_DATA_ROW}:I${s2TotalRowNumber - 1})` } : 0;
+    s2TotalRow.getCell(10).value = hasSubsidyRows ? { formula: `SUM(J${SHEET2_FIRST_DATA_ROW}:J${s2TotalRowNumber - 1})` } : 0;
+    applyRowStyle(ws2, s2TotalRowNumber, s2TotalStyle);
+    ws2.mergeCells(`A${s2TotalRowNumber}:G${s2TotalRowNumber}`);
+
+    const s2Rows = (ws2 as unknown as { _rows: unknown[] })._rows;
+    if (s2Rows.length > s2TotalRowNumber) s2Rows.length = s2TotalRowNumber;
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
-    const fileName = `vi-pham-atv-thang-${month}-${year}.xlsx`;
+    const fileName = `Vi phạm an toàn viên tháng ${month}-${year}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": contentDisposition(fileName, "attachment"),
       },
     });
   });

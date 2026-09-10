@@ -14,7 +14,7 @@ const MAX_IMPORT_SIZE_BYTES = 25 * 1024 * 1024;
 export type PreviewActionState = { error: string } | { preview: EmployeeImportPreview } | undefined;
 
 export async function previewEmployeeImportAction(_prev: PreviewActionState, formData: FormData): Promise<PreviewActionState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_EDIT);
   const locale = await getLocale();
   const file = formData.get("file");
 
@@ -39,7 +39,7 @@ export async function confirmEmployeeImportAction(
   rows: ClassifiedEmployeeRow[],
   departedEmployeeCodes: string[]
 ): Promise<EmployeeImportCommitResult> {
-  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_EDIT);
 
   const result = await commitEmployeeImport({
     organizationId: ctx.organizationId,

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { createIncidentAction, type CreateIncidentState } from "./actions";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { createIncidentAction, previewIncidentNumberAction, type CreateIncidentState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,10 @@ import { FieldError } from "@/components/ui/field-error";
 import { IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { EmployeeCombobox } from "@/components/employees/employee-combobox";
 import { useT } from "@/lib/i18n/locale-context";
+import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY, deriveFactoryCode } from "@/lib/incident-constants";
 
 type Option = { id: string; name: string };
+type SeverityOption = Option & { code: string };
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{children}</p>;
@@ -35,7 +37,7 @@ export function IncidentForm({
 }: {
   orgUnits: Option[];
   categories: Option[];
-  severities: Option[];
+  severities: SeverityOption[];
 }) {
   const [state, formAction, pending] = useActionState<CreateIncidentState, FormData>(createIncidentAction, undefined);
   const t = useT();
@@ -43,20 +45,78 @@ export function IncidentForm({
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   const nowLocal = now.toISOString().slice(0, 16);
 
+  // Points deducted is a fixed function of severity, not a freely chosen number (see
+  // DEFAULT_POINTS_DEDUCTED_BY_SEVERITY) — picking a severity jumps this straight to its fixed
+  // value so the reporter never has to know/look up the convention; still a plain editable
+  // input afterward for the rare case that needs a manual override.
+  const [pointsDeducted, setPointsDeducted] = useState("");
+  function handleSeverityChange(severityId: string) {
+    const severity = severities.find((s) => s.id === severityId);
+    const fixedPoints = severity ? DEFAULT_POINTS_DEDUCTED_BY_SEVERITY[severity.code] : undefined;
+    setPointsDeducted(fixedPoints !== undefined ? String(fixedPoints) : "");
+  }
+
+  // "Số hiệu sự cố" is a fixed function of "Ngày xảy ra" (CCG's own CCG/AT{ngày}-{stt trong
+  // ngày} convention, see generateIncidentNumber) — never freely typed. A live server preview
+  // follows every date change (debounced) so the reporter sees the real number ahead of time
+  // without needing to know the convention; createIncidentAction recomputes it independently
+  // at submit time regardless of what this preview showed.
+  const [occurredAt, setOccurredAt] = useState(nowLocal);
+  const [incidentNumber, setIncidentNumber] = useState("");
+  const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+    previewDebounceRef.current = setTimeout(async () => {
+      const preview = await previewIncidentNumberAction(occurredAt);
+      setIncidentNumber(preview ?? "");
+    }, 300);
+    return () => {
+      if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+    };
+  }, [occurredAt]);
+
+  // "Mã nhà máy" is a fixed function of the department's own name (一期→31, 二期→41, 三期→1102,
+  // see deriveFactoryCode) — picking a department with one of those phase markers locks this to
+  // the fixed code; a department with no phase marker in its name has no fixed convention, so
+  // the field unlocks for manual entry instead.
+  const [factoryCode, setFactoryCode] = useState("");
+  const [factoryCodeLocked, setFactoryCodeLocked] = useState(false);
+  function handleOrgUnitChange(orgUnitId: string) {
+    const orgUnit = orgUnits.find((u) => u.id === orgUnitId);
+    const derived = deriveFactoryCode(orgUnit?.name);
+    setFactoryCode(derived ?? "");
+    setFactoryCodeLocked(derived !== null);
+  }
+
   return (
     <form action={formAction} className="flex flex-col gap-2">
-      {/* Optional custom number — sits inline like the detail page's page-title incident number,
-          not as its own section, since it has no card counterpart on the detail page. */}
-      <div className="flex flex-col gap-1.5 sm:max-w-xs">
-        <Label htmlFor="incidentNumber">{t("incidents.new.fields.incidentNumber")}</Label>
-        <Input id="incidentNumber" name="incidentNumber" placeholder={t("incidents.new.fields.incidentNumberPlaceholder")} />
-      </div>
-
-      {/* Condensed key-facts strip — mirrors the detail page's Mức độ/Ngày xảy ra/Vị trí strip */}
+      {/* Condensed key-facts strip — Ngày xảy ra comes first since Số hiệu sự cố is derived
+          from it (CCG/AT{ngày}-{stt}), not the other way around. */}
       <Card size="sm">
-        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label={t("incidents.table.occurred")}>
+            <Input
+              id="occurredAt"
+              name="occurredAt"
+              type="datetime-local"
+              value={occurredAt}
+              onChange={(e) => setOccurredAt(e.target.value)}
+              required
+              aria-invalid={!!state?.fieldErrors?.occurredAt}
+            />
+            <FieldError kind={state?.fieldErrors?.occurredAt} />
+          </Field>
+          <Field label={t("incidents.new.fields.incidentNumber")}>
+            <Input
+              value={incidentNumber}
+              readOnly
+              placeholder={t("incidents.new.fields.incidentNumberPlaceholder")}
+              className="bg-muted text-muted-foreground"
+            />
+          </Field>
           <Field label={t("incidents.table.severity")}>
-            <Select name="severityId" required>
+            <Select name="severityId" onValueChange={(v) => handleSeverityChange(v as string)} required>
               <SelectTrigger aria-invalid={!!state?.fieldErrors?.severityId} className="w-full">
                 <SelectValue placeholder={t("incidents.new.selectSeverityPlaceholder")}>
                   {(value: string) => severities.find((s) => s.id === value)?.name ?? value}
@@ -67,17 +127,6 @@ export function IncidentForm({
               </SelectContent>
             </Select>
             <FieldError kind={state?.fieldErrors?.severityId} />
-          </Field>
-          <Field label={t("incidents.table.occurred")}>
-            <Input
-              id="occurredAt"
-              name="occurredAt"
-              type="datetime-local"
-              defaultValue={nowLocal}
-              required
-              aria-invalid={!!state?.fieldErrors?.occurredAt}
-            />
-            <FieldError kind={state?.fieldErrors?.occurredAt} />
           </Field>
           <Field label={t("incidents.new.fields.locationDetail")}>
             <Input id="locationDetail" name="locationDetail" placeholder={t("incidents.new.fields.locationDetailPlaceholder")} />
@@ -115,7 +164,7 @@ export function IncidentForm({
                   <FieldError kind={state?.fieldErrors?.categoryId} />
                 </Field>
                 <Field label={t("incidents.new.fields.orgUnit")}>
-                  <Select name="orgUnitId">
+                  <Select name="orgUnitId" onValueChange={(v) => handleOrgUnitChange(v as string)}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={t("incidents.new.selectLocationPlaceholder")}>
                         {(value: string) => orgUnits.find((u) => u.id === value)?.name ?? value}
@@ -125,6 +174,17 @@ export function IncidentForm({
                       {orgUnits.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </Field>
+                <Field label={t("incidents.new.fields.factoryCode")}>
+                  <Input
+                    id="factoryCode"
+                    name="factoryCode"
+                    value={factoryCode}
+                    onChange={(e) => setFactoryCode(e.target.value)}
+                    readOnly={factoryCodeLocked}
+                    placeholder={t("incidents.new.fields.factoryCodePlaceholder")}
+                    className={factoryCodeLocked ? "bg-muted text-muted-foreground" : undefined}
+                  />
                 </Field>
                 <Field label={t("incidents.new.fields.equipment")}>
                   <Input id="equipment" name="equipment" placeholder={t("incidents.new.fields.equipmentPlaceholder")} />
@@ -136,7 +196,15 @@ export function IncidentForm({
                   <Input id="costRmb" name="costRmb" type="number" step="0.01" min="0" />
                 </Field>
                 <Field label={t("incidents.detail.pointsDeducted")}>
-                  <Input id="pointsDeducted" name="pointsDeducted" type="number" step="0.1" />
+                  <Input
+                    id="pointsDeducted"
+                    name="pointsDeducted"
+                    type="number"
+                    step="0.1"
+                    value={pointsDeducted}
+                    readOnly
+                    className="bg-muted text-muted-foreground"
+                  />
                 </Field>
                 <Field label={t("incidents.detail.injuredBodyPart")}>
                   <Input id="injuredBodyPart" name="injuredBodyPart" />

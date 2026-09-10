@@ -2,6 +2,43 @@ import { addMonths } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { NotFoundError } from "@/server/errors";
 import { writeAuditLog } from "@/server/audit";
+import { storageService } from "@/server/storage";
+import { RECORD_ENTRY_SLOT_COUNT } from "@/lib/records-constants";
+import type { Locale } from "@/lib/i18n/translate";
+
+export { RECORD_ENTRY_SLOT_COUNT } from "@/lib/records-constants";
+
+// The PCCC catalog (record type names, legal citations, frequency, responsible unit — plus
+// the group names above them) is free-text data entered per organization, not app UI copy, so
+// it can't go through the i18n dictionary like a label. Each field instead carries an optional
+// `*Zh` sibling column; these two helpers resolve the pair down to one localized value/object,
+// falling back to the Vietnamese original wherever no Chinese translation has been entered yet.
+export function localizeRecordType<
+  T extends {
+    name: string;
+    nameZh?: string | null;
+    legalBasis: string | null;
+    legalBasisZh?: string | null;
+    frequencyLabel: string | null;
+    frequencyLabelZh?: string | null;
+    responsibleUnit: string | null;
+    responsibleUnitZh?: string | null;
+  },
+>(recordType: T, locale: Locale): T {
+  if (locale !== "zh") return recordType;
+  return {
+    ...recordType,
+    name: recordType.nameZh || recordType.name,
+    legalBasis: recordType.legalBasisZh || recordType.legalBasis,
+    frequencyLabel: recordType.frequencyLabelZh || recordType.frequencyLabel,
+    responsibleUnit: recordType.responsibleUnitZh || recordType.responsibleUnit,
+  };
+}
+
+export function localizeRecordGroup<T extends { name: string; nameZh?: string | null }>(group: T, locale: Locale): T {
+  if (locale !== "zh") return group;
+  return { ...group, name: group.nameZh || group.name };
+}
 
 export const DATE_CONFIDENCES = ["confirmed", "estimated", "unknown"] as const;
 export type DateConfidence = (typeof DATE_CONFIDENCES)[number];
@@ -9,7 +46,11 @@ export type DateConfidence = (typeof DATE_CONFIDENCES)[number];
 export const VERIFICATION_STATUSES = ["ok", "needs_verification", "conflict"] as const;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
-export const DATA_STATUSES = ["sufficient", "needs_update", "missing", "not_applicable"] as const;
+// "missing" (no version at all) used to be its own status, separate from "needs_update"
+// (has a version but not fully confirmed/verified). The user considers both the same actionable
+// state — "Cần cập nhật" — and specifically wants a version that only has a Google Drive link
+// (no real uploaded file) to count as needing an update too, not as already sufficient.
+export const DATA_STATUSES = ["sufficient", "needs_update", "not_applicable"] as const;
 export type DataStatus = (typeof DATA_STATUSES)[number];
 
 export const EXPIRY_STATUSES = ["valid", "expiring_soon", "expired", "non_periodic"] as const;
@@ -18,20 +59,45 @@ export type ExpiryStatus = (typeof EXPIRY_STATUSES)[number];
 export const EXPIRY_WARNING_DAYS = 60;
 
 type MinimalEntry = { notApplicable: boolean };
-type MinimalVersion = { dateConfidence: string; verificationStatus: string; expiresAt: Date | null } | null;
+type MinimalVersion =
+  | { dateConfidence: string; verificationStatus: string; expiresAt: Date | null; files: { storageType: string }[] }
+  | null;
+type MinimalSlot = { fileName: string | null; storageType: string | null; startDate: Date | null; expiresAt: Date | null; uploadedAt: Date | null };
 
-/** Trục 1 — mức độ đầy đủ dữ liệu. Luôn suy ra từ dữ liệu, không cho người dùng tự chọn. */
-export function computeDataStatus(entry: MinimalEntry, currentVersion: MinimalVersion): DataStatus {
+/** The slot boxes are the primary place new documents go now (see records.slots.title on the
+ *  entry detail page) — "most recently uploaded to" rather than "highest slotIndex", since a
+ *  user can fill boxes out of order. Falls back to null (no slots filled yet) so callers can
+ *  fall back to the version-history data for entries never touched since the slots feature
+ *  replaced the old "add new version" flow as the day-to-day update path. */
+function mostRecentFilledSlot(slots: MinimalSlot[]): MinimalSlot | null {
+  const filled = slots.filter((s): s is MinimalSlot & { uploadedAt: Date } => s.fileName !== null && s.uploadedAt !== null);
+  if (filled.length === 0) return null;
+  return filled.reduce((latest, s) => (s.uploadedAt > latest.uploadedAt! ? s : latest));
+}
+
+/** Trục 1 — mức độ đầy đủ dữ liệu. Luôn suy ra từ dữ liệu, không cho người dùng tự chọn.
+ *  "Đủ" requires a real uploaded file, not just a Drive link — a link-only slot/version still
+ *  needs the real document pushed up. Slots take priority over version history once any slot
+ *  has been filled — that's the current, ongoing data source; the version row is either legacy
+ *  (from before the slots feature) or a one-time historical import. */
+export function computeDataStatus(entry: MinimalEntry, currentVersion: MinimalVersion, slots: MinimalSlot[] = []): DataStatus {
   if (entry.notApplicable) return "not_applicable";
-  if (!currentVersion) return "missing";
-  if (currentVersion.dateConfidence === "confirmed" && currentVersion.verificationStatus === "ok") return "sufficient";
+  const slot = mostRecentFilledSlot(slots);
+  if (slot) return slot.storageType === "upload" && slot.startDate ? "sufficient" : "needs_update";
+  if (!currentVersion) return "needs_update";
+  const hasRealFile = currentVersion.files.some((f) => f.storageType === "upload");
+  if (hasRealFile && currentVersion.dateConfidence === "confirmed" && currentVersion.verificationStatus === "ok") {
+    return "sufficient";
+  }
   return "needs_update";
 }
 
-/** Trục 2 — mức độ còn hạn theo thời gian. */
-export function computeExpiryStatus(currentVersion: MinimalVersion): ExpiryStatus {
-  if (!currentVersion || !currentVersion.expiresAt) return "non_periodic";
-  const daysLeft = daysUntil(currentVersion.expiresAt);
+/** Trục 2 — mức độ còn hạn theo thời gian. Same slots-first priority as computeDataStatus. */
+export function computeExpiryStatus(currentVersion: MinimalVersion, slots: MinimalSlot[] = []): ExpiryStatus {
+  const slot = mostRecentFilledSlot(slots);
+  const expiresAt = slot ? slot.expiresAt : (currentVersion?.expiresAt ?? null);
+  if (!expiresAt) return "non_periodic";
+  const daysLeft = daysUntil(expiresAt);
   if (daysLeft! < 0) return "expired";
   if (daysLeft! <= EXPIRY_WARNING_DAYS) return "expiring_soon";
   return "valid";
@@ -45,17 +111,20 @@ export function daysUntil(date: Date | null): number | null {
 const recordEntryInclude = {
   recordType: { include: { group: { include: { domain: true } } } },
   orgUnit: true,
-  versions: { where: { isSuperseded: false }, take: 1 },
+  versions: { where: { isSuperseded: false }, take: 1, include: { files: true } },
+  slots: true,
 } as const;
 
-function withComputedStatus<T extends { notApplicable: boolean; versions: MinimalVersion[] }>(entry: T) {
+function withComputedStatus<T extends { notApplicable: boolean; versions: MinimalVersion[]; slots: MinimalSlot[] }>(entry: T) {
   const currentVersion = entry.versions[0] ?? null;
+  const currentExpiresAt = mostRecentFilledSlot(entry.slots)?.expiresAt ?? currentVersion?.expiresAt ?? null;
   return {
     ...entry,
     currentVersion,
-    dataStatus: computeDataStatus(entry, currentVersion),
-    expiryStatus: computeExpiryStatus(currentVersion),
-    daysUntilExpiry: currentVersion ? daysUntil(currentVersion.expiresAt) : null,
+    currentExpiresAt,
+    dataStatus: computeDataStatus(entry, currentVersion, entry.slots),
+    expiryStatus: computeExpiryStatus(currentVersion, entry.slots),
+    daysUntilExpiry: daysUntil(currentExpiresAt),
   };
 }
 
@@ -106,6 +175,7 @@ export async function getRecordEntryDetail(organizationId: string, id: string) {
         include: { files: true, enteredBy: true },
         orderBy: { enteredAt: "desc" },
       },
+      slots: true,
     },
   });
   if (!entry || entry.organizationId !== organizationId) throw new NotFoundError("Record entry not found");
@@ -114,24 +184,23 @@ export async function getRecordEntryDetail(organizationId: string, id: string) {
   return {
     ...entry,
     currentVersion,
-    dataStatus: computeDataStatus(entry, currentVersion),
-    expiryStatus: computeExpiryStatus(currentVersion),
-    daysUntilExpiry: currentVersion ? daysUntil(currentVersion.expiresAt) : null,
+    dataStatus: computeDataStatus(entry, currentVersion, entry.slots),
+    expiryStatus: computeExpiryStatus(currentVersion, entry.slots),
+    daysUntilExpiry: daysUntil(mostRecentFilledSlot(entry.slots)?.expiresAt ?? currentVersion?.expiresAt ?? null),
   };
 }
 
-type ZoneOrGroupBucket = { key: string; value: number; total: number; sufficient: number; needsUpdate: number; missing: number };
+type ZoneOrGroupBucket = { key: string; value: number; total: number; sufficient: number; needsUpdate: number };
 
-export async function getRecordsDashboardData(organizationId: string, domainCode = "PCCC") {
+export async function getRecordsDashboardData(organizationId: string, domainCode = "PCCC", locale: Locale = "vi") {
   const entries = await listRecordEntries(organizationId, domainCode);
 
-  const emptyBucket = () => ({ total: 0, sufficient: 0, needsUpdate: 0, missing: 0 });
+  const emptyBucket = () => ({ total: 0, sufficient: 0, needsUpdate: 0 });
   const byZoneMap = new Map<string, ReturnType<typeof emptyBucket>>();
   const byGroupMap = new Map<string, ReturnType<typeof emptyBucket>>();
 
   let sufficientTotal = 0;
   let needsUpdateTotal = 0;
-  let missingTotal = 0;
   let notApplicableTotal = 0;
   let expiringSoonTotal = 0;
   let expiredTotal = 0;
@@ -140,8 +209,9 @@ export async function getRecordsDashboardData(organizationId: string, domainCode
     if (e.dataStatus === "not_applicable") {
       notApplicableTotal++;
     } else {
+      const group = localizeRecordGroup(e.recordType.group, locale);
       const zoneKey = e.orgUnit.name;
-      const groupKey = `${e.recordType.group.code} · ${e.recordType.group.name}`;
+      const groupKey = `${group.code} · ${group.name}`;
       if (!byZoneMap.has(zoneKey)) byZoneMap.set(zoneKey, emptyBucket());
       if (!byGroupMap.has(groupKey)) byGroupMap.set(groupKey, emptyBucket());
       const z = byZoneMap.get(zoneKey)!;
@@ -156,10 +226,6 @@ export async function getRecordsDashboardData(organizationId: string, domainCode
         z.needsUpdate++;
         g.needsUpdate++;
         needsUpdateTotal++;
-      } else if (e.dataStatus === "missing") {
-        z.missing++;
-        g.missing++;
-        missingTotal++;
       }
     }
     if (e.expiryStatus === "expiring_soon") expiringSoonTotal++;
@@ -177,7 +243,6 @@ export async function getRecordsDashboardData(organizationId: string, domainCode
     totalTracked: entries.length - notApplicableTotal,
     sufficientTotal,
     needsUpdateTotal,
-    missingTotal,
     notApplicableTotal,
     expiringSoonTotal,
     expiredTotal,
@@ -267,4 +332,142 @@ export async function createRecordVersion(params: {
   });
 
   return newVersion;
+}
+
+export type RecordEntrySlotView = {
+  slotIndex: number;
+  id: string | null;
+  fileName: string | null;
+  storageType: string | null;
+  url: string | null;
+  startDate: Date | null;
+  expiresAt: Date | null;
+  uploadedByName: string | null;
+  uploadedAt: Date | null;
+};
+
+/** Always returns exactly RECORD_ENTRY_SLOT_COUNT slots (1..N), filled from whatever rows
+ *  exist and padded with empty placeholders for the rest — so the UI can always render the
+ *  same fixed set of boxes regardless of how many have actually been filled in yet. */
+export async function getEntrySlots(entryId: string): Promise<RecordEntrySlotView[]> {
+  const rows = await prisma.recordEntrySlot.findMany({ where: { entryId }, include: { uploadedBy: true } });
+  const bySlot = new Map(rows.map((r) => [r.slotIndex, r]));
+
+  return Array.from({ length: RECORD_ENTRY_SLOT_COUNT }, (_, i) => {
+    const slotIndex = i + 1;
+    const row = bySlot.get(slotIndex);
+    return {
+      slotIndex,
+      id: row?.id ?? null,
+      fileName: row?.fileName ?? null,
+      storageType: row?.storageType ?? null,
+      url: row?.url ?? null,
+      startDate: row?.startDate ?? null,
+      expiresAt: row?.expiresAt ?? null,
+      uploadedByName: row?.uploadedBy?.name ?? null,
+      uploadedAt: row?.uploadedAt ?? null,
+    };
+  });
+}
+
+/** Whichever slot was uploaded to most recently (by upload time, not by which period it
+ *  belongs to) — its startDate is what "Ngày thực hiện gần nhất" on the entry should show,
+ *  since for a periodic entry the 6 slots are where the real activity happens, not the
+ *  separate version-history flow. Null when no slot has ever been filled. */
+export function getMostRecentFilledSlot(slots: RecordEntrySlotView[]): RecordEntrySlotView | null {
+  const filled = slots.filter((s): s is RecordEntrySlotView & { uploadedAt: Date } => s.uploadedAt !== null);
+  if (filled.length === 0) return null;
+  return filled.reduce((latest, s) => (s.uploadedAt > latest.uploadedAt! ? s : latest));
+}
+
+export type SetEntrySlotFileParams = {
+  organizationId: string;
+  userId: string | null;
+  entryId: string;
+  slotIndex: number;
+  startDate: Date | null;
+  expiresAt: Date | null;
+} & (
+  | { fileName: string; storageType: "upload"; storagePath: string; sizeBytes: number; mimeType: string }
+  | { fileName: string; storageType: "drive_link"; url: string }
+);
+
+export async function setEntrySlotFile(params: SetEntrySlotFileParams) {
+  const entry = await prisma.recordEntry.findUnique({ where: { id: params.entryId } });
+  if (!entry || entry.organizationId !== params.organizationId) throw new NotFoundError("Record entry not found");
+
+  const existing = await prisma.recordEntrySlot.findUnique({
+    where: { entryId_slotIndex: { entryId: params.entryId, slotIndex: params.slotIndex } },
+  });
+  if (existing?.storagePath) await storageService.delete(existing.storagePath).catch(() => {});
+
+  const data = {
+    fileName: params.fileName,
+    storageType: params.storageType,
+    url: params.storageType === "drive_link" ? params.url : null,
+    storagePath: params.storageType === "upload" ? params.storagePath : null,
+    sizeBytes: params.storageType === "upload" ? params.sizeBytes : null,
+    mimeType: params.storageType === "upload" ? params.mimeType : null,
+    startDate: params.startDate,
+    expiresAt: params.expiresAt,
+    uploadedById: params.userId,
+    uploadedAt: new Date(),
+  };
+
+  const slot = await prisma.recordEntrySlot.upsert({
+    where: { entryId_slotIndex: { entryId: params.entryId, slotIndex: params.slotIndex } },
+    create: { entryId: params.entryId, slotIndex: params.slotIndex, ...data },
+    update: data,
+  });
+
+  await writeAuditLog({
+    organizationId: params.organizationId,
+    userId: params.userId,
+    module: "records",
+    recordType: "RecordEntrySlot",
+    recordId: slot.id,
+    action: existing ? "update" : "create",
+  });
+
+  // Slots are now the only place a user actually uploads a document, so "Lịch sử phiên bản"
+  // is kept alive as a running log of that same activity — one entry per slot update — instead
+  // of requiring the separate "Thêm phiên bản mới" step it used to. Doesn't affect
+  // dataStatus/expiryStatus: those already read the slots directly once any slot is filled.
+  await createRecordVersion({
+    organizationId: params.organizationId,
+    userId: params.userId,
+    entryId: params.entryId,
+    effectiveDate: params.startDate,
+    dateSourceQuote: null,
+    dateConfidence: params.startDate ? "confirmed" : "unknown",
+    expiresAtOverride: params.expiresAt,
+    verificationStatus: "ok",
+    notes: `Tự động ghi nhận từ "Tài liệu cập nhật ${params.slotIndex}".`,
+    files:
+      params.storageType === "upload"
+        ? [{ fileName: params.fileName, storageType: "upload", storagePath: params.storagePath, sizeBytes: params.sizeBytes, mimeType: params.mimeType }]
+        : [{ fileName: params.fileName, storageType: "drive_link", url: params.url }],
+  });
+
+  return slot;
+}
+
+export async function clearEntrySlot(organizationId: string, userId: string | null, entryId: string, slotIndex: number) {
+  const entry = await prisma.recordEntry.findUnique({ where: { id: entryId } });
+  if (!entry || entry.organizationId !== organizationId) throw new NotFoundError("Record entry not found");
+
+  const existing = await prisma.recordEntrySlot.findUnique({ where: { entryId_slotIndex: { entryId, slotIndex } } });
+  if (!existing) return;
+
+  if (existing.storagePath) await storageService.delete(existing.storagePath).catch(() => {});
+  await prisma.recordEntrySlot.delete({ where: { id: existing.id } });
+
+  await writeAuditLog({
+    organizationId,
+    userId,
+    module: "records",
+    recordType: "RecordEntrySlot",
+    recordId: existing.id,
+    action: "delete",
+  });
 }

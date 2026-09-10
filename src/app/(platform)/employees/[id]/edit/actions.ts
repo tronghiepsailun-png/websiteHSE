@@ -34,7 +34,7 @@ const schema = z.object({
 });
 
 export async function updateEmployeeAction(_prev: EmployeeFormState, formData: FormData): Promise<EmployeeFormState> {
-  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_EDIT);
   const locale = await getLocale();
 
   const raw = Object.fromEntries(formData.entries());

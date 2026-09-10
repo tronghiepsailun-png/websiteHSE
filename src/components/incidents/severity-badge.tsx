@@ -31,23 +31,3 @@ export function IncidentStatusBadge({ status }: { status: string }) {
     </Badge>
   );
 }
-
-// "overdue" now shares the same red as every other critical/destructive indicator in
-// the app (it was previously a separate hardcoded red-500, its own one-off shade).
-const CAPA_STATUS_VARIANTS: Record<string, string> = {
-  open: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  in_progress: STATUS_FILLED_CLASS.warning,
-  completed: STATUS_FILLED_CLASS.success,
-  overdue: STATUS_FILLED_CLASS.critical,
-  closed: STATUS_FILLED_CLASS.neutral,
-};
-
-export function CapaStatusBadge({ status }: { status: string }) {
-  const t = useT();
-  const key = `status.capa.${status}` as DictionaryKey;
-  return (
-    <Badge variant="outline" className={cn("border-transparent", CAPA_STATUS_VARIANTS[status] ?? "bg-muted text-muted-foreground")}>
-      {t(key)}
-    </Badge>
-  );
-}

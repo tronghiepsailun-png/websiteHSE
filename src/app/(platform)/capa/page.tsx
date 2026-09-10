@@ -1,143 +1,145 @@
-import Link from "next/link";
-import { requireApiAccess } from "@/server/api-guard";
+import { cookies } from "next/headers";
+import { ClipboardCheck } from "lucide-react";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
-import { listCapaForOrg, getCapaSummary, isCapaOverdue } from "@/server/capa";
+import { listCapaForOrg, getCapaSummary, getCapaDeptBreakdown, daysUnresolved, getCapaPhotosMap } from "@/server/capa";
+import { listActiveSafetyWorkshops } from "@/server/inventory";
 import { prisma } from "@/lib/prisma";
-import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CapaStatusBadge } from "@/components/incidents/severity-badge";
+import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
+import type { ChartDatum } from "@/components/charts/chart-utils";
 import { CapaFilters } from "./capa-filters";
-import { CapaStatusForm } from "./capa-status-form";
-import { EmptyState } from "@/components/ui/empty-state";
-import { TablePagination } from "@/components/ui/table-pagination";
+import { CapaTable, type CapaRowData } from "./capa-table";
+import { CAPA_COLUMNS_COOKIE, CAPA_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import { T } from "@/components/i18n/t";
-
-const LIST_PAGE_SIZE = 20;
+import { getLocale } from "@/lib/i18n/get-locale.server";
+import { parseHiddenColumns } from "@/lib/column-visibility";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
 }
 
-/** The status Select submits the literal string "all" for "no filter selected" — treat that as unset. */
+/** The status/classification Selects submit the literal string "all" for "no filter
+ *  selected" — treat that as unset. */
 function parseFilterParam(value: unknown): string | undefined {
   if (typeof value !== "string" || value === "" || value === "all") return undefined;
   return value;
 }
 
 export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
-  const ctx = await requireApiAccess(PERMISSIONS.CAPA_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.CAPA_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
+  const locale = await getLocale();
   const params = await searchParams;
+  const cookieStore = await cookies();
+  const hiddenColumns = parseHiddenColumns(cookieStore.get(CAPA_COLUMNS_COOKIE)?.value, CAPA_TOGGLEABLE_COLUMNS);
   const status = parseFilterParam(params.status);
+  const classification = parseFilterParam(params.classification);
   const search = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
 
-  const [capaItems, summary, permissionKeys] = await Promise.all([
-    listCapaForOrg(ctx.organizationId, { status, search }),
+  const [capaItems, summary, deptBreakdown, permissionKeys, workshopsRaw] = await Promise.all([
+    listCapaForOrg(ctx.organizationId, { status, classification, search }),
     getCapaSummary(ctx.organizationId),
+    getCapaDeptBreakdown(ctx.organizationId),
     ctx.isPlatformAdmin
       ? Promise.resolve(null)
       : prisma.userOrganizationRole
           .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
+    listActiveSafetyWorkshops(ctx.organizationId),
   ]);
 
-  const incidentIds = capaItems.filter((c) => c.sourceModule === "incident").map((c) => c.sourceRecordId);
-  const incidents = incidentIds.length
-    ? await prisma.incident.findMany({ where: { id: { in: incidentIds } }, select: { id: true, incidentNumber: true } })
-    : [];
-  const incidentNumberById = new Map(incidents.map((i) => [i.id, i.incidentNumber]));
+  const workshops = workshopsRaw.map((w) => ({ id: w.id, name: locale === "vi" && w.nameVi ? w.nameVi : w.name }));
 
+  // "area"/"responsibleDept" are stored as the plain workshop name that was selected at
+  // save time, in whichever locale was active then — so a row saved in Vietnamese still
+  // showed its Vietnamese name after switching to Chinese. Re-resolve against the catalog
+  // (matching either language) and re-render in the current locale on every read.
+  function localizeWorkshopValue(value: string | null): string | null {
+    if (!value) return value;
+    const match = workshopsRaw.find((w) => w.name === value || w.nameVi === value);
+    if (!match) return value;
+    return locale === "vi" && match.nameVi ? match.nameVi : match.name;
+  }
+
+  // Two views of the same breakdown: how many issues each department has raised in total,
+  // and — the one that actually needs attention — how many of those are still unresolved.
+  const totalByDept = new Map<string, number>();
+  const unresolvedByDept = new Map<string, number>();
+  for (const row of deptBreakdown) {
+    const dept = localizeWorkshopValue(row.responsibleDept);
+    if (!dept) continue;
+    totalByDept.set(dept, (totalByDept.get(dept) ?? 0) + 1);
+    if (row.status !== "completed" && row.status !== "closed") {
+      unresolvedByDept.set(dept, (unresolvedByDept.get(dept) ?? 0) + 1);
+    }
+  }
+  const toSortedChartData = (map: Map<string, number>): ChartDatum[] =>
+    Array.from(map.entries())
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value);
+  const totalByDeptData = toSortedChartData(totalByDept);
+  const unresolvedByDeptData = toSortedChartData(unresolvedByDept);
+
+  const canCreate = hasPermission(permissionKeys, PERMISSIONS.CAPA_CREATE);
   const canEdit = hasPermission(permissionKeys, PERMISSIONS.CAPA_EDIT);
+  const canDelete = hasPermission(permissionKeys, PERMISSIONS.CAPA_DELETE);
 
-  // List pagination — 20 rows by default, with a "view all" escape hatch. Purely a rendering
-  // slice of the already-fetched, already-filtered `capaItems` array; no new query/data logic.
-  const listPage = Math.max(1, Number(params.page) || 1);
-  const listViewAll = params.viewAll === "1";
-  const listTotalPages = Math.max(1, Math.ceil(capaItems.length / LIST_PAGE_SIZE));
-  const listPageClamped = Math.min(listPage, listTotalPages);
-  const visibleCapaItems = listViewAll
-    ? capaItems
-    : capaItems.slice((listPageClamped - 1) * LIST_PAGE_SIZE, listPageClamped * LIST_PAGE_SIZE);
+  const photosMap = await getCapaPhotosMap(
+    ctx.organizationId,
+    capaItems.map((c) => c.id)
+  );
+
+  const rows: CapaRowData[] = capaItems.map((c) => {
+    const photos = photosMap.get(c.id) ?? { before: null, after: null };
+    return {
+      id: c.id,
+      area: localizeWorkshopValue(c.area),
+      action: c.action,
+      discoveredDate: c.discoveredDate,
+      classification: c.classification,
+      responsibleDept: localizeWorkshopValue(c.responsibleDept),
+      dueDate: c.dueDate,
+      completionDate: c.completionDate,
+      status: c.status,
+      daysUnresolved: daysUnresolved(c),
+      before: photos.before,
+      after: photos.after,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold">CAPA</h1>
-        <p className="text-sm text-muted-foreground"><T k="capa.pageSubtitle" /></p>
-      </div>
+      <Card>
+        <CardContent className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600">
+            <ClipboardCheck className="size-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold">CAPA</h1>
+            <p className="text-sm text-muted-foreground"><T k="capa.pageSubtitle" /></p>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.total" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.total}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.open" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.open}</CardTitle></CardHeader></Card>
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{summary.overdue}</CardTitle></CardHeader></Card>
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.completed" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.completed}</CardTitle></CardHeader></Card>
       </div>
 
-      <CapaFilters search={search} status={status} />
+      {(totalByDeptData.length > 0 || unresolvedByDeptData.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TopNBarChart titleKey="capa.chart.byDepartment" data={totalByDeptData} topN={8} />
+          <TopNBarChart titleKey="capa.chart.unresolvedByDepartment" data={unresolvedByDeptData} topN={8} />
+        </div>
+      )}
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow className="h-11">
-                <TableHead><T k="capa.table.action" /></TableHead>
-                <TableHead><T k="capa.table.source" /></TableHead>
-                <TableHead><T k="capa.table.responsible" /></TableHead>
-                <TableHead><T k="capa.table.due" /></TableHead>
-                <TableHead><T k="common.status" /></TableHead>
-                {canEdit && <TableHead />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visibleCapaItems.map((c) => {
-                const overdue = isCapaOverdue(c);
-                return (
-                  <TableRow key={c.id} className="h-14">
-                    <TableCell className="max-w-xs py-3 font-medium">{c.action}</TableCell>
-                    <TableCell className="py-3">
-                      {c.sourceModule === "incident" && incidentNumberById.has(c.sourceRecordId) ? (
-                        <Link href={`/incidents/${c.sourceRecordId}`} className="text-primary hover:underline">
-                          {incidentNumberById.get(c.sourceRecordId)}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">{c.sourceModule}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-3">{c.responsiblePerson?.fullName ?? "—"}</TableCell>
-                    <TableCell className={cn("py-3", overdue && "text-destructive")}>
-                      {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : "—"}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <CapaStatusBadge status={overdue ? "overdue" : c.status} />
-                    </TableCell>
-                    {canEdit && (
-                      <TableCell className="py-3">
-                        <CapaStatusForm capaId={c.id} status={c.status} />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-              {capaItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={canEdit ? 6 : 5}>
-                    <EmptyState message={<T k="capa.table.noResults" />} />
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          <TablePagination
-            total={capaItems.length}
-            page={listPageClamped}
-            pageSize={LIST_PAGE_SIZE}
-            viewAll={listViewAll}
-            unitLabelKey="capa.unitLabel"
-            basePath="/capa"
-            searchParams={params}
-          />
-        </CardContent>
-      </Card>
+      <CapaFilters search={search} status={status} classification={classification} />
+
+      <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} />
     </div>
   );
 }

@@ -114,7 +114,7 @@ export function EmployeeSearchBox({
       </div>
       <Combobox.Portal>
         <Combobox.Positioner className="isolate z-50" sideOffset={4} side="bottom" align="start">
-          <Combobox.Popup className="max-h-64 w-(--anchor-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
+          <Combobox.Popup className="max-h-64 w-max min-w-(--anchor-width) max-w-(--available-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
             <Combobox.Empty className="px-2 py-4 text-center text-sm text-muted-foreground">
               {emptyLabel}
             </Combobox.Empty>

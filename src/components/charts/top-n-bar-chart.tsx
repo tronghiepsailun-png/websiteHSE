@@ -15,6 +15,7 @@ export function TopNBarChart({
   topN,
   filterParam,
   resolveMap,
+  labelWidth = 110,
 }: {
   titleKey: DictionaryKey;
   data: ChartDatum[];
@@ -23,6 +24,9 @@ export function TopNBarChart({
   /** Maps a chart label (e.g. an org unit name) to the id the list filter actually needs.
    *  Omit when the label itself is already the filter value (e.g. injured body part). */
   resolveMap?: Record<string, string>;
+  /** Y-axis category column width in px — widen for charts whose labels run longer than a
+   *  department/severity name (e.g. full violation-content sentences). */
+  labelWidth?: number;
 }) {
   const t = useT();
   const title = t(titleKey);
@@ -54,7 +58,7 @@ export function TopNBarChart({
           <BarChart data={chartData} layout="vertical" margin={{ left: 4, right: 44, top: 4, bottom: 4 }} accessibilityLayer={false}>
             <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border/50" />
             <XAxis type="number" hide />
-            <YAxis type="category" dataKey="label" width={110} tickLine={false} axisLine={false} className="text-xs" interval={0} />
+            <YAxis type="category" dataKey="label" width={labelWidth} tickLine={false} axisLine={false} className="text-xs" interval={0} />
             <Tooltip
               cursor={{ fill: "var(--muted)" }}
               content={<PercentTooltip total={total} countLabel={t("incidents.chart.count")} percentLabel={t("incidents.chart.percent")} />}

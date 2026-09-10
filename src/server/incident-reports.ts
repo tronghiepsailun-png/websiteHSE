@@ -190,6 +190,31 @@ export type Sheet03MonthCell = {
   incidents: { id: string; incidentNumber: string; severityCode: string; description: string; occurredAt: Date }[];
 };
 
+function formatDateZh(d: Date): string {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+/** The monthly score cell's hover note/tooltip — incident descriptions are already Chinese
+ *  (verbatim from the source reports), so the summary/line wrapper text is written in Chinese
+ *  too rather than mixing languages. Shared by the web tooltip (sheet03-score-table.tsx) and
+ *  the Excel cell note (incidents/export/route.ts) so both stay identical. */
+export function buildSheet03NoteParts(cell: {
+  delta: number;
+  incidents: { incidentNumber: string; severityCode: string; description: string; occurredAt: Date }[];
+}): { summary: string; lines: string[] } | null {
+  if (cell.incidents.length === 0) return null;
+  const bySeverity = new Map<string, number>();
+  for (const inc of cell.incidents) bySeverity.set(inc.severityCode, (bySeverity.get(inc.severityCode) ?? 0) + 1);
+  const summary =
+    Array.from(bySeverity.entries())
+      .map(([code, count]) => `${count}起${code}级事故`)
+      .join("、") + `，共计${cell.delta}分`;
+  const lines = cell.incidents.map(
+    (inc) => `${inc.severityCode}级 · ${inc.incidentNumber}（${formatDateZh(inc.occurredAt)}）：${inc.description}`
+  );
+  return { summary, lines };
+}
+
 export async function getSheet03ScoreData(organizationId: string, year: number) {
   const { aliasMap, workshops } = await resolveWorkshopMap(organizationId);
   const incidents = await prisma.incident.findMany({

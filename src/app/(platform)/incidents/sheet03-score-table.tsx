@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { T } from "@/components/i18n/t";
 import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
-import type { getSheet03ScoreData, WorkshopLite } from "@/server/incident-reports";
+import { buildSheet03NoteParts, type getSheet03ScoreData, type WorkshopLite } from "@/server/incident-reports";
 import { REPORT_GRID_CLASS } from "@/lib/table-grid";
 
 function scoreClass(delta: number) {
@@ -71,31 +71,30 @@ export async function Sheet03ScoreTable({ data }: { data: Awaited<ReturnType<typ
                   </TableCell>
                 )}
                 <TableCell className="sticky left-32 z-10 bg-card font-medium whitespace-nowrap">{row.workshop.name}</TableCell>
-                {row.monthlyScores.map((cell, mi) => (
-                  <TableCell key={mi} className={`text-center font-medium ${scoreClass(cell.delta)}`}>
-                    {cell.incidents.length > 0 ? (
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-default underline decoration-dotted underline-offset-2">
-                          {cell.score}
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-sm text-wrap">
-                          <div className="flex flex-col gap-1">
-                            {cell.incidents.map((inc) => (
-                              <div key={inc.id}>
-                                <span className="font-semibold">
-                                  {inc.severityCode} · {inc.incidentNumber}
-                                </span>
-                                : {inc.description}
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      cell.score
-                    )}
-                  </TableCell>
-                ))}
+                {row.monthlyScores.map((cell, mi) => {
+                  const note = buildSheet03NoteParts(cell);
+                  return (
+                    <TableCell key={mi} className={`text-center font-medium ${scoreClass(cell.delta)}`}>
+                      {note ? (
+                        <Tooltip>
+                          <TooltipTrigger className="cursor-default underline decoration-dotted underline-offset-2">
+                            {cell.score}
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-sm text-wrap">
+                            <div className="flex flex-col gap-1">
+                              <p className="font-semibold">{note.summary}</p>
+                              {note.lines.map((line, i) => (
+                                <div key={cell.incidents[i].id}>{line}</div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        cell.score
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>

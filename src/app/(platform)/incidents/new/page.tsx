@@ -9,7 +9,9 @@ export default async function NewIncidentPage() {
   const ctx = await requireApiAccess(PERMISSIONS.INCIDENT_CREATE);
 
   const [orgUnits, categories, severities] = await Promise.all([
-    prisma.orgUnit.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { name: "asc" } }),
+    // Department-level units only — "Site" (Khu A/B/C) are PCCC record zones, not a place an
+    // incident happened, and don't belong in this picker.
+    prisma.orgUnit.findMany({ where: { organizationId: ctx.organizationId, isActive: true, unitType: { code: "DEPT" } }, orderBy: { name: "asc" } }),
     prisma.incidentCategory.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { sortOrder: "asc" } }),
     prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { rank: "desc" } }),
   ]);
@@ -26,7 +28,7 @@ export default async function NewIncidentPage() {
       <IncidentForm
         orgUnits={orgUnits.map((u) => ({ id: u.id, name: u.name }))}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-        severities={severities.map((s) => ({ id: s.id, name: s.name }))}
+        severities={severities.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
       />
     </div>
   );

@@ -47,9 +47,14 @@ model Organization {
   safetyOfficers       SafetyOfficer[]
   violationTypes       ViolationType[]
   safetyViolations     SafetyViolation[]
+  safety5sViolations   Safety5sViolation[]
+  safety5sViolationContents Safety5sViolationContent[]
   safetyWorkshops      SafetyWorkshop[]
   departmentAliases    DepartmentAlias[]
   hseYearlyTargets     HseYearlyTarget[]
+  inventoryItems       InventoryItem[]
+  inventoryTransactions InventoryTransaction[]
+  workInjuryDeductions WorkInjuryDeduction[]
 
   @@map("organizations")
 }
@@ -78,6 +83,7 @@ model OrgUnit {
   parentId       String?
   code           String
   name           String
+  nameVi         String? // Vietnamese display name — name itself stays whatever language it was created in (usually Chinese)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -116,6 +122,10 @@ model User {
   createdWorkPlanDocuments WorkPlanDocument[]   @relation("WorkPlanDocumentCreatedBy")
   enteredRecordVersions RecordVersion[]        @relation("RecordVersionEnteredBy")
   uploadedRecordFiles   RecordFile[]           @relation("RecordFileUploadedBy")
+  uploadedRecordEntrySlots RecordEntrySlot[]   @relation("RecordEntrySlotUploadedBy")
+  recordedInventoryTransactions InventoryTransaction[] @relation("InventoryTransactionRecordedBy")
+  createdWorkInjuryDeductions WorkInjuryDeduction[]  @relation("WorkInjuryDeductionCreatedBy")
+  createdSafety5sViolations Safety5sViolation[]   @relation("Safety5sViolationCreatedBy")
 
   @@map("users")
 }
@@ -226,6 +236,9 @@ model Employee {
   capaItemsResponsible    CapaItem[] @relation("CapaResponsiblePerson")
   safetyOfficerLinks      SafetyOfficer[]
   attendanceOverrides     AttendanceRecord[]
+  inventoryTransactionsReceived InventoryTransaction[] @relation("InventoryTransactionRecipient")
+  workInjuryDeductions    WorkInjuryDeduction[]
+  safety5sViolations      Safety5sViolation[]
 
   @@unique([organizationId, employeeCode])
   @@unique([organizationId, nationalId])
@@ -304,6 +317,7 @@ model Document {
   sizeBytes        Int
   storageProvider  String   @default("local")
   storagePath      String
+  tag              String? // free-form per-module slot, e.g. CAPA's "before" / "after" comparison photos
   uploadedById     String?
   uploadedAt       DateTime @default(now())
 
@@ -376,6 +390,7 @@ model IncidentCategory {
   organizationId String
   code           String
   name           String
+  nameVi         String? // Vietnamese display name — name itself stays whatever language it was created in (usually Chinese)
   description    String?
   sortOrder      Int      @default(0)
   isActive       Boolean  @default(true)
@@ -479,6 +494,7 @@ model SafetyWorkshop {
   organizationId String
   code           String
   name           String
+  nameVi         String? // Vietnamese display name — `name` itself is Chinese (the canonical form used by the incident-report module)
   groupName      String
   safetyCategory String? // 安全类别 from sheet 04 ("1类" / "2类"), display-only
   sortOrder      Int      @default(0)
@@ -527,18 +543,26 @@ model HseYearlyTarget {
 }
 
 /// Polymorphic CAPA so Inspection/Audit/Risk/Violation modules can create CAPA later
-/// without a new table — only sourceModule needs a new value.
+/// without a new table — only sourceModule needs a new value. sourceModule/sourceRecordId
+/// are optional so a CAPA can also stand alone (logged directly against an area, not tied to
+/// any other record) — the day-to-day "issue log" workflow, matching the org's own tracking
+/// sheet: Khu vực + Vấn đề phát sinh + ảnh trước/sau, not necessarily born from an incident.
 model CapaItem {
   id             String @id @default(cuid())
   organizationId String
 
-  sourceModule   String // incident | inspection | audit | risk | violation
-  sourceRecordId String
+  sourceModule   String? // incident | inspection | audit | risk | violation | null (standalone)
+  sourceRecordId String?
 
   action    String
   rootCause String?
 
-  responsiblePersonId String?
+  area           String? // Khu vực — free text, e.g. "Kho thành phẩm"
+  discoveredDate DateTime? // Ngày phát hiện — when the issue was actually found, may predate createdAt
+  classification String? // Phân loại vấn đề — one of CAPA_CLASSIFICATIONS
+  responsibleDept String? // Bộ phận phụ trách — free text, standalone CAPA's "who owns this" (a team, not a named individual)
+
+  responsiblePersonId String? // still used by the incident-linked CAPA flow (named individual)
   dueDate             DateTime?
   completionDate       DateTime?
 
@@ -556,6 +580,47 @@ model CapaItem {
   @@index([organizationId, sourceModule, sourceRecordId])
   @@index([organizationId, status])
   @@map("capa_items")
+}
+
+/// One row of a monthly "工伤连带责任人扣款名单" (work-injury joint-liability deduction list) —
+/// people held jointly responsible for a workplace injury, and the amount deducted from their
+/// pay. Snapshotted from the linked Employee at creation time (same reasoning as Incident's own
+/// *Snapshot fields) so the row keeps reading correctly even if that employee later transfers
+/// department — matching the source Excel's own point-in-time department/position columns.
+/// Grouped by periodYear/periodMonth, one group per original workbook sheet ("2026年8月", ...).
+model WorkInjuryDeduction {
+  id             String @id @default(cuid())
+  organizationId String
+
+  periodYear  Int
+  periodMonth Int // 1-12
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  employeeCodeSnapshot  String? // 工号
+  fullNameZhSnapshot    String? // 中文名
+  fullNameViSnapshot    String // 越文名
+  orgUnitLevel1Snapshot String? // 一级部门
+  regionSnapshot        String? // 区域
+  orgUnitLevel2Snapshot String? // 二级部门
+  teamSnapshot          String? // 班组
+  shiftSnapshot         String? // 班次
+  positionSnapshot      String? // 职位
+
+  accidentDate  DateTime? // 事故发生日期
+  reporterName  String? // 调查报告发起人
+  fineAmountVnd Int      @default(0) // 罚款金额（越南盾）
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("WorkInjuryDeductionCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, periodYear, periodMonth])
+  @@map("work_injury_deductions")
 }
 
 /// A self-contained, freely hand-maintained HSE work plan ("kế hoạch công việc") — e.g. one
@@ -631,11 +696,12 @@ model RecordDomain {
 
 /// A group of record types within a domain, e.g. A/B/C/D for PCCC.
 model RecordGroup {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   domainId  String
   code      String
   name      String
-  sortOrder Int    @default(0)
+  nameZh    String? // Chinese translation, shown instead of `name` when the viewer's locale is zh
+  sortOrder Int     @default(0)
 
   domain RecordDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
   types  RecordType[]
@@ -651,10 +717,14 @@ model RecordType {
   groupId           String
   code              String // A1, B2, C10, D5, ...
   name              String
+  nameZh            String? // Chinese translation, shown instead of `name` when the viewer's locale is zh
   legalBasis        String?
+  legalBasisZh      String?
   frequencyLabel    String? // free-text description, e.g. "6 tháng/lần"
+  frequencyLabelZh  String?
   cycleMonths       Int? // periodic cycle in months; null = not periodic (one-off / on-change)
   responsibleUnit   String?
+  responsibleUnitZh String?
   sharedAcrossSites Boolean @default(false) // true = one physical record covers all sites (e.g. evacuation map)
   isActive          Boolean @default(true) // hidden, not deleted, so history stays intact
   sortOrder         Int     @default(0)
@@ -685,10 +755,38 @@ model RecordEntry {
   recordType   RecordType      @relation(fields: [recordTypeId], references: [id])
   orgUnit      OrgUnit         @relation(fields: [orgUnitId], references: [id])
   versions     RecordVersion[]
+  slots        RecordEntrySlot[]
 
   @@unique([recordTypeId, orgUnitId])
   @@index([organizationId])
   @@map("record_entries")
+}
+
+/// A fixed set of independent upload slots per entry (count set by RECORD_ENTRY_SLOT_COUNT in
+/// src/lib/records-constants.ts) — for periodic records (e.g. a monthly self-inspection log)
+/// where every period's file should stay visible side by side, unlike RecordVersion where a
+/// new entry supersedes the old one. Each slot is its own file; slotIndex just fixes its
+/// position so the UI always renders the same fixed set of boxes.
+model RecordEntrySlot {
+  id           String    @id @default(cuid())
+  entryId      String
+  slotIndex    Int // 1..6
+  fileName     String?
+  storageType  String? // drive_link | upload
+  url          String?
+  storagePath  String?
+  sizeBytes    Int?
+  mimeType     String?
+  startDate    DateTime? // ngày bắt đầu
+  expiresAt    DateTime? // ngày hết hạn — null for permanent-use documents
+  uploadedById String?
+  uploadedAt   DateTime?
+
+  entry      RecordEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  uploadedBy User?       @relation("RecordEntrySlotUploadedBy", fields: [uploadedById], references: [id])
+
+  @@unique([entryId, slotIndex])
+  @@map("record_entry_slots")
 }
 
 /// One update to a RecordEntry. Never overwritten — a new version supersedes the old one
@@ -796,4 +894,116 @@ model SafetyViolation {
   violationType ViolationType @relation(fields: [violationTypeId], references: [id])
 
   @@map("safety_violations")
+}
+
+/// One "5S" workplace-tidiness violation entry, imported from the monthly "员工违规处罚名单"
+/// penalty list. Employee/department/position fields are snapshotted at import/entry time
+/// (same reasoning as WorkInjuryDeduction) so a row keeps reading correctly even if that
+/// employee later transfers department. violationContent stays free text (not a foreign key to
+/// Safety5sViolationContent) — the catalog only offers quick-pick suggestions for common
+/// wording, it doesn't constrain what can be typed.
+model Safety5sViolation {
+  id             String @id @default(cuid())
+  organizationId String
+
+  periodYear  Int
+  periodMonth Int // 1-12, derived from violationDate
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  employeeCodeSnapshot  String? // 工号
+  fullNameZhSnapshot    String? // 中文名
+  fullNameViSnapshot    String // 越文名
+  orgUnitLevel1Snapshot String? // 一级部门
+  regionSnapshot        String? // 区域
+  orgUnitLevel2Snapshot String? // 二级部门
+  teamSnapshot          String? // 班组
+  shiftSnapshot         String? // 班次
+  positionSnapshot      String? // 职位
+
+  violationContent String // 违规内容
+  violationDate    DateTime // 违规日期
+  fineAmountVnd    Int? // 罚款金额（越南盾）— nullable: some real rows carry a non-monetary penalty instead
+  note             String? // 备注
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("Safety5sViolationCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, periodYear, periodMonth])
+  @@map("safety_5s_violations")
+}
+
+/// Quick-pick catalog of common 5S violation descriptions ("Không mang giày - 未穿鞋", ...),
+/// shown as a dropdown next to the free-text violationContent field on Safety5sViolation.
+/// Same shape as ViolationType (labelVi/labelZh/sortOrder/isActive) — org-managed, not a fixed
+/// enum, so admins can keep adding new wording over time.
+model Safety5sViolationContent {
+  id             String   @id @default(cuid())
+  organizationId String
+  labelVi        String
+  labelZh        String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("safety_5s_violation_contents")
+}
+
+/// Catalog of physical HSE/PCCC equipment items tracked by the Inventory module (chuông báo
+/// cháy, tủ chữa cháy, đồng phục, ...). Stock is never stored on this model — it's always
+/// computed live from InventoryTransaction (same computed-not-cached pattern used by
+/// records/attendance/work-plan status), so it can never drift out of sync with the actual
+/// movement history.
+model InventoryItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  nameZh         String?
+  unit           String // đơn vị tính: cái, cuộn, bộ, đôi...
+  imageUrl       String?
+  minStockLevel  Int      @default(0) // tiêu chuẩn tồn kho tối thiểu — dưới mức này thì cảnh báo
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+
+  @@map("inventory_items")
+}
+
+/// One stock movement: nhập kho (in) or xuất/lãnh kho (out). For "out" transactions,
+/// department + note record which department took the item and why — the "báo lãnh" log.
+/// Current stock for an item is always SUM(in) - SUM(out) across this table, computed at
+/// query time rather than cached.
+model InventoryTransaction {
+  id              String   @id @default(cuid())
+  organizationId  String
+  itemId          String
+  type            String // in | out
+  quantity        Int
+  department      String? // bộ phận lãnh — set for type = out
+  recipientEmployeeId String? // người lãnh (tùy chọn) — looked up by MSNV, left blank if not given
+  isAdjustment    Boolean  @default(false) // true = stock-count correction, not a real lãnh/nhập — hidden from Báo lãnh
+  note            String?
+  transactionDate DateTime @default(now())
+  recordedById    String?
+  createdAt       DateTime @default(now())
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  item              InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  recordedBy        User?         @relation("InventoryTransactionRecordedBy", fields: [recordedById], references: [id])
+  recipientEmployee Employee?     @relation("InventoryTransactionRecipient", fields: [recipientEmployeeId], references: [id])
+
+  @@map("inventory_transactions")
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import type { DataStatus, ExpiryStatus } from "@/server/records";
@@ -9,7 +10,6 @@ import { STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 const DATA_STATUS_CLASS: Record<DataStatus, string> = {
   sufficient: STATUS_OUTLINE_CLASS.success,
   needs_update: STATUS_OUTLINE_CLASS.warning,
-  missing: STATUS_OUTLINE_CLASS.critical,
   not_applicable: STATUS_OUTLINE_CLASS.neutral,
 };
 
@@ -20,10 +20,10 @@ const EXPIRY_STATUS_CLASS: Record<ExpiryStatus, string> = {
   non_periodic: STATUS_OUTLINE_CLASS.neutral,
 };
 
-export function DataStatusBadge({ status }: { status: DataStatus }) {
+export function DataStatusBadge({ status, className }: { status: DataStatus; className?: string }) {
   const t = useT();
   return (
-    <Badge variant={status === "not_applicable" ? "secondary" : "outline"} className={DATA_STATUS_CLASS[status]}>
+    <Badge variant={status === "not_applicable" ? "secondary" : "outline"} className={cn(DATA_STATUS_CLASS[status], className)}>
       {t(`records.dataStatus.${status}` as DictionaryKey)}
     </Badge>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Cell, Pie, PieChart, Tooltip } from "recharts";
+import type { PieLabelRenderProps } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n/locale-context";
@@ -8,6 +9,10 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { bucketTopN, chartBrandOpacity, CHART_BRAND, PercentTooltip, type BucketedItem, type ChartDatum } from "./chart-utils";
 import { useDrillDown } from "./use-drill-down";
 import { ViewAllDialog } from "./view-all-dialog";
+
+const RADIAN = Math.PI / 180;
+const INNER_RADIUS = 46;
+const OUTER_RADIUS = 70;
 
 export function DonutChart({
   titleKey,
@@ -31,7 +36,6 @@ export function DonutChart({
   const t = useT();
   const title = t(titleKey);
   const { items, total } = bucketTopN(data, topN, t("incidents.chart.unspecified"), t("incidents.chart.other"));
-  const maxValue = Math.max(1, ...items.map((i) => i.value));
   const navigate = useDrillDown(filterParam);
   const clickable = Boolean(navigate);
   // Segments with a real semantic color (e.g. each severity's own configured colorHex) render
@@ -39,6 +43,7 @@ export function DonutChart({
   // HSE-green brand hue, ranked by opacity only, so unrelated categorical charts (injured body
   // part, etc.) never turn into a decorative rainbow.
   function colorAt(item: BucketedItem, i: number): { fill: string; opacity: number } {
+    if (item.isOther) return { fill: "var(--muted-foreground)", opacity: 1 };
     const semantic = item.rawKey && colorMap?.[item.rawKey];
     return semantic ? { fill: semantic, opacity: 1 } : { fill: CHART_BRAND, opacity: chartBrandOpacity(i) };
   }
@@ -49,20 +54,71 @@ export function DonutChart({
     if (value) navigate(value);
   }
 
+  // Leader-line label outside each slice — name + count, connected back to the wedge by a short
+  // elbowed line in the wedge's own color, the classic "exploded pie label" pattern. Replaces the
+  // old side-by-side progress-bar legend, which wasted a lot of card width on a fixed 56px label
+  // column no real label fit into.
+  function renderLabel(props: PieLabelRenderProps) {
+    const { cx, cy, midAngle, index } = props;
+    if (typeof cx !== "number" || typeof cy !== "number" || typeof midAngle !== "number" || index === undefined) return null;
+    const item = items[index];
+    if (!item) return null;
+    const { fill } = colorAt(item, index);
+
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (OUTER_RADIUS + 8) * cos;
+    const sy = cy + (OUTER_RADIUS + 8) * sin;
+    const mx = cx + (OUTER_RADIUS + 26) * cos;
+    const my = cy + (OUTER_RADIUS + 26) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 18;
+    const ey = my;
+    const textAnchor = cos >= 0 ? "start" : "end";
+
+    return (
+      <g
+        className={clickable && !item.isOther ? "cursor-pointer" : undefined}
+        onClick={() => handleClick(item)}
+      >
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} />
+        <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
+        <text
+          x={ex + (cos >= 0 ? 1 : -1) * 7}
+          y={ey}
+          dy={5}
+          textAnchor={textAnchor}
+          className="fill-foreground text-[15px] font-semibold"
+        >
+          {item.label} <tspan className="fill-muted-foreground font-medium">({item.value})</tspan>
+        </text>
+      </g>
+    );
+  }
+
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <CardTitle className="text-base font-semibold">{title}</CardTitle>
         <ViewAllDialog title={title} rows={data} />
       </CardHeader>
-      <CardContent className="flex items-center gap-4">
-        <div className="relative h-[150px] w-[150px] shrink-0">
+      <CardContent className="flex flex-1 items-center">
+        <div className="relative h-[300px] w-full">
           <ChartContainer config={{}} className="aspect-auto h-full w-full">
             <PieChart accessibilityLayer={false}>
               <Tooltip content={<PercentTooltip total={total} countLabel={t("incidents.chart.count")} percentLabel={t("incidents.chart.percent")} />} />
-              <Pie data={items} dataKey="value" nameKey="label" innerRadius={44} outerRadius={68} paddingAngle={2} strokeWidth={2}>
+              <Pie
+                data={items}
+                dataKey="value"
+                nameKey="label"
+                innerRadius={INNER_RADIUS}
+                outerRadius={OUTER_RADIUS}
+                paddingAngle={2}
+                strokeWidth={2}
+                label={renderLabel}
+                labelLine={false}
+              >
                 {items.map((item, i) => {
-                  const { fill, opacity } = item.isOther ? { fill: "var(--muted-foreground)", opacity: 1 } : colorAt(item, i);
+                  const { fill, opacity } = colorAt(item, i);
                   return (
                     <Cell
                       key={item.label}
@@ -80,28 +136,6 @@ export function DonutChart({
             <span className="text-xl font-semibold text-foreground">{total.toLocaleString("vi-VN")}</span>
             <span className="text-[11px] text-muted-foreground">{t("incidents.chart.count")}</span>
           </div>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {items.map((item, i) => {
-            const { fill, opacity } = item.isOther ? { fill: "var(--muted-foreground)", opacity: 1 } : colorAt(item, i);
-            return (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => handleClick(item)}
-                disabled={item.isOther || !clickable}
-                className="group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-xs enabled:hover:bg-muted disabled:cursor-default"
-              >
-                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: fill, opacity }} />
-                <span className="w-14 shrink-0 truncate text-left text-muted-foreground">{item.label}</span>
-                <span className="h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-muted">
-                  <span className="block h-full rounded-full" style={{ width: `${(item.value / maxValue) * 100}%`, backgroundColor: fill, opacity }} />
-                </span>
-                <span className="w-8 shrink-0 text-right font-mono font-medium text-foreground">{item.value}</span>
-                <span className="w-9 shrink-0 text-right font-mono text-muted-foreground">{total > 0 ? ((item.value / total) * 100).toFixed(0) : 0}%</span>
-              </button>
-            );
-          })}
         </div>
       </CardContent>
     </Card>

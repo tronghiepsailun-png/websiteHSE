@@ -49,11 +49,21 @@ function normalizeHeader(value: unknown): string {
 
 function cellText(value: ExcelJS.CellValue): string {
   if (value == null) return "";
-  if (typeof value === "object" && "richText" in value) {
-    return (value as { richText: { text: string }[] }).richText.map((t) => t.text).join("");
-  }
-  if (typeof value === "object" && "result" in value) {
-    return String((value as { result: unknown }).result ?? "");
+  if (typeof value === "object") {
+    if ("richText" in value) {
+      return (value as { richText: { text: string }[] }).richText.map((t) => t.text).join("").trim();
+    }
+    if ("result" in value) {
+      return cellText((value as { result: ExcelJS.CellValue }).result ?? "");
+    }
+    // Hyperlink cells ({ text, hyperlink }) — `text` is itself a plain string or richText, so
+    // recurse rather than stringifying the whole object (which previously produced the literal
+    // text "[object Object]" for every hyperlinked cell, corrupting 107 imported incidents'
+    // responsible-person names).
+    if ("text" in value) {
+      return cellText((value as { text: ExcelJS.CellValue }).text);
+    }
+    if ("error" in value) return "";
   }
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : value.toISOString();
   return String(value).trim();

@@ -19,6 +19,31 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100) || "file";
 }
 
+// HTTP headers can only hold ISO-8859-1 bytes, so a Vietnamese fileName (e.g. any diacritic)
+// throws "Cannot convert argument to a ByteString" if put straight into Content-Disposition.
+// The RFC 5987 `filename*` extension carries the real UTF-8 name; `filename` stays as an
+// ASCII-safe fallback for the handful of very old clients that don't read filename*.
+export function contentDisposition(fileName: string, type: "inline" | "attachment" = "inline") {
+  const asciiFallback = (fileName.replace(/[^\x20-\x7e]/g, "_").replace(/[\r\n"]/g, "_") || "file").slice(0, 200);
+  const encoded = encodeURIComponent(fileName);
+  return `${type}; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+}
+
+// Browsers have no built-in Word/Excel viewer, so "inline" on an Office file just leaves the
+// browser to guess — usually a silent download, sometimes a tab full of raw XML. Force
+// "attachment" for these so the browser always downloads to a real file the OS's Excel/Word/
+// WPS association can then open, the way it already does for a plain download link.
+const OFFICE_MIME_TYPES = new Set([
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+export function dispositionFor(fileName: string, mimeType: string | null | undefined) {
+  return contentDisposition(fileName, mimeType && OFFICE_MIME_TYPES.has(mimeType) ? "attachment" : "inline");
+}
+
 class LocalStorageProvider implements StorageService {
   async save({
     organizationId,

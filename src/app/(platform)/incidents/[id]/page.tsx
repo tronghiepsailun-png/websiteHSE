@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { X, Calendar, MapPin } from "lucide-react";
-import { requireApiAccess } from "@/server/api-guard";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
-import { getIncidentById, MAX_INCIDENT_PHOTOS } from "@/server/incidents";
+import {
+  getIncidentById,
+  getIncidentFactoryCode,
+  MAX_INCIDENT_PHOTOS,
+  localizeCategoryName,
+  localizeDepartmentName,
+  buildOrgUnitNameViMap,
+  resolveEmployeeSnapshotNames,
+  localizeEmployeeDisplayName,
+} from "@/server/incidents";
 import { NotFoundError } from "@/server/errors";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +21,9 @@ import { Button } from "@/components/ui/button";
 import { SeverityBadge, IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { StatusForm } from "./status-form";
 import { CorrectiveActionForm } from "./corrective-action-form";
+import { EditIncidentDialog } from "./edit-incident-dialog";
 import { AttachmentUploadForm } from "./attachment-upload-form";
+import { IncidentPhotoGallery } from "./photo-gallery";
 import { deleteIncidentAttachmentAction } from "./actions";
 import { DeleteIncidentButton } from "./delete-incident-button";
 import { T } from "@/components/i18n/t";
@@ -37,7 +49,9 @@ function Field({ label, value }: { label: React.ReactNode; value: React.ReactNod
 }
 
 export default async function IncidentDetailPage({ params }: PageProps<"/incidents/[id]">) {
-  const ctx = await requireApiAccess(PERMISSIONS.INCIDENT_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.INCIDENT_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
   const { id } = await params;
   const locale = await getLocale();
 
@@ -56,6 +70,24 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
   const canDeleteDoc = hasPermission(permissionKeys, PERMISSIONS.DOCUMENT_DELETE);
   const canDeleteIncident = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_DELETE);
 
+  // Fetched unconditionally (unlike categories/severities below) — needed for read-only display
+  // localization too (nameViByName), not just canEdit's picker.
+  const orgUnits = await prisma.orgUnit.findMany({
+    // Department-level units only — "Site" (Khu A/B/C) are PCCC record zones, not a place an
+    // incident happened, and don't belong in this picker.
+    where: { organizationId: ctx.organizationId, isActive: true, unitType: { code: "DEPT" } },
+    orderBy: { name: "asc" },
+  });
+  const [categories, severities] = canEdit
+    ? await Promise.all([
+        prisma.incidentCategory.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { sortOrder: "asc" } }),
+        prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, orderBy: { rank: "desc" } }),
+      ])
+    : [[], []];
+
+  const nameViByName = buildOrgUnitNameViMap(orgUnits);
+  const employeeSnapshotNamesByCode = await resolveEmployeeSnapshotNames(ctx.organizationId, [incident]);
+
   const photoDocs = incident.documents.filter((doc) => doc.fileType.startsWith("image/"));
   const otherDocs = incident.documents.filter((doc) => !doc.fileType.startsWith("image/"));
 
@@ -72,6 +104,15 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
         <div className="flex items-center gap-2">
           <SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />
           <IncidentStatusBadge status={incident.status} />
+          {canEdit && (
+            <EditIncidentDialog
+              incident={incident}
+              initialFactoryCode={getIncidentFactoryCode(incident)}
+              orgUnits={orgUnits.map((u) => ({ id: u.id, name: u.name }))}
+              categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+              severities={severities.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+            />
+          )}
           {canDeleteIncident && (
             <DeleteIncidentButton incidentId={incident.id} incidentNumber={incident.incidentNumber} redirectAfterDelete />
           )}
@@ -80,7 +121,8 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
 
       {/* Condensed key-facts strip */}
       <Card size="sm">
-        <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+        <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-4">
+          <Field label={<T k="incidents.table.factoryCode" />} value={getIncidentFactoryCode(incident)} />
           <Field label={<T k="incidents.table.severity" />} value={<SeverityBadge name={incident.severity.name} colorHex={incident.severity.colorHex} />} />
           <Field label={<T k="incidents.table.occurred" />} value={<span className="flex items-center gap-1.5"><Calendar className="size-3.5 text-muted-foreground" />{fmt(incident.occurredAt)}</span>} />
           <Field label={<T k="incidents.new.fields.locationDetail" />} value={<span className="flex items-center gap-1.5"><MapPin className="size-3.5 text-muted-foreground" />{incident.locationDetail ?? "—"}</span>} />
@@ -101,21 +143,34 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           <Card size="sm">
             <CardContent className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.peopleAndInfo" /></p>
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                <Field label={<T k="incidents.table.category" />} value={incident.category.name} />
-                <Field label={<T k="incidents.new.fields.orgUnit" />} value={incident.orgUnit?.name ?? "—"} />
-                <Field label={<T k="incidents.table.department" />} value={incident.orgUnit?.name ?? incident.departmentSnapshot ?? "—"} />
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <Field label={<T k="incidents.table.factoryCode" />} value={getIncidentFactoryCode(incident)} />
+                <Field label={<T k="incidents.table.category" />} value={localizeCategoryName(incident.category, locale)} />
+                <Field
+                  label={<T k="incidents.table.department" />}
+                  value={localizeDepartmentName(incident.orgUnit?.name ?? incident.departmentSnapshot ?? null, locale, nameViByName)}
+                />
                 <Field label={<T k="incidents.table.cost" />} value={formatIncidentCost(incident)} />
                 <Field label={<T k="incidents.detail.pointsDeducted" />} value={incident.pointsDeducted ?? "—"} />
                 <Field label={<T k="incidents.new.fields.equipment" />} value={incident.equipment ?? "—"} />
                 <Field label={<T k="incidents.detail.injuredBodyPart" />} value={incident.injuredBodyPart ?? "—"} />
               </div>
-              <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm sm:grid-cols-3">
-                <Field label={<T k="incidents.table.employee" />} value={incident.employee?.fullName ?? incident.employeeNameSnapshot ?? "—"} />
-                <Field label={<T k="incidents.detail.responsiblePerson" />} value={incident.responsiblePerson?.fullName ?? incident.responsiblePersonNameSnapshot ?? "—"} />
-                <Field label={<T k="incidents.detail.reportedBy" />} value={incident.reportedBy?.name ?? "—"} />
+              <div className="grid grid-cols-2 gap-3 border-t pt-3 text-sm sm:grid-cols-4">
+                <Field
+                  label={<T k="incidents.new.fields.employee" />}
+                  value={localizeEmployeeDisplayName(incident, employeeSnapshotNamesByCode)}
+                />
+                <Field
+                  label={<T k="incidents.detail.responsiblePerson" />}
+                  value={
+                    incident.responsiblePerson
+                      ? locale === "vi"
+                        ? incident.responsiblePerson.fullName
+                        : (incident.responsiblePerson.fullNameZh ?? incident.responsiblePerson.fullName)
+                      : (incident.responsiblePersonNameSnapshot ?? "—")
+                  }
+                />
                 <Field label={<T k="incidents.detail.positionShift" />} value={`${incident.positionSnapshot ?? "—"} / ${incident.shiftSnapshot ?? "—"}`} />
-                <Field label={<T k="incidents.detail.departmentAtTime" />} value={incident.departmentSnapshot ?? "—"} />
               </div>
             </CardContent>
           </Card>
@@ -139,45 +194,19 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           </Card>
         </div>
 
-        {/* Right: photos — stretches to match the left column's height (grid row stretch),
-            and the photo tiles are flex-1 rather than aspect-square so 2 photos always share
-            exactly that height instead of growing past it. */}
-        <Card size="sm" className="flex h-full flex-col">
-          <CardContent className="flex flex-1 min-h-0 flex-col gap-3">
+        {/* Right: photos — every tile is a true square (matches the server-side 1024x1024
+            upload crop exactly), so a square source photo displays in full with no further
+            cropping; only a non-square source gets cropped, and that already happened once,
+            server-side, at upload time (see uploadIncidentAttachmentAction). Sized to its own
+            content (no h-full stretch) so it doesn't trail empty space when the left column
+            ends up taller. */}
+        <Card size="sm">
+          <CardContent className="flex flex-col gap-3">
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
             </p>
             {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
-            {photoDocs.length > 0 && (
-              <div className="flex flex-1 min-h-0 flex-col gap-3">
-                {photoDocs.map((doc) => (
-                  <div key={doc.id} className="group relative min-h-0 flex-1 overflow-hidden rounded-lg border">
-                    {/* absolutely positioned so the image's own intrinsic size never leaks into
-                        this tile's flex sizing — otherwise the browser sizes the tile to the
-                        square photo's natural height before the stretch-to-match-left-column
-                        pass ever runs, and min-h-0/flex-1 above have no effect. */}
-                    <a href={`/api/documents/${doc.id}`} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
-                      <img src={`/api/documents/${doc.id}`} alt={doc.fileName} className="size-full object-cover" />
-                    </a>
-                    {canDeleteDoc && (
-                      <form action={deleteIncidentAttachmentAction} className="absolute top-1.5 right-1.5">
-                        <input type="hidden" name="documentId" value={doc.id} />
-                        <input type="hidden" name="incidentId" value={incident.id} />
-                        <Button
-                          type="submit"
-                          size="icon"
-                          variant="secondary"
-                          className="size-7 opacity-0 transition-opacity group-hover:opacity-100"
-                          title={t(locale, "common.delete")}
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <IncidentPhotoGallery photos={photoDocs} incidentId={incident.id} canDelete={canDeleteDoc} />
           </CardContent>
         </Card>
       </div>

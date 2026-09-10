@@ -1,6 +1,7 @@
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { getRecordCatalog, listSites } from "@/server/records-catalog";
+import { localizeRecordType, localizeRecordGroup } from "@/server/records";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import { TypeForm } from "./type-form";
 import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
 
 export default async function RecordsCatalogPage({ searchParams }: PageProps<"/records/pccc/catalog">) {
-  const ctx = await requireApiAccess(PERMISSIONS.RECORDS_MANAGE);
+  const ctx = await requireApiAccess(PERMISSIONS.RECORDS_EDIT);
   const locale = await getLocale();
   const params = await searchParams;
   const applied = typeof params.applied === "string" ? Number(params.applied) : null;
@@ -45,11 +46,13 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TypeForm groups={domain.groups.map((g) => ({ id: g.id, code: g.code, name: g.name }))} />
+          <TypeForm groups={domain.groups.map((g) => localizeRecordGroup(g, locale)).map((g) => ({ id: g.id, code: g.code, name: g.name }))} />
         </CardContent>
       </Card>
 
-      {domain.groups.map((group) => (
+      {domain.groups.map((group0) => {
+        const group = localizeRecordGroup(group0, locale);
+        return (
         <Card key={group.id}>
           <CardHeader>
             <CardTitle className="text-base font-semibold">
@@ -71,7 +74,9 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {group.types.map((rt) => (
+                {group.types.map((rt0) => {
+                  const rt = localizeRecordType(rt0, locale);
+                  return (
                   <TableRow key={rt.id} className="h-14">
                     <TableCell className="py-3 font-medium">{rt.code}</TableCell>
                     <TableCell className="py-3">{rt.name}</TableCell>
@@ -106,7 +111,8 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
                       </form>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {group.types.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7}>
@@ -118,7 +124,8 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
             </Table>
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }

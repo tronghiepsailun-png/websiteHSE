@@ -19,16 +19,24 @@ export function ModuleEmptyState({
   titleKey: DictionaryKey;
   messageKey: DictionaryKey;
 }) {
+  const Icon = icon;
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold">
-          <T k={titleKey} />
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <T k="modules.emptyHint" />
-        </p>
-      </div>
+      <Card>
+        <CardContent className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted-foreground/10 text-muted-foreground">
+            <Icon className="size-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold">
+              <T k={titleKey} />
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              <T k="modules.emptyHint" />
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="pt-6">

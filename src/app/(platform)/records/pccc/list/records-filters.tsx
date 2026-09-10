@@ -96,7 +96,6 @@ export function RecordsFilters({
                 <SelectItem value="all">{t("records.filter.allDataStatuses")}</SelectItem>
                 <SelectItem value="sufficient">{t("records.dataStatus.sufficient")}</SelectItem>
                 <SelectItem value="needs_update">{t("records.dataStatus.needs_update")}</SelectItem>
-                <SelectItem value="missing">{t("records.dataStatus.missing")}</SelectItem>
                 <SelectItem value="not_applicable">{t("records.dataStatus.not_applicable")}</SelectItem>
               </SelectContent>
             </Select>

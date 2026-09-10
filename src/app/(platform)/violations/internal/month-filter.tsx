@@ -23,7 +23,12 @@ export function MonthFilter({
       <CardContent className="p-3">
         <form ref={formRef} className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{t("violations.monthFilter.label")}</span>
+          {/* Keyed on the period so a programmatic navigation to a different month (e.g. after
+              saving a row whose date falls outside the month being viewed) remounts this
+              uncontrolled Select with the right defaultValue, instead of it silently keeping
+              the stale label from before the navigation. */}
           <Select
+            key={value}
             name="ym"
             defaultValue={value}
             onValueChange={() => setTimeout(() => formRef.current?.requestSubmit(), 0)}

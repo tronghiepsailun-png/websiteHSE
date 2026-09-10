@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -38,7 +38,7 @@ export function ImportDialog() {
         <form action={formAction} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="import-file">{t("incidents.upload.selectFile")}</Label>
-            <Input id="import-file" name="file" type="file" accept=".xlsx" required />
+            <FileInput id="import-file" name="file" accept=".xlsx" required />
           </div>
           <Button type="submit" disabled={pending} className="self-end">
             {pending ? t("incidents.upload.uploading") : t("incidents.upload.submit")}

@@ -31,15 +31,19 @@ const createSchema = z.object({
   groupId: z.string().min(1),
   code: z.string().min(1).max(20),
   name: z.string().min(1).max(200),
+  nameZh: z.string().optional(),
   legalBasis: z.string().optional(),
+  legalBasisZh: z.string().optional(),
   frequencyLabel: z.string().optional(),
+  frequencyLabelZh: z.string().optional(),
   cycleMonths: z.string().optional(),
   responsibleUnit: z.string().optional(),
+  responsibleUnitZh: z.string().optional(),
   sharedAcrossSites: z.string().optional(),
 });
 
 export async function createRecordTypeAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_EDIT);
   const parsed = createSchema.parse(Object.fromEntries(formData.entries()));
 
   const group = await prisma.recordGroup.findUnique({ where: { id: parsed.groupId }, include: { domain: true } });
@@ -49,10 +53,14 @@ export async function createRecordTypeAction(formData: FormData) {
     groupId: parsed.groupId,
     code: parsed.code.trim(),
     name: parsed.name.trim(),
+    nameZh: parsed.nameZh?.trim() || null,
     legalBasis: parsed.legalBasis?.trim() || null,
+    legalBasisZh: parsed.legalBasisZh?.trim() || null,
     frequencyLabel: parsed.frequencyLabel?.trim() || null,
+    frequencyLabelZh: parsed.frequencyLabelZh?.trim() || null,
     cycleMonths: toFiniteNumberOrNull(parsed.cycleMonths),
     responsibleUnit: parsed.responsibleUnit?.trim() || null,
+    responsibleUnitZh: parsed.responsibleUnitZh?.trim() || null,
     sharedAcrossSites: parsed.sharedAcrossSites === "on",
   });
 
@@ -70,7 +78,7 @@ export async function createRecordTypeAction(formData: FormData) {
 }
 
 export async function toggleRecordTypeActiveAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_EDIT);
   const id = String(formData.get("id"));
   const nextIsActive = formData.get("isActive") === "true";
 
@@ -94,7 +102,7 @@ export async function toggleRecordTypeActiveAction(formData: FormData) {
 }
 
 export async function applyRecordTypeToSitesAction(formData: FormData) {
-  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_MANAGE);
+  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_EDIT);
   const recordTypeId = String(formData.get("recordTypeId"));
   const orgUnitIds = formData.getAll("orgUnitIds").map(String);
 

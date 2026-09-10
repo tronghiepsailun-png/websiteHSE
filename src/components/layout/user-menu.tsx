@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User, KeyRound } from "lucide-react";
 import { logoutAction } from "@/app/(platform)/actions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { ChangePasswordDialog } from "./change-password-dialog";
 import { useT } from "@/lib/i18n/locale-context";
 
 function initials(name: string) {
@@ -37,42 +39,50 @@ export function UserMenu({
   showSettings: boolean;
 }) {
   const t = useT();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className={buttonVariants({ variant: "ghost", size: "sm", className: "gap-2 px-1.5" })}>
-        <Avatar className="size-7">
-          <AvatarFallback className="text-xs">{initials(name)}</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="flex flex-col">
-            <span className="font-medium">{name}</span>
-            <span className="text-xs font-normal text-muted-foreground">{email}</span>
-            {isPlatformAdmin && (
-              <span className="mt-1 flex items-center gap-1 text-xs font-normal text-primary">
-                <User className="size-3" /> {t("auth.platformAdmin")}
-              </span>
-            )}
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        {showSettings && (
-          <DropdownMenuItem className="p-0">
-            <Link href="/settings" className="flex w-full items-center gap-2 px-1.5 py-1">
-              <Settings className="size-4" /> {t("nav.settings")}
-            </Link>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className={buttonVariants({ variant: "ghost", size: "sm", className: "gap-2 px-1.5" })}>
+          <Avatar className="size-7">
+            <AvatarFallback className="text-xs">{initials(name)}</AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="flex flex-col">
+              <span className="font-medium">{name}</span>
+              <span className="text-xs font-normal text-muted-foreground">{email}</span>
+              {isPlatformAdmin && (
+                <span className="mt-1 flex items-center gap-1 text-xs font-normal text-primary">
+                  <User className="size-3" /> {t("auth.platformAdmin")}
+                </span>
+              )}
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          {showSettings && (
+            <DropdownMenuItem className="p-0">
+              <Link href="/settings" className="flex w-full items-center gap-2 px-1.5 py-1">
+                <Settings className="size-4" /> {t("nav.settings")}
+              </Link>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem className="flex items-center gap-2" onClick={() => setChangePasswordOpen(true)}>
+            <KeyRound className="size-4" /> {t("auth.changePassword")}
           </DropdownMenuItem>
-        )}
-        <DropdownMenuItem className="p-0">
-          <form action={logoutAction} className="w-full">
-            <button type="submit" className="flex w-full items-center gap-2 px-1.5 py-1">
-              <LogOut className="size-4" /> {t("auth.signOut")}
-            </button>
-          </form>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem className="p-0">
+            <form action={logoutAction} className="w-full">
+              <button type="submit" className="flex w-full items-center gap-2 px-1.5 py-1">
+                <LogOut className="size-4" /> {t("auth.signOut")}
+              </button>
+            </form>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+    </>
   );
 }

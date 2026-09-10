@@ -12,8 +12,6 @@ export type EmployeeDetailData = {
   fullNameZh: string | null;
   gender: string | null;
   education: string | null;
-  birthDate: Date | null;
-  nationalId: string | null;
   orgUnitLevel1: string | null;
   region: string | null;
   costCenterName: string | null;
@@ -22,7 +20,6 @@ export type EmployeeDetailData = {
   shift: string | null;
   position: string | null;
   status: string;
-  email: string | null;
   phone: string | null;
 };
 
@@ -63,9 +60,7 @@ export function EmployeeDetailSheet({
             <Field label={t("employees.field.fullName")} value={employee.fullName} />
             <Field label={t("employees.field.fullNameZh")} value={employee.fullNameZh ?? ""} />
             <Field label={t("employees.field.gender")} value={employee.gender ? t(`employees.gender.${employee.gender}` as DictionaryKey) : ""} />
-            <Field label={t("employees.field.birthDate")} value={employee.birthDate ? employee.birthDate.toLocaleDateString() : ""} />
             <Field label={t("employees.field.education")} value={employee.education ?? ""} />
-            <Field label={t("employees.field.nationalId")} value={employee.nationalId ?? ""} />
           </div>
 
           <div className="border-t pt-3">
@@ -84,7 +79,6 @@ export function EmployeeDetailSheet({
           <div className="border-t pt-3">
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("employees.detail.contactSection")}</p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t("common.email")} value={employee.email ?? ""} />
               <Field label={t("employees.field.phone")} value={employee.phone ?? ""} />
             </div>
           </div>

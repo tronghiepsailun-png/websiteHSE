@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser, listMembershipsForUser, ACTIVE_ORG_COOKIE } from "@/server/org-context";
 import { getPermissionKeysForUserInOrg } from "@/server/rbac";
 import { PERMISSIONS } from "@/server/permissions";
+import { listCapaForOrg, isCapaOverdue } from "@/server/capa";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/app-shell";
 import { OrganizationPicker } from "@/components/layout/organization-picker";
@@ -34,10 +35,16 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   const cookieOrgId = store.get(ACTIVE_ORG_COOKIE)?.value ?? null;
   const activeOrg = cookieOrgId ? (availableOrgs.find((o) => o.id === cookieOrgId) ?? null) : null;
 
+  if (!activeOrg && availableOrgs.length === 1) {
+    // Single-company deployment — nothing to actually choose, so skip straight past the
+    // picker screen instead of making the user click their own organization's name.
+    redirect("/api/org/auto-select");
+  }
+
   if (!activeOrg && availableOrgs.length > 0) {
-    // No valid selection yet — ask the user to pick one instead of silently guessing
-    // (silently defaulting to "the first org" would be an easy way to leak the wrong
-    // tenant's data onto the screen if the cookie check above is ever wrong).
+    // Multiple orgs with no valid selection yet — ask the user to pick one instead of
+    // silently guessing (silently defaulting to "the first org" would be an easy way to
+    // leak the wrong tenant's data onto the screen if the cookie check above is ever wrong).
     return <OrganizationPicker memberships={availableOrgs} />;
   }
 
@@ -69,6 +76,13 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   const permissionKeysArray = permissionKeys ? Array.from(permissionKeys) : null;
   const showSettings = permissionKeysArray === null || permissionKeysArray.includes(PERMISSIONS.CONFIG_MANAGE);
 
+  // Header notification bell — real overdue-CAPA items, not a fabricated notification
+  // feed. Gated by the same CAPA_VIEW permission as the /capa page itself.
+  const canSeeCapa = activeOrg !== null && (permissionKeysArray === null || permissionKeysArray.includes(PERMISSIONS.CAPA_VIEW));
+  const overdueCapaItems = canSeeCapa
+    ? (await listCapaForOrg(activeOrg!.id)).filter(isCapaOverdue).slice(0, 5).map((c) => ({ id: c.id, action: c.action, dueDate: c.dueDate }))
+    : [];
+
   return (
     <AppShell
       user={{
@@ -80,6 +94,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       organizations={availableOrgs}
       permissionKeys={permissionKeysArray}
       showSettings={showSettings}
+      overdueCapaItems={overdueCapaItems}
     >
       {children}
     </AppShell>

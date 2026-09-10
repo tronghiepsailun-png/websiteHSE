@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
-import { requireApiAccess } from "@/server/api-guard";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
 import {
@@ -8,11 +9,12 @@ import {
   listWorkPlanItems,
   getWorkPlanStats,
   isWorkPlanItemOverdue,
+  getWorkPlanDaysRemaining,
   groupByPhase,
   type WorkPlanStatus,
 } from "@/server/work-plan";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DocumentToolbar } from "./document-toolbar";
 import { NewDocumentPrompt } from "./new-document-prompt";
@@ -21,8 +23,10 @@ import { ProgressBar } from "./progress-bar";
 import { InlineProgressPicker } from "./inline-progress-picker";
 import { WorkPlanItemDialog } from "./work-plan-item-dialog";
 import { DeleteWorkPlanButton } from "./delete-work-plan-button";
+import { ResizableTableProvider, ResizableColGroup, ResizableTh } from "./resizable-columns";
 import { REPORT_GRID_CLASS } from "@/lib/table-grid";
 import { T } from "@/components/i18n/t";
+import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
@@ -47,7 +51,9 @@ const PHASE_BANNER_CLASS = [
 ];
 
 export default async function PlanningPage({ searchParams }: PageProps<"/planning">) {
-  const ctx = await requireApiAccess(PERMISSIONS.WORKPLAN_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.WORKPLAN_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
+  const ctx = access;
   const locale = await getLocale();
   const params = await searchParams;
 
@@ -60,7 +66,9 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
   ]);
 
-  const canManage = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_MANAGE);
+  const canEdit = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_EDIT);
+  const canDelete = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_DELETE);
+  const showActionsColumn = canEdit || canDelete;
   const requestedId = typeof params.doc === "string" ? params.doc : undefined;
   const current = documents.find((d) => d.id === requestedId) ?? documents[0];
 
@@ -73,7 +81,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         </div>
         <Card>
           <CardContent className="pt-6">
-            <EmptyState message={<T k="workplan.noDocuments" />} action={canManage ? <NewDocumentPrompt /> : undefined} />
+            <EmptyState message={<T k="workplan.noDocuments" />} action={canEdit ? <NewDocumentPrompt /> : undefined} />
           </CardContent>
         </Card>
       </div>
@@ -83,6 +91,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const items = await listWorkPlanItems(current.id);
   const stats = getWorkPlanStats(items);
   const groups = groupByPhase(items);
+
+  function daysRemainingLabel(n: number | null): string {
+    if (n === null) return "—";
+    if (n < 0) return t(locale, "workplan.table.daysOverdue", { n: Math.abs(n) });
+    if (n === 0) return t(locale, "workplan.table.daysToday");
+    return String(n);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,7 +110,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{stats.overdue}</CardTitle></CardHeader></Card>
       </div>
 
-      {canManage && (
+      {canEdit && (
         <div className="flex justify-start">
           <WorkPlanItemDialog documentId={current.id} phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]} />
         </div>
@@ -103,15 +118,31 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
 
       <Card>
         <CardContent className="overflow-x-auto pt-6">
-          <Table className={cn(REPORT_GRID_CLASS, "min-w-[900px] table-fixed")}>
+          <ResizableTableProvider
+            storageKey="workplan-table-column-widths"
+            defaultWidths={{
+              title: 300,
+              responsible: 140,
+              expectedTime: 130,
+              daysRemaining: 90,
+              status: 110,
+              progress: 280,
+              actions: 90,
+            }}
+          >
+          <Table className={cn(REPORT_GRID_CLASS, "table-fixed")}>
+            <ResizableColGroup
+              order={["title", "responsible", "expectedTime", "daysRemaining", "status", "progress", ...(showActionsColumn ? ["actions"] : [])]}
+            />
             <TableHeader>
               <TableRow className="h-11">
-                <TableHead className="w-[28%]"><T k="workplan.table.title" /></TableHead>
-                <TableHead className="w-[16%]"><T k="workplan.table.responsible" /></TableHead>
-                <TableHead className="w-[14%]"><T k="workplan.table.expectedTime" /></TableHead>
-                <TableHead className="w-[13%]"><T k="common.status" /></TableHead>
-                <TableHead className="w-[21%]"><T k="workplan.table.progress" /></TableHead>
-                {canManage && <TableHead className="w-[8%] text-right"><T k="workplan.table.actions" /></TableHead>}
+                <ResizableTh columnKey="title"><T k="workplan.table.title" /></ResizableTh>
+                <ResizableTh columnKey="responsible"><T k="workplan.table.responsible" /></ResizableTh>
+                <ResizableTh columnKey="expectedTime"><T k="workplan.table.expectedTime" /></ResizableTh>
+                <ResizableTh columnKey="daysRemaining" className="whitespace-normal"><T k="workplan.table.daysRemaining" /></ResizableTh>
+                <ResizableTh columnKey="status"><T k="common.status" /></ResizableTh>
+                <ResizableTh columnKey="progress"><T k="workplan.table.progress" /></ResizableTh>
+                {showActionsColumn && <ResizableTh columnKey="actions" resizable={false} className="text-right"><T k="workplan.table.actions" /></ResizableTh>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,7 +150,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 <Fragment key={gi}>
                   {group.phase && (
                     <TableRow key={`phase-${gi}`} className="h-9">
-                      <TableCell colSpan={canManage ? 6 : 5} className={cn("py-2 text-sm font-semibold", PHASE_BANNER_CLASS[gi % PHASE_BANNER_CLASS.length])}>
+                      <TableCell colSpan={showActionsColumn ? 7 : 6} className={cn("py-2 text-sm font-semibold", PHASE_BANNER_CLASS[gi % PHASE_BANNER_CLASS.length])}>
                         {group.phase}
                       </TableCell>
                     </TableRow>
@@ -127,28 +158,34 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                   {group.items.map((item) => {
                     const overdue = isWorkPlanItemOverdue(item);
                     const timeRange = [fmtDate(item.startDate), fmtDate(item.endDate)].filter(Boolean).join(" - ");
+                    const daysRemaining = getWorkPlanDaysRemaining(item);
                     return (
                       <TableRow key={item.id} className="h-14">
                         <TableCell className="py-3 pl-6 font-medium">{item.title}</TableCell>
                         <TableCell className="py-3 text-muted-foreground">{item.responsibleName ?? "—"}</TableCell>
                         <TableCell className={cn("py-3 whitespace-nowrap", overdue && "text-destructive")}>{timeRange || "—"}</TableCell>
+                        <TableCell className={cn("py-3 whitespace-nowrap", (daysRemaining ?? 0) < 0 && "font-medium text-destructive")}>
+                          {daysRemainingLabel(daysRemaining)}
+                        </TableCell>
                         <TableCell className="py-3"><WorkPlanStatusBadge status={item.status as WorkPlanStatus} locale={locale} /></TableCell>
                         <TableCell className="py-3">
-                          {canManage ? (
+                          {canEdit ? (
                             <InlineProgressPicker id={item.id} percent={item.progressPercent} notes={item.notes} />
                           ) : (
                             <ProgressBar percent={item.progressPercent} />
                           )}
                         </TableCell>
-                        {canManage && (
+                        {showActionsColumn && (
                           <TableCell className="py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <WorkPlanItemDialog
-                                documentId={current.id}
-                                phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]}
-                                item={item}
-                              />
-                              <DeleteWorkPlanButton id={item.id} />
+                              {canEdit && (
+                                <WorkPlanItemDialog
+                                  documentId={current.id}
+                                  phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]}
+                                  item={item}
+                                />
+                              )}
+                              {canDelete && <DeleteWorkPlanButton id={item.id} />}
                             </div>
                           </TableCell>
                         )}
@@ -159,13 +196,14 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={canManage ? 6 : 5}>
+                  <TableCell colSpan={showActionsColumn ? 7 : 6}>
                     <EmptyState message={<T k="workplan.table.noResults" />} />
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          </ResizableTableProvider>
         </CardContent>
       </Card>
     </div>

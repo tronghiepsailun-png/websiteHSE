@@ -47,6 +47,14 @@ export function isWorkPlanItemOverdue(item: { status: string; endDate: Date | nu
   return item.endDate.getTime() < Date.now();
 }
 
+/** Days left until endDate, rounded up so "today" reads as 0 rather than a fraction. Null
+ *  when there's nothing to count down to: no deadline set, or already completed. Negative
+ *  means overdue — the caller decides how to style that (matches isWorkPlanItemOverdue). */
+export function getWorkPlanDaysRemaining(item: { status: string; endDate: Date | null }): number | null {
+  if (!item.endDate || item.status === "completed") return null;
+  return Math.ceil((item.endDate.getTime() - Date.now()) / 86_400_000);
+}
+
 export function getWorkPlanStats(items: { status: string; endDate: Date | null; progressPercent: number }[]) {
   const total = items.length;
   const overdue = items.filter((i) => isWorkPlanItemOverdue(i)).length;
