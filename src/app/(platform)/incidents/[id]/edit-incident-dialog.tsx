@@ -41,11 +41,12 @@ type IncidentDetail = {
   status: string;
 };
 
+/** occurredAt is stored and displayed everywhere else (creation form, detail page) as the raw
+ *  wall-clock digits with no timezone conversion — applying the browser's own timezone offset
+ *  here would silently shift the value on every save, even without the user touching this field. */
 function toDateTimeLocal(d: Date | null) {
   if (!d) return "";
-  const local = new Date(d);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
+  return new Date(d).toISOString().slice(0, 16);
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
