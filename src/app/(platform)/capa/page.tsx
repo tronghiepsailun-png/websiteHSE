@@ -28,6 +28,18 @@ function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
 }
 
+// Fixed, distinct color per classification — a categorical breakdown of a handful of known
+// types reads better with each slice visibly different than with the shared brand-green ramp
+// (which only varies by opacity and looks like near-duplicates with few segments).
+const CLASSIFICATION_COLOR: Record<(typeof CAPA_CLASSIFICATIONS)[number], string> = {
+  hazard: "#f59e0b",
+  strict_equipment: "#ef4444",
+  safety_equipment: "#3b82f6",
+  fire_safety: "#f97316",
+  electrical: "#eab308",
+  environment: "#10b981",
+};
+
 /** The status/classification Selects submit the literal string "all" for "no filter
  *  selected" — treat that as unset. */
 function parseFilterParam(value: unknown): string | undefined {
@@ -93,12 +105,13 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
   const unresolvedByDeptData = toSortedChartData(unresolvedByDept);
 
   const byClassification = new Map<string, number>();
+  const byClassificationColorMap: Record<string, string> = {};
   for (const row of deptBreakdown) {
     if (!row.classification) continue;
-    const label = CAPA_CLASSIFICATIONS.includes(row.classification as (typeof CAPA_CLASSIFICATIONS)[number])
-      ? t(locale, `capa.classification.${row.classification}` as DictionaryKey)
-      : row.classification;
+    const isKnown = CAPA_CLASSIFICATIONS.includes(row.classification as (typeof CAPA_CLASSIFICATIONS)[number]);
+    const label = isKnown ? t(locale, `capa.classification.${row.classification}` as DictionaryKey) : row.classification;
     byClassification.set(label, (byClassification.get(label) ?? 0) + 1);
+    if (isKnown) byClassificationColorMap[label] = CLASSIFICATION_COLOR[row.classification as (typeof CAPA_CLASSIFICATIONS)[number]];
   }
   const byClassificationData = toSortedChartData(byClassification);
 
@@ -158,7 +171,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       {(totalByDeptData.length > 0 || byClassificationData.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <TopNBarChart titleKey="capa.chart.byDepartment" data={totalByDeptData} topN={8} />
-          <DonutChart titleKey="capa.chart.byClassification" data={byClassificationData} topN={6} />
+          <DonutChart titleKey="capa.chart.byClassification" data={byClassificationData} topN={6} colorMap={byClassificationColorMap} />
         </div>
       )}
 
