@@ -21,6 +21,7 @@ import {
   ListTodo,
   Package,
   ClipboardCheck,
+  History,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PERMISSIONS } from "@/server/permissions";
@@ -99,6 +100,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/records/pccc/catalog", labelKey: "nav.recordsCatalog", permission: PERMISSIONS.RECORDS_EDIT, icon: ClipboardList },
   { href: "/admin/hse-targets", labelKey: "nav.hseTargets", permission: PERMISSIONS.CONFIG_MANAGE, icon: Gauge },
   { href: "/inventory/catalog", labelKey: "nav.inventoryCatalog", permission: PERMISSIONS.INVENTORY_EDIT, icon: Package },
+  { href: "/admin/audit-log", labelKey: "nav.auditLog", permission: PERMISSIONS.USER_MANAGE, icon: History },
 ];
 
 export function canSee(item: NavItem, permissionKeys: string[] | null) {

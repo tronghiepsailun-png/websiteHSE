@@ -85,6 +85,61 @@ export async function listAuditLogForRecord(
   }));
 }
 
+export type OrgAuditEntry = AuditEntry & { module: string; recordType: string; recordId: string };
+
+/** Org-wide activity feed (every module), newest first — for the admin "Nhật ký hoạt động"
+ *  page, as opposed to listAuditLogForRecord's single-record timeline. Capped rather than
+ *  paginated: this is a small-team tool, not a compliance archive, so "most recent N changes"
+ *  covers the real use case (what did my sub-accounts just do) without building out cursor
+ *  pagination for a table that in practice is read a screen at a time. */
+export async function listAuditLogForOrg(
+  organizationId: string,
+  { limit = 300, module }: { limit?: number; module?: string } = {}
+): Promise<OrgAuditEntry[]> {
+  const rows = await prisma.auditLog.findMany({
+    where: { organizationId, ...(module ? { module } : {}) },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      module: true,
+      recordType: true,
+      recordId: true,
+      action: true,
+      fieldName: true,
+      oldValue: true,
+      newValue: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    module: row.module,
+    recordType: row.recordType,
+    recordId: row.recordId,
+    action: row.action,
+    fieldName: row.fieldName,
+    oldValue: row.oldValue,
+    newValue: row.newValue,
+    createdAt: row.createdAt,
+    userName: row.user?.name ?? null,
+  }));
+}
+
+/** Distinct module names currently present in the org's audit trail — drives the filter
+ *  dropdown on the audit log page without hardcoding a module list that would drift from
+ *  what actually gets logged. */
+export async function listAuditLogModules(organizationId: string): Promise<string[]> {
+  const rows = await prisma.auditLog.findMany({
+    where: { organizationId },
+    select: { module: true },
+    distinct: ["module"],
+    orderBy: { module: "asc" },
+  });
+  return rows.map((r) => r.module);
+}
+
 /** Compares `fields` between two objects and returns only what actually changed. */
 export function diffFields<T extends Record<string, unknown>>(
   before: T,

@@ -54,7 +54,7 @@ export default async function UsersPage() {
               id: m.id,
               userId: m.userId,
               status: m.status,
-              user: { name: m.user.name, email: m.user.email },
+              user: { name: m.user.name, email: m.user.email, lastLoginAt: m.user.lastLoginAt },
             }))}
             permissionsByUser={permissionsByUser}
           />

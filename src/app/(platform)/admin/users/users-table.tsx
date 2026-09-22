@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { setMembershipStatusAction, deleteMembershipAction } from "./actions";
 import { EditPermissionsDialog } from "./edit-permissions-dialog";
+import { ResetPasswordDialog } from "./reset-password-dialog";
 import { useT } from "@/lib/i18n/locale-context";
 import { PERMISSION_MODULES } from "@/server/permissions";
 
-type Membership = { id: string; userId: string; status: string; user: { name: string; email: string } };
+type Membership = { id: string; userId: string; status: string; user: { name: string; email: string; lastLoginAt: Date | null } };
 type TFunc = ReturnType<typeof useT>;
+
+function fmtLastLogin(d: Date | null, t: TFunc) {
+  if (!d) return t("admin.users.neverLoggedIn");
+  const date = new Date(d);
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
 
 const ACTION_COLUMNS = ["edit", "delete", "upload", "download"] as const;
 
@@ -46,6 +53,7 @@ export function UsersTable({
           <TableHead>{t("admin.users.username")}</TableHead>
           <TableHead>{t("admin.users.permissionsTitle")}</TableHead>
           <TableHead>{t("common.status")}</TableHead>
+          <TableHead>{t("admin.users.lastLogin")}</TableHead>
           <TableHead />
         </TableRow>
       </TableHeader>
@@ -67,8 +75,10 @@ export function UsersTable({
                   {m.status === "active" ? t("common.active") : t("common.statusDisabled")}
                 </Badge>
               </TableCell>
+              <TableCell className="py-3 text-sm text-muted-foreground whitespace-nowrap">{fmtLastLogin(m.user.lastLoginAt, t)}</TableCell>
               <TableCell className="py-3">
                 <div className="flex items-center gap-1">
+                  <ResetPasswordDialog userId={m.userId} userName={m.user.name} />
                   <form action={setMembershipStatusAction}>
                     <input type="hidden" name="userId" value={m.userId} />
                     <input type="hidden" name="status" value={m.status === "active" ? "disabled" : "active"} />

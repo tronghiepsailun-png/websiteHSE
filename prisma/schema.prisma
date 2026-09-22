@@ -110,6 +110,7 @@ model User {
   name         String
   isPlatformAdmin Boolean @default(false)
   isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -287,6 +288,7 @@ model AuditLog {
   user         User?        @relation(fields: [userId], references: [id])
 
   @@index([organizationId, module, recordId])
+  @@index([organizationId, createdAt])
   @@map("audit_logs")
 }
 

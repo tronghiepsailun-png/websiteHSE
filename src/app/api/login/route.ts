@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 import { ACTIVE_ORG_COOKIE_SECURE } from "@/server/org-context";
@@ -30,6 +31,8 @@ export async function POST(request: Request) {
       path: "/",
       secure: ACTIVE_ORG_COOKIE_SECURE,
     });
+    // Best-effort — never let a logging failure block a successful login.
+    await prisma.user.update({ where: { email }, data: { lastLoginAt: new Date() } }).catch(() => {});
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof AuthError) {

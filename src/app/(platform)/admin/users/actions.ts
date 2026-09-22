@@ -163,6 +163,47 @@ export async function updateUserPermissionsAction(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
+const resetPasswordSchema = z.object({
+  userId: z.string().min(1),
+  password: z.string().min(6).max(200),
+});
+
+export type ResetPasswordState = { error?: string; success?: boolean } | undefined;
+
+/** Sets a brand-new password for a sub-account — there is no way to recover or display their
+ *  existing one (it's stored as a one-way bcrypt hash, by design), so this is the only "I
+ *  forgot / need to change a sub-account's password" path available to an org admin. */
+export async function resetUserPasswordAction(_prev: ResetPasswordState, formData: FormData): Promise<ResetPasswordState> {
+  const ctx = await requireOrgPermission(PERMISSIONS.USER_MANAGE);
+  const parsed = resetPasswordSchema.safeParse({
+    userId: formData.get("userId"),
+    password: formData.get("password"),
+  });
+  const locale = await getLocale();
+  if (!parsed.success) return { error: t(locale, "common.invalidInput") };
+
+  const membership = await prisma.userOrganization.findUnique({
+    where: { userId_organizationId: { userId: parsed.data.userId, organizationId: ctx.organizationId } },
+  });
+  if (!membership) return { error: t(locale, "common.invalidInput") };
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  await prisma.user.update({ where: { id: parsed.data.userId }, data: { passwordHash } });
+
+  await writeAuditLog({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    module: "organization",
+    recordType: "User",
+    recordId: parsed.data.userId,
+    action: "update",
+    // Never write the actual password (old or new) to the audit trail.
+    changes: [{ field: "password", oldValue: null, newValue: "(reset)" }],
+  });
+
+  return { success: true };
+}
+
 export async function removeRoleAction(formData: FormData) {
   const ctx = await requireOrgPermission(PERMISSIONS.USER_MANAGE);
   const assignmentId = String(formData.get("assignmentId"));
