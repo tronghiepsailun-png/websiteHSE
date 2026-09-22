@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { ShieldAlert, Wallet, CalendarCheck, TrendingDown, Download } from "lucide-react";
+import { ShieldAlert, Wallet, CalendarCheck, TrendingDown, Download, AlertTriangle } from "lucide-react";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
@@ -16,7 +16,7 @@ import {
 } from "@/server/incidents";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { prisma } from "@/lib/prisma";
-import { formatIncidentCost } from "@/lib/format";
+import { formatIncidentCost, formatCompactVnd } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
@@ -32,6 +32,8 @@ import { IncidentRowActions } from "./[id]/incident-row-actions";
 import { DaysSinceValue } from "./days-since-value";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TablePagination } from "@/components/ui/table-pagination";
+import { ViewModeTabs } from "@/components/ui/view-mode-tabs";
+import { IncidentsBoard } from "./incidents-board";
 import { T } from "@/components/i18n/t";
 import { ModuleHeader } from "./module-header";
 import { parseReportView } from "./report-view";
@@ -49,6 +51,9 @@ import {
 } from "@/server/incident-reports";
 import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
 import { parseHiddenColumns, type ToggleableColumn } from "@/lib/column-visibility";
+import { countActiveFilters } from "@/lib/count-active-filters";
+import { isMobileDevice } from "@/lib/device";
+import { IncidentsMobileList } from "./incidents-mobile-list";
 
 const INCIDENT_COLUMNS_COOKIE = "incidents_hidden_columns";
 
@@ -228,6 +233,105 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
     ? incidents
     : incidents.slice((listPageClamped - 1) * LIST_PAGE_SIZE, listPageClamped * LIST_PAGE_SIZE);
 
+  // The board renders the same filtered + paginated slice as the table, so a 380-incident org
+  // never ships 380 draggable cards to the browser at once.
+  const listView = params.view === "board" ? "board" : "table";
+  const canEditIncident = hasPermission(permissionKeys, PERMISSIONS.INCIDENT_EDIT);
+  const boardCards = visibleIncidents.map((incident) => ({
+    id: incident.id,
+    incidentNumber: incident.incidentNumber,
+    status: incident.status,
+    occurredAt: incident.occurredAt,
+    department: localizeDepartmentName(incident.orgUnit?.name ?? incident.departmentSnapshot ?? null, locale, nameViByName),
+    severity: incident.severity.name,
+    category: localizeCategoryName(incident.category, locale),
+    description: incident.description,
+  }));
+
+  if (await isMobileDevice()) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Card>
+          <CardContent className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-green-500/10 text-green-600">
+              <AlertTriangle className="size-5" />
+            </span>
+            <h1 className="text-xl font-semibold">
+              <T k="nav.incidents" />
+            </h1>
+          </CardContent>
+        </Card>
+        <div className="flex flex-wrap gap-2">
+          {canDownload && (
+            <a href="/api/incidents/export" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Download className="size-4" />
+              <T k="incidents.download.button" />
+            </a>
+          )}
+          {canCreate && <ImportDialog />}
+          {canCreate && (
+            <Link href="/incidents/new" className={buttonVariants({ size: "sm" })}>
+              <T k="incidents.reportButton" />
+            </Link>
+          )}
+        </div>
+
+        {activeDrillDownChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">
+              <T k="incidents.chart.filteredBy" />
+            </span>
+            {activeDrillDownChips.map((chip) => (
+              <a
+                key={chip.label}
+                href={chip.href}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-primary hover:bg-primary/20"
+              >
+                {chip.label}
+                <span aria-hidden>✕</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        <IncidentsMobileList
+          kpi={{
+            totalIncidents: dashboard.totalIncidents,
+            totalCostDisplay: dashboard.totalIncidents === 0 ? "—" : formatCompactVnd(dashboard.totalCostVnd),
+            daysSinceLastIncident: dashboard.daysSinceLastIncident,
+            totalPointsDeducted: dashboard.totalPointsDeducted.toLocaleString("vi-VN", { maximumFractionDigits: 1 }),
+          }}
+          cards={visibleIncidents.map((incident) => ({
+            id: incident.id,
+            incidentNumber: incident.incidentNumber,
+            factoryCode: getIncidentFactoryCode(incident),
+            severityName: incident.severity.name,
+            severityColorHex: incident.severity.colorHex,
+            occurredAtDisplay: incident.occurredAt.toLocaleDateString(),
+            department: localizeDepartmentName(incident.orgUnit?.name ?? incident.departmentSnapshot ?? null, locale, nameViByName),
+            status: incident.status,
+            costDisplay: formatIncidentCost(incident),
+          }))}
+          totalCount={incidents.length}
+          page={listPageClamped}
+          pageSize={LIST_PAGE_SIZE}
+          viewAll={listViewAll}
+          searchParams={params}
+          filters={{
+            search,
+            status,
+            categoryId,
+            severityId,
+            categories: categories.map((c) => ({ id: c.id, name: c.name })),
+            severities: severities.map((s) => ({ id: s.id, name: s.name })),
+            carry: { year: dYear, month: dMonth, week: dWeek, orgUnitId: dOrgUnitId },
+            activeCount: countActiveFilters(search, status, categoryId, severityId),
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <ModuleHeader active="detail" />
@@ -383,6 +487,29 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
         </div>
       )}
 
+      <div className="flex justify-end">
+        <ViewModeTabs active={listView} basePath="/incidents" searchParams={params} locale={locale} />
+      </div>
+
+      {listView === "board" ? (
+        <>
+          <IncidentsBoard items={boardCards} canEdit={canEditIncident} />
+          <Card>
+            <CardContent className="pt-6">
+              <TablePagination
+                total={incidents.length}
+                page={listPageClamped}
+                pageSize={LIST_PAGE_SIZE}
+                viewAll={listViewAll}
+                unitLabelKey="incidents.unitLabel"
+                basePath="/incidents"
+                searchParams={params}
+                hash="#incidents-list"
+              />
+            </CardContent>
+          </Card>
+        </>
+      ) : (
       <Card>
         <CardContent className="pt-6">
           <Table>
@@ -466,6 +593,7 @@ export default async function IncidentsPage({ searchParams }: PageProps<"/incide
           />
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

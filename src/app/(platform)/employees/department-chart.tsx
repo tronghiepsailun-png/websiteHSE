@@ -5,9 +5,11 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from "rec
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n/locale-context";
+import { T } from "@/components/i18n/t";
 import { CHART_BRAND } from "@/components/charts/chart-utils";
 import { DepartmentDetailDialog } from "./department-detail-dialog";
 import type { Level1Breakdown } from "@/server/employees";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 // Fixed width per bar (bar + gap) — the chart area scrolls horizontally instead of squeezing
 // every department into the card width, so all of them stay legible and tappable.
@@ -18,6 +20,7 @@ type LabelProps = { x?: number; y?: number; value?: React.ReactNode; index?: num
 
 export function DepartmentChart({
   data,
+  total,
   selected,
   hierarchy,
   defaultOrgUnitLevel1,
@@ -91,10 +94,15 @@ export function DepartmentChart({
     <Card>
       <CardHeader className="flex items-center justify-between gap-2 pb-2">
         <CardTitle className="text-base font-semibold">{t("employees.chart.byDepartment")}</CardTitle>
-        <DepartmentDetailDialog data={hierarchy} defaultOrgUnitLevel1={defaultOrgUnitLevel1} />
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            <T k="employees.kpi.total" />: <span className="font-semibold text-foreground">{total}</span>
+          </span>
+          <DepartmentDetailDialog data={hierarchy} defaultOrgUnitLevel1={defaultOrgUnitLevel1} />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <HorizontalScroll>
           <div className="h-[260px]" style={{ minWidth: `${chartData.length * ITEM_WIDTH}px` }}>
             <ChartContainer config={{}} className="aspect-auto h-full w-full">
               <BarChart data={chartData} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16} accessibilityLayer={false}>
@@ -116,7 +124,7 @@ export function DepartmentChart({
               </BarChart>
             </ChartContainer>
           </div>
-        </div>
+        </HorizontalScroll>
       </CardContent>
     </Card>
   );

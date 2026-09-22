@@ -3,19 +3,17 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div
-      data-slot="table-container"
-      className="relative w-full overflow-x-auto"
-    >
+    <HorizontalScroll data-slot="table-container" className="relative w-full">
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
-    </div>
+    </HorizontalScroll>
   )
 }
 

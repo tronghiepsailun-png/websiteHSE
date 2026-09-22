@@ -45,7 +45,7 @@ export function IncidentFilters({
   };
 
   return (
-    <form ref={formRef} className="flex flex-wrap items-center gap-2">
+    <form ref={formRef} className="flex flex-wrap items-start gap-2">
       {carry.year && <input type="hidden" name="dYear" value={carry.year} />}
       {carry.month && <input type="hidden" name="dMonth" value={carry.month} />}
       {carry.week && <input type="hidden" name="dWeek" value={carry.week} />}
@@ -103,7 +103,7 @@ export function IncidentFilters({
         </Select>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center gap-2 sm:w-auto">
         <FilterCountBadge count={activeCount} />
         <Link href="/incidents" className={buttonVariants({ variant: "outline", size: "sm" })}>
           {t("common.clearFilters")}

@@ -1,16 +1,24 @@
 import { cookies } from "next/headers";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, ListChecks, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { listCapaForOrg, getCapaSummary, getCapaDeptBreakdown, daysUnresolved, getCapaPhotosMap } from "@/server/capa";
 import { listActiveSafetyWorkshops } from "@/server/inventory";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
+import { TopNVerticalBarChart } from "@/components/charts/top-n-vertical-bar-chart";
+import { DonutChart } from "@/components/charts/donut-chart";
 import type { ChartDatum } from "@/components/charts/chart-utils";
+import { CAPA_CLASSIFICATIONS } from "@/lib/capa-constants";
+import { t, type DictionaryKey } from "@/lib/i18n/translate";
 import { CapaFilters } from "./capa-filters";
 import { CapaTable, type CapaRowData } from "./capa-table";
+import { CapaBoard } from "./capa-board";
+import { ViewModeTabs } from "@/components/ui/view-mode-tabs";
 import { CAPA_COLUMNS_COOKIE, CAPA_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import { T } from "@/components/i18n/t";
 import { getLocale } from "@/lib/i18n/get-locale.server";
@@ -38,6 +46,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
   const status = parseFilterParam(params.status);
   const classification = parseFilterParam(params.classification);
   const search = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
+  const view = params.view === "board" ? "board" : "table";
 
   const [capaItems, summary, deptBreakdown, permissionKeys, workshopsRaw] = await Promise.all([
     listCapaForOrg(ctx.organizationId, { status, classification, search }),
@@ -83,6 +92,16 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
   const totalByDeptData = toSortedChartData(totalByDept);
   const unresolvedByDeptData = toSortedChartData(unresolvedByDept);
 
+  const byClassification = new Map<string, number>();
+  for (const row of deptBreakdown) {
+    if (!row.classification) continue;
+    const label = CAPA_CLASSIFICATIONS.includes(row.classification as (typeof CAPA_CLASSIFICATIONS)[number])
+      ? t(locale, `capa.classification.${row.classification}` as DictionaryKey)
+      : row.classification;
+    byClassification.set(label, (byClassification.get(label) ?? 0) + 1);
+  }
+  const byClassificationData = toSortedChartData(byClassification);
+
   const canCreate = hasPermission(permissionKeys, PERMISSIONS.CAPA_CREATE);
   const canEdit = hasPermission(permissionKeys, PERMISSIONS.CAPA_EDIT);
   const canDelete = hasPermission(permissionKeys, PERMISSIONS.CAPA_DELETE);
@@ -118,28 +137,43 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
             <ClipboardCheck className="size-5" />
           </span>
           <div>
-            <h1 className="text-xl font-semibold">CAPA</h1>
-            <p className="text-sm text-muted-foreground"><T k="capa.pageSubtitle" /></p>
+            <h1 className="text-xl font-semibold"><T k="nav.capa" /></h1>
+            <p className="hidden text-sm text-muted-foreground md:block"><T k="capa.pageSubtitle" /></p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.total" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.total}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{summary.overdue}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="capa.kpi.completed" /></p><CardTitle className="text-2xl leading-none font-bold">{summary.completed}</CardTitle></CardHeader></Card>
-      </div>
+      <HorizontalScroll className="flex gap-3 md:grid md:grid-cols-3">
+        <div className={KPI_CARD_WIDTH_CLASS}>
+          <KpiCard labelKey="capa.kpi.total" value={summary.total} icon={ListChecks} tone="neutral" />
+        </div>
+        <div className={KPI_CARD_WIDTH_CLASS}>
+          <KpiCard labelKey="capa.kpi.overdue" value={summary.overdue} icon={AlertTriangle} tone="critical" />
+        </div>
+        <div className={KPI_CARD_WIDTH_CLASS}>
+          <KpiCard labelKey="capa.kpi.completed" value={summary.completed} icon={CheckCircle2} tone="success" />
+        </div>
+      </HorizontalScroll>
 
-      {(totalByDeptData.length > 0 || unresolvedByDeptData.length > 0) && (
+      {(totalByDeptData.length > 0 || byClassificationData.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <TopNBarChart titleKey="capa.chart.byDepartment" data={totalByDeptData} topN={8} />
-          <TopNBarChart titleKey="capa.chart.unresolvedByDepartment" data={unresolvedByDeptData} topN={8} />
+          <DonutChart titleKey="capa.chart.byClassification" data={byClassificationData} topN={6} />
         </div>
       )}
 
-      <CapaFilters search={search} status={status} classification={classification} />
+      {unresolvedByDeptData.length > 0 && <TopNVerticalBarChart titleKey="capa.chart.unresolvedByDepartment" data={unresolvedByDeptData} />}
 
-      <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <CapaFilters search={search} status={status} classification={classification} />
+        <ViewModeTabs active={view} basePath="/capa" searchParams={params} locale={locale} />
+      </div>
+
+      {view === "board" ? (
+        <CapaBoard items={rows} canEdit={canEdit} />
+      ) : (
+        <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireApiAccess, withApiErrorHandling } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { contentDisposition } from "@/server/storage";
+import { exportFileName } from "@/lib/format";
 import { listSafety5sViolations } from "@/server/safety-5s-violations";
 
 // This route loads the ORIGINAL workbook the user provided as a template and only overwrites
@@ -151,7 +152,7 @@ export async function GET(request: Request) {
     if (rowsArray.length > totalRowNumber) rowsArray.length = totalRowNumber;
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
-    const fileName = `${month}月份5S处罚名单.xlsx`;
+    const fileName = `${exportFileName("Vi phạm 5S")}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {

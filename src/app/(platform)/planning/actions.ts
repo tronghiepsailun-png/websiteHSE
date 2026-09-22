@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
-import { WORK_PLAN_STATUSES, getNextSortOrder } from "@/server/work-plan";
+import { WORK_PLAN_STATUSES, getNextSortOrder, type WorkPlanStatus } from "@/server/work-plan";
 import { writeAuditLog } from "@/server/audit";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
@@ -202,6 +202,35 @@ export async function setWorkPlanProgressAction(id: string, percent: number, not
       notes: notes.trim() || null,
       status: clamped === 100 ? "completed" : item.status === "completed" ? "in_progress" : item.status,
     },
+  });
+
+  revalidatePath("/planning");
+}
+
+/** Kanban drop handler. Progress and status are two views of the same thing here (see
+ *  setWorkPlanProgressAction, where 100% means completed), so a column change has to keep the
+ *  pair consistent: the two extreme columns pin progress, and leaving "completed" steps it just
+ *  below 100 so the card doesn't read as finished while sitting in an unfinished column. */
+export async function setWorkPlanStatusAction(id: string, status: WorkPlanStatus) {
+  const ctx = await requireOrgPermission(PERMISSIONS.WORKPLAN_EDIT);
+  const item = await getItemInOrg(id, ctx.organizationId);
+  if (!item || item.status === status) return;
+
+  let progressPercent = item.progressPercent;
+  if (status === "completed") progressPercent = 100;
+  else if (status === "not_started") progressPercent = 0;
+  else if (progressPercent === 100) progressPercent = 99;
+
+  await prisma.workPlanItem.update({ where: { id }, data: { status, progressPercent } });
+
+  await writeAuditLog({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    module: "workplan",
+    recordType: "WorkPlanItem",
+    recordId: id,
+    action: "update",
+    changes: [{ field: "status", oldValue: item.status, newValue: status }],
   });
 
   revalidatePath("/planning");

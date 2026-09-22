@@ -12,7 +12,7 @@ function fmt(n: number, unit: string) {
 export function Sheet05KpiTable({ data }: { data: Awaited<ReturnType<typeof getSheet05KpiData>> }) {
   return (
     <Card>
-      <CardContent className="overflow-x-auto pt-6">
+      <CardContent className="pt-6">
         <Table className={REPORT_GRID_CLASS}>
           <TableHeader>
             <TableRow className="h-11">

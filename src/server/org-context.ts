@@ -5,6 +5,13 @@ import { UnauthorizedError, ForbiddenError, NotFoundError } from "@/server/error
 
 export const ACTIVE_ORG_COOKIE = "hse_active_org";
 
+/** `NODE_ENV === "production"` is true for this app's self-hosted deployment even when it's
+ *  served over plain HTTP (no domain/TLS yet) — a `secure` cookie under that condition is
+ *  silently dropped by the browser, since secure cookies require HTTPS. AUTH_URL already
+ *  declares the real scheme (Auth.js itself derives its own cookie security from it), so reuse
+ *  that signal instead of NODE_ENV. */
+export const ACTIVE_ORG_COOKIE_SECURE = (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "").startsWith("https");
+
 export type SessionUser = { id: string; isPlatformAdmin: boolean; name?: string | null; email?: string | null };
 
 /** Throws UnauthorizedError if there is no signed-in user. Never trust client-supplied identity beyond this. */

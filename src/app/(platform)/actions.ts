@@ -6,11 +6,15 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser, ACTIVE_ORG_COOKIE } from "@/server/org-context";
+import { getSessionUser, ACTIVE_ORG_COOKIE, ACTIVE_ORG_COOKIE_SECURE } from "@/server/org-context";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
+import { LIVENESS_COOKIE } from "@/lib/device";
 
 export async function logoutAction() {
+  // signOut() clears Auth.js's own session cookie but doesn't know about this app's extra
+  // liveness marker (see proxy.ts) — an explicit sign-out should leave no trace of either.
+  (await cookies()).delete(LIVENESS_COOKIE);
   await signOut({ redirectTo: "/login" });
 }
 
@@ -70,7 +74,7 @@ export async function switchOrganizationAction(formData: FormData) {
   store.set(ACTIVE_ORG_COOKIE, organizationId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: ACTIVE_ORG_COOKIE_SECURE,
     path: "/",
   });
 

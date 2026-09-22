@@ -25,9 +25,9 @@ export function OrgSwitcher({
 
   if (organizations.length <= 1 && activeOrg) {
     return (
-      <div className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
-        <Building2 className="size-4 text-muted-foreground" />
-        <span className="font-medium">{activeOrg.name}</span>
+      <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm">
+        <Building2 className="size-4 text-primary" />
+        <span className="font-bold tracking-wide text-primary">{activeOrg.name}</span>
       </div>
     );
   }

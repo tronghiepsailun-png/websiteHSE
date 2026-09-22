@@ -14,7 +14,6 @@ import { PERMISSIONS } from "@/server/permissions";
 import { getPermissionKeysForUserInOrg } from "@/server/rbac";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
 import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
@@ -25,6 +24,8 @@ import { listViolations } from "@/server/violations";
 import { getAttendanceMonth, getAttendanceStats } from "@/server/attendance";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
+import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -59,18 +60,10 @@ export default async function DashboardPage() {
     canSeeViolations ? listViolations(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : [],
   ]);
 
-  const [attendanceMonth, employeesCount, pcccCount, recentPhotos, severities] = await Promise.all([
+  const [attendanceMonth, employeesCount, pcccCount, severities] = await Promise.all([
     canSeeEmployees ? getAttendanceMonth(ctx.organizationId, now.getFullYear(), now.getMonth() + 1) : null,
     canSeeEmployees ? prisma.employee.count({ where: { organizationId: ctx.organizationId, status: "active" } }) : 0,
     canSeeRecords ? prisma.recordEntry.count({ where: { organizationId: ctx.organizationId, notApplicable: false } }) : 0,
-    canSeeIncidents
-      ? prisma.document.findMany({
-          where: { organizationId: ctx.organizationId, module: "incident", fileType: { startsWith: "image/" } },
-          orderBy: { uploadedAt: "desc" },
-          take: 8,
-          select: { id: true, fileName: true, recordId: true },
-        })
-      : [],
     canSeeIncidents
       ? prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, select: { name: true, colorHex: true } })
       : [],
@@ -184,60 +177,33 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           <T k="dashboard.title" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           {orgName} · <T k="dashboard.subtitle" />
         </p>
       </div>
 
-      {/* 5 KPI cards — always all 5, in a fixed layout. A module the account can't view still
-          keeps its slot (no ragged gaps in the grid) but shows a locked placeholder instead of
-          a real number. The first (highest-priority) metric gets a slightly bolder treatment
-          (bigger icon/number, accent ring) so it reads as the anchor stat. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {allKpis.map((kpi, i) => {
-          const Icon = kpi.icon;
-          const isHero = i === 0;
+      {/* 5 KPI cards — always all 5, in a fixed layout, all the same size (no "hero" card —
+          differing sizes read as inconsistent). A module the account can't view still keeps
+          its slot (no ragged gaps in the grid) but shows a locked placeholder instead of a
+          real number. */}
+      <HorizontalScroll className="flex gap-3 md:grid md:grid-cols-3 lg:grid-cols-5">
+        {allKpis.map((kpi) => {
           const locked = !kpi.visible;
           return (
-            <Link key={kpi.href + kpi.titleKey} href={kpi.href}>
-              <Card
-                size="sm"
-                className={cn(
-                  "h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
-                  isHero && !locked && "ring-1 ring-primary/25"
-                )}
-              >
-                <CardContent className="flex flex-row items-center gap-3">
-                  <span
-                    className={cn(
-                      "flex shrink-0 items-center justify-center rounded-lg",
-                      isHero ? "size-10" : "size-9",
-                      locked && "bg-muted text-muted-foreground"
-                    )}
-                    style={locked ? undefined : { backgroundColor: kpi.bg, color: kpi.fg }}
-                  >
-                    {locked ? (
-                      <Lock className={isHero ? "size-5" : "size-4.5"} />
-                    ) : (
-                      <Icon className={isHero ? "size-5" : "size-4.5"} />
-                    )}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs text-muted-foreground">{t(locale, kpi.titleKey)}</p>
-                    {locked ? (
-                      <p className="truncate text-xs text-muted-foreground/70">
-                        <T k="common.noPermissionTitle" />
-                      </p>
-                    ) : (
-                      <p className={cn("leading-tight font-bold", isHero ? "text-2xl" : "text-xl")}>{kpi.value}</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            <Link key={kpi.href + kpi.titleKey} href={kpi.href} className={KPI_CARD_WIDTH_CLASS}>
+              <KpiCard
+                labelKey={kpi.titleKey}
+                value={kpi.value}
+                icon={kpi.icon}
+                iconBg={kpi.bg}
+                iconFg={kpi.fg}
+                locked={locked}
+                className="h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+              />
             </Link>
           );
         })}
-      </div>
+      </HorizontalScroll>
 
       {/* Trend + severity donut + recent activity — always 3 equal columns, even when the
           account can't see incidents (a locked placeholder fills the slot instead of the row
@@ -344,31 +310,6 @@ export default async function DashboardPage() {
           <LockedCard titleKey="dashboard.card.attendance" />
         )}
       </div>
-
-      {/* Recent incident photos — real Documents, hidden entirely if none exist */}
-      {recentPhotos.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
-              <T k="dashboard.recentPhotos" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {recentPhotos.map((doc) => (
-                <Link key={doc.id} href={`/incidents/${doc.recordId}`} className="block shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- served from our own /api/documents route, not an optimizable static asset */}
-                  <img
-                    src={`/api/documents/${doc.id}`}
-                    alt={doc.fileName}
-                    className="size-24 rounded-lg border border-border object-cover"
-                  />
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Quick links to real routes only */}
       {quickLinks.length > 0 && (

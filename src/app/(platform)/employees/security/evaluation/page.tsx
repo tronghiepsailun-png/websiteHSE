@@ -4,5 +4,12 @@ import { ModuleEmptyState } from "@/components/module-empty-state";
 
 export default async function EmployeeEvaluationPage() {
   await requireApiAccess(null);
-  return <ModuleEmptyState icon={Star} titleKey="nav.employeeEvaluation" messageKey="modules.evaluation.empty" />;
+  return (
+    <ModuleEmptyState
+      icon={Star}
+      titleKey="nav.employeeEvaluation"
+      messageKey="modules.evaluation.empty"
+      illustrationSrc="/illustrations/security-evaluation.webp"
+    />
+  );
 }

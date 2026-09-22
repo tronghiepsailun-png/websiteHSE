@@ -4,5 +4,12 @@ import { ModuleEmptyState } from "@/components/module-empty-state";
 
 export default async function TrainingIncidentsPage() {
   await requireApiAccess(null);
-  return <ModuleEmptyState icon={BookOpen} titleKey="nav.trainingIncidents" messageKey="modules.trainingIncidents.empty" />;
+  return (
+    <ModuleEmptyState
+      icon={BookOpen}
+      titleKey="nav.trainingIncidents"
+      messageKey="modules.trainingIncidents.empty"
+      illustrationSrc="/illustrations/training-incidents.webp"
+    />
+  );
 }

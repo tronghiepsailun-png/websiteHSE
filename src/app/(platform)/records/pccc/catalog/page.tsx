@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { getRecordCatalog, listSites } from "@/server/records-catalog";
@@ -25,10 +26,13 @@ export default async function RecordsCatalogPage({ searchParams }: PageProps<"/r
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
+          ← <T k="settings.title" />
+        </Link>
         <h1 className="text-xl font-semibold">
           <T k="records.catalog.title" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           <T k="records.catalog.subtitle" />
         </p>
       </div>

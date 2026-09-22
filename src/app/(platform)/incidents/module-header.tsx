@@ -19,7 +19,7 @@ export function ModuleHeader({ active }: { active: ReportView }) {
             <h1 className="text-xl font-semibold">
               <T k="incidents.moduleName" />
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="hidden text-sm text-muted-foreground md:block">
               <T k="incidents.pageSubtitle" />
             </p>
           </div>

@@ -120,7 +120,7 @@ export function Safety5sTable({
         )}
       </div>
 
-      <Card className="overflow-x-auto py-0">
+      <Card className="py-0">
         <Table>
           <TableHeader>
             <TableRow className="h-11">

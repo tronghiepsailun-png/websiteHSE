@@ -53,5 +53,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
+    // Behind a reverse proxy, Next.js's Server Action redirect() resolves a same-origin
+    // *absolute* URL against the origin its own process is bound to (e.g. localhost:3000)
+    // rather than the public origin — sending the browser to the internal address. A bare
+    // relative path sidesteps that: the browser resolves it against its own current origin.
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return url;
+      try {
+        if (new URL(url).origin === baseUrl) return new URL(url).pathname + new URL(url).search;
+      } catch {}
+      return "/";
+    },
   },
 });

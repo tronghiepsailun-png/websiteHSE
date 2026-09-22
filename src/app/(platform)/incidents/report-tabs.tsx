@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { type ReportView } from "./report-view";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 // Same accent colors as this page's own KPI cards (green/blue/amber/purple), plus one more
 // (teal) for the 5th tab — keeps the tab bar visually tied to the dashboard it switches between.
@@ -25,7 +26,7 @@ const TABS: { value: ReportView; labelKey: DictionaryKey; icon: LucideIcon; fg: 
  *  page load every time, guaranteeing this report data is never stale. */
 export function ReportTabs({ active }: { active: ReportView }) {
   return (
-    <div className="flex max-w-full flex-wrap items-stretch gap-2 overflow-x-auto">
+    <HorizontalScroll className="flex max-w-full flex-nowrap items-stretch gap-2">
       {TABS.map((tab) => {
         const href = tab.value === "detail" ? "/incidents" : `/incidents?view=${tab.value}`;
         const isActive = active === tab.value;
@@ -52,6 +53,6 @@ export function ReportTabs({ active }: { active: ReportView }) {
           </a>
         );
       })}
-    </div>
+    </HorizontalScroll>
   );
 }

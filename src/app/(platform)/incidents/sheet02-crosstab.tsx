@@ -22,7 +22,7 @@ export async function Sheet02Crosstab({ data }: { data: Awaited<ReturnType<typeo
 
   return (
     <Card>
-      <CardContent className="overflow-x-auto pt-6">
+      <CardContent className="pt-6">
         <Table className={REPORT_GRID_CLASS}>
           <TableHeader>
             <TableRow className="h-11">

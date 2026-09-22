@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
   { href: "/employees/security/attendance", labelKey: "employees.security.tabAttendance", icon: Clock, fg: "#2563eb", bg: "#dbeafe" },
@@ -17,7 +18,7 @@ const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: strin
 export function SecurityTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex max-w-full flex-wrap items-stretch gap-2 overflow-x-auto">
+    <HorizontalScroll className="flex max-w-full flex-nowrap items-stretch gap-2">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         const Icon = tab.icon;
@@ -43,6 +44,6 @@ export function SecurityTabs() {
           </a>
         );
       })}
-    </div>
+    </HorizontalScroll>
   );
 }

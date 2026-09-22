@@ -24,6 +24,8 @@ import { CorrectiveActionForm } from "./corrective-action-form";
 import { EditIncidentDialog } from "./edit-incident-dialog";
 import { AttachmentUploadForm } from "./attachment-upload-form";
 import { IncidentPhotoGallery } from "./photo-gallery";
+import { RecordTimeline } from "@/components/ui/record-timeline";
+import { listAuditLogForRecord } from "@/server/audit";
 import { deleteIncidentAttachmentAction } from "./actions";
 import { DeleteIncidentButton } from "./delete-incident-button";
 import { T } from "@/components/i18n/t";
@@ -87,6 +89,26 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
 
   const nameViByName = buildOrgUnitNameViMap(orgUnits);
   const employeeSnapshotNamesByCode = await resolveEmployeeSnapshotNames(ctx.organizationId, [incident]);
+  // Import bookkeeping columns — they hold the raw spreadsheet payload, which is noise in a
+  // history meant to be read by a person.
+  const auditEntries = await listAuditLogForRecord(ctx.organizationId, "incident", incident.id, {
+    excludeFields: ["sourceRowData", "sourceSheet", "sourceRowNumber", "updatedAt"],
+  });
+  const auditFieldLabels: Record<string, string> = {
+    status: t(locale, "common.status"),
+    immediateCause: t(locale, "incidents.detail.immediateCause"),
+    rootCause: t(locale, "incidents.detail.rootCause"),
+    correctiveAction: t(locale, "incidents.new.fields.correctiveAction"),
+    preventiveAction: t(locale, "incidents.detail.preventiveAction"),
+    responsiblePersonId: t(locale, "incidents.detail.responsiblePerson"),
+    severityId: t(locale, "incidents.new.fields.severity"),
+    categoryId: t(locale, "incidents.new.fields.category"),
+    occurredAt: t(locale, "incidents.new.fields.occurredAt"),
+    costVnd: t(locale, "incidents.new.fields.cost"),
+    costRmb: t(locale, "incidents.detail.costRmb"),
+    description: t(locale, "incidents.detail.description"),
+    notes: t(locale, "incidents.detail.notes"),
+  };
 
   const photoDocs = incident.documents.filter((doc) => doc.fileType.startsWith("image/"));
   const otherDocs = incident.documents.filter((doc) => !doc.fileType.startsWith("image/"));
@@ -144,7 +166,6 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
             <CardContent className="flex flex-col gap-3">
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.detail.peopleAndInfo" /></p>
               <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                <Field label={<T k="incidents.table.factoryCode" />} value={getIncidentFactoryCode(incident)} />
                 <Field label={<T k="incidents.table.category" />} value={localizeCategoryName(incident.category, locale)} />
                 <Field
                   label={<T k="incidents.table.department" />}
@@ -176,20 +197,19 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
           </Card>
 
           <Card size="sm">
-            <CardContent>
-              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.new.fields.correctiveAction" /></p>
-              {canEdit ? (
-                <CorrectiveActionForm incident={incident} />
-              ) : (
-                <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card size="sm">
-            <CardContent>
-              <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="common.status" /></p>
-              {canEdit ? <StatusForm incident={incident} /> : <p className="text-sm">{incident.status}</p>}
+            <CardContent className="flex flex-col gap-3">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="incidents.new.fields.correctiveAction" /></p>
+                {canEdit ? (
+                  <CorrectiveActionForm incident={incident} />
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{incident.correctiveAction ?? "—"}</p>
+                )}
+              </div>
+              <div className="border-t pt-3">
+                <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"><T k="common.status" /></p>
+                {canEdit ? <StatusForm incident={incident} /> : <p className="text-sm">{incident.status}</p>}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -200,15 +220,19 @@ export default async function IncidentDetailPage({ params }: PageProps<"/inciden
             server-side, at upload time (see uploadIncidentAttachmentAction). Sized to its own
             content (no h-full stretch) so it doesn't trail empty space when the left column
             ends up taller. */}
-        <Card size="sm">
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
-            </p>
-            {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
-            <IncidentPhotoGallery photos={photoDocs} incidentId={incident.id} canDelete={canDeleteDoc} />
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card size="sm">
+            <CardContent className="flex flex-col gap-3">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <T k="incidents.detail.photos" /> ({photoDocs.length}/{MAX_INCIDENT_PHOTOS})
+              </p>
+              {canUpload && <AttachmentUploadForm incidentId={incident.id} />}
+              <IncidentPhotoGallery photos={photoDocs} incidentId={incident.id} canDelete={canDeleteDoc} />
+            </CardContent>
+          </Card>
+
+          <RecordTimeline entries={auditEntries} locale={locale} fieldLabels={auditFieldLabels} />
+        </div>
       </div>
 
       {/* Last-updated footer, matching the reference layout's small bottom-right timestamp */}

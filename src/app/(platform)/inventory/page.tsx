@@ -25,9 +25,11 @@ import { InventoryItemCard } from "./item-card";
 import { InventoryStockChart } from "./inventory-stock-chart";
 import { IssuanceReport } from "./issuance-report";
 import { StockInReport } from "./stockin-report";
-import { ISSUANCE_COLUMNS_COOKIE, ISSUANCE_TOGGLEABLE_COLUMNS } from "./column-visibility";
+import { ISSUANCE_COLUMNS_COOKIE, ISSUANCE_TOGGLEABLE_COLUMNS, STOCKIN_COLUMNS_COOKIE, STOCKIN_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import { parseHiddenColumns } from "@/lib/column-visibility";
 import { InventoryTabs } from "./inventory-tabs";
+import { isMobileDevice } from "@/lib/device";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 export default async function InventoryPage({ searchParams }: PageProps<"/inventory">) {
   const access = await tryApiAccess(PERMISSIONS.INVENTORY_VIEW);
@@ -37,6 +39,8 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const params = await searchParams;
   const cookieStore = await cookies();
   const hiddenIssuanceColumns = parseHiddenColumns(cookieStore.get(ISSUANCE_COLUMNS_COOKIE)?.value, ISSUANCE_TOGGLEABLE_COLUMNS);
+  const hiddenStockInColumns = parseHiddenColumns(cookieStore.get(STOCKIN_COLUMNS_COOKIE)?.value, STOCKIN_TOGGLEABLE_COLUMNS);
+  const mobile = await isMobileDevice();
 
   const orgPermissionKeys = ctx.isPlatformAdmin ? null : await getPermissionKeysForUserInOrg(ctx.userId, ctx.organizationId);
   const canEdit = ctx.isPlatformAdmin || orgPermissionKeys!.has(PERMISSIONS.INVENTORY_EDIT);
@@ -81,7 +85,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
               <h1 className="text-xl font-semibold">
                 <T k="inventory.pageTitle" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="inventory.pageSubtitle" />
               </p>
             </div>
@@ -105,12 +109,22 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
             </Card>
           ) : (
             <>
-              <InventoryStockChart items={items} />
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-                {items.map((item) => (
-                  <InventoryItemCard key={item.id} item={item} canEdit={canEdit} workshops={workshops} />
-                ))}
-              </div>
+              <InventoryStockChart items={items} mobile={mobile} />
+              {mobile ? (
+                <HorizontalScroll className="flex items-start gap-3">
+                  {items.map((item) => (
+                    <div key={item.id} className="w-[160px] shrink-0">
+                      <InventoryItemCard item={item} canEdit={canEdit} workshops={workshops} />
+                    </div>
+                  ))}
+                </HorizontalScroll>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                  {items.map((item) => (
+                    <InventoryItemCard key={item.id} item={item} canEdit={canEdit} workshops={workshops} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </>
@@ -141,7 +155,14 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
           />
         </>
       ) : (
-        <StockInReport chartItems={stockInChartItems} rows={stockInRows} locale={locale} canEdit={canEdit} canDelete={canDelete} />
+        <StockInReport
+          chartItems={stockInChartItems}
+          rows={stockInRows}
+          locale={locale}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          hiddenColumns={[...hiddenStockInColumns]}
+        />
       )}
     </div>
   );

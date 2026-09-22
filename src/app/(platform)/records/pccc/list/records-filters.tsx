@@ -47,14 +47,14 @@ export function RecordsFilters({
   return (
     <Card>
       <CardContent className="p-3">
-        <form ref={formRef} className="flex flex-wrap items-center gap-2">
-          <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-5">
+        <form ref={formRef} className="flex flex-wrap items-start gap-2">
+          <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-5">
             <Input
               name="q"
               placeholder={t("records.filter.searchPlaceholder")}
               defaultValue={search}
               onKeyDown={submitOnEnter}
-              className="col-span-2 sm:col-span-1"
+              className="sm:col-span-1"
             />
             <Select key={`zone-${orgUnitId ?? "all"}`} name="orgUnitId" defaultValue={orgUnitId ?? "all"} onValueChange={submitOnChange}>
               <SelectTrigger>
@@ -115,7 +115,7 @@ export function RecordsFilters({
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <FilterCountBadge count={activeCount} />
             <Link href="/records/pccc/list" className={buttonVariants({ variant: "outline", size: "sm" })}>
               {t("common.clearFilters")}

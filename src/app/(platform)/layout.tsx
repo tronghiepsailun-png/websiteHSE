@@ -6,6 +6,8 @@ import { PERMISSIONS } from "@/server/permissions";
 import { listCapaForOrg, isCapaOverdue } from "@/server/capa";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/app-shell";
+import { MobileShell } from "@/components/layout/mobile-shell";
+import { isMobileDevice } from "@/lib/device";
 import { OrganizationPicker } from "@/components/layout/organization-picker";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { T } from "@/components/i18n/t";
@@ -83,20 +85,22 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     ? (await listCapaForOrg(activeOrg!.id)).filter(isCapaOverdue).slice(0, 5).map((c) => ({ id: c.id, action: c.action, dueDate: c.dueDate }))
     : [];
 
-  return (
-    <AppShell
-      user={{
-        name: user.name ?? user.email ?? t(locale, "common.userFallback"),
-        email: user.email ?? "",
-        isPlatformAdmin: user.isPlatformAdmin,
-      }}
-      activeOrg={activeOrg}
-      organizations={availableOrgs}
-      permissionKeys={permissionKeysArray}
-      showSettings={showSettings}
-      overdueCapaItems={overdueCapaItems}
-    >
-      {children}
-    </AppShell>
-  );
+  const shellProps = {
+    user: {
+      name: user.name ?? user.email ?? t(locale, "common.userFallback"),
+      email: user.email ?? "",
+      isPlatformAdmin: user.isPlatformAdmin,
+    },
+    activeOrg,
+    organizations: availableOrgs,
+    permissionKeys: permissionKeysArray,
+    showSettings,
+    overdueCapaItems,
+  };
+
+  if (await isMobileDevice()) {
+    return <MobileShell {...shellProps}>{children}</MobileShell>;
+  }
+
+  return <AppShell {...shellProps}>{children}</AppShell>;
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
@@ -37,10 +38,13 @@ export default async function HseTargetsPage({ searchParams }: { searchParams: P
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
+          ← <T k="settings.title" />
+        </Link>
         <h1 className="text-xl font-semibold">
           <T k="admin.hseTargets.title" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           <T k="admin.hseTargets.subtitle" />
         </p>
       </div>
@@ -184,7 +188,7 @@ export default async function HseTargetsPage({ searchParams }: { searchParams: P
             <h3 className="text-sm font-semibold text-muted-foreground">
               <T k="admin.hseTargets.deductionTargetsTitle" />
             </h3>
-            <div className="overflow-x-auto">
+            <div>
               <Table>
                 <TableHeader>
                   <TableRow className="h-11">

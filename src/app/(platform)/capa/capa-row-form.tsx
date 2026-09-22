@@ -146,14 +146,14 @@ export function CapaRowCells({
 
       {!hiddenColumns.has("photoBefore") && (
         <TableCell className={cellClass}>
-          {existing?.beforePhoto && <p className="line-clamp-1 text-[11px] text-muted-foreground">{existing.beforePhoto.fileName}</p>}
+          {existing?.beforePhoto && <p className="max-w-32 truncate text-[11px] text-muted-foreground">{existing.beforePhoto.fileName}</p>}
           <FileInput name="beforeFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-32 text-xs" />
         </TableCell>
       )}
 
       {!hiddenColumns.has("photoAfter") && (
         <TableCell className={cellClass}>
-          {existing?.afterPhoto && <p className="line-clamp-1 text-[11px] text-muted-foreground">{existing.afterPhoto.fileName}</p>}
+          {existing?.afterPhoto && <p className="max-w-32 truncate text-[11px] text-muted-foreground">{existing.afterPhoto.fileName}</p>}
           <FileInput name="afterFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-32 text-xs" />
         </TableCell>
       )}

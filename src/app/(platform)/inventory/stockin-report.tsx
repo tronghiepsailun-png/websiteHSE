@@ -5,7 +5,10 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { StockInTable, type StockInRow } from "./stockin-table";
+import { STOCKIN_COLUMNS_COOKIE, STOCKIN_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import { useT } from "@/lib/i18n/locale-context";
 import type { Locale } from "@/lib/i18n/translate";
 
@@ -18,6 +21,7 @@ export type ReceivedItemView = {
 };
 
 const BAR_HEIGHT_PX = 100;
+const PAGE_SIZE = 20;
 
 export function StockInReport({
   chartItems,
@@ -25,19 +29,31 @@ export function StockInReport({
   locale,
   canEdit,
   canDelete,
+  hiddenColumns,
 }: {
   chartItems: ReceivedItemView[];
   rows: StockInRow[];
   locale: Locale;
   canEdit: boolean;
   canDelete: boolean;
+  hiddenColumns: string[];
 }) {
   const t = useT();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, viewAll: false });
 
   const maxReceived = Math.max(...chartItems.map((i) => i.totalReceived), 1);
   const selectedItem = chartItems.find((i) => i.id === selectedId) ?? null;
-  const visibleRows = useMemo(() => (selectedId ? rows.filter((r) => r.item.id === selectedId) : rows), [rows, selectedId]);
+  const filteredRows = useMemo(() => (selectedId ? rows.filter((r) => r.item.id === selectedId) : rows), [rows, selectedId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const page = Math.min(pagination.page, totalPages);
+  const visibleRows = pagination.viewAll ? filteredRows : filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function selectItem(id: string | null) {
+    setSelectedId(id);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -55,7 +71,7 @@ export function StockInReport({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedId(active ? null : item.id)}
+                    onClick={() => selectItem(active ? null : item.id)}
                     className={"flex w-16 shrink-0 flex-col items-center gap-1.5 rounded-md p-1 outline-none " + (active ? "bg-accent" : "hover:bg-accent/50")}
                   >
                     <span className="text-xs font-semibold">{item.totalReceived}</span>
@@ -80,15 +96,26 @@ export function StockInReport({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-base font-semibold">{t("inventory.stockIn.title")}</CardTitle>
-          {selectedItem && (
-            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setSelectedId(null)}>
-              {selectedItem.name}
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedItem && (
+              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => selectItem(null)}>
+                {selectedItem.name}
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <ColumnVisibilityMenu columns={STOCKIN_TOGGLEABLE_COLUMNS} hiddenColumns={hiddenColumns} cookieName={STOCKIN_COLUMNS_COOKIE} />
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <StockInTable rows={visibleRows} locale={locale} canEdit={canEdit} canDelete={canDelete} />
+          <StockInTable rows={visibleRows} locale={locale} canEdit={canEdit} canDelete={canDelete} hiddenColumns={hiddenColumns} />
+          <TablePagination
+            total={filteredRows.length}
+            page={page}
+            pageSize={PAGE_SIZE}
+            viewAll={pagination.viewAll}
+            unitLabelKey="inventory.unitLabel"
+            onChange={setPagination}
+          />
         </CardContent>
       </Card>
     </div>

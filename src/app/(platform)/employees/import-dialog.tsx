@@ -21,6 +21,7 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { FIELD_LABEL_KEYS } from "@/server/employee-import-shared";
 import type { ClassifiedEmployeeRow, EmployeeImportCommitResult } from "@/server/employee-import-shared";
 import { STATUS_BANNER_CLASS } from "@/lib/status-tone";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 type Step = "select" | "preview" | "result";
 
@@ -139,13 +140,13 @@ function ImportDialogBody({
 
         {step === "preview" && preview?.ok && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <SummaryPill label={t("employees.upload.summaryNew")} value={preview.summary.newCount} tone="new" />
-              <SummaryPill label={t("employees.upload.summaryExisting")} value={preview.summary.existingCount} tone="existing" />
-              <SummaryPill label={t("employees.upload.summaryUpdated")} value={preview.summary.updatedCount} tone="updated" />
-              <SummaryPill label={t("employees.upload.summaryError")} value={preview.summary.errorCount} tone="error" />
-              <SummaryPill label={t("employees.upload.summaryDeparted")} value={preview.summary.departedCount} tone="departed" />
-            </div>
+            <HorizontalScroll className="flex gap-2 sm:grid sm:grid-cols-5">
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryNew")} value={preview.summary.newCount} tone="new" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryExisting")} value={preview.summary.existingCount} tone="existing" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryUpdated")} value={preview.summary.updatedCount} tone="updated" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryError")} value={preview.summary.errorCount} tone="error" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryDeparted")} value={preview.summary.departedCount} tone="departed" /></div>
+            </HorizontalScroll>
 
             <div className="max-h-[45vh] overflow-y-auto rounded-md border">
               <Table>
@@ -200,12 +201,12 @@ function ImportDialogBody({
 
         {step === "result" && commitResult && (
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <SummaryPill label={t("employees.upload.summaryNew")} value={commitResult.created} tone="new" />
-              <SummaryPill label={t("employees.upload.resultUpdated")} value={commitResult.updated} tone="updated" />
-              <SummaryPill label={t("employees.upload.summaryDeparted")} value={commitResult.departed} tone="departed" />
-              <SummaryPill label={t("employees.upload.summaryError")} value={commitResult.skippedErrors} tone="error" />
-            </div>
+            <HorizontalScroll className="flex gap-2 sm:grid sm:grid-cols-4">
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryNew")} value={commitResult.created} tone="new" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.resultUpdated")} value={commitResult.updated} tone="updated" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryDeparted")} value={commitResult.departed} tone="departed" /></div>
+              <div className="w-[100px] shrink-0 sm:w-auto sm:shrink"><SummaryPill label={t("employees.upload.summaryError")} value={commitResult.skippedErrors} tone="error" /></div>
+            </HorizontalScroll>
             <Button onClick={handleDone} className="self-end">
               {t("common.close")}
             </Button>

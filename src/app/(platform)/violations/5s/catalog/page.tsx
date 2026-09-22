@@ -29,7 +29,7 @@ export default async function Safety5sCatalogPage() {
           ← <T k="nav.violations5s" />
         </Link>
         <h1 className="text-xl font-semibold"><T k="violations5s.catalog.title" /></h1>
-        <p className="text-sm text-muted-foreground"><T k="violations5s.catalog.subtitle" /></p>
+        <p className="hidden text-sm text-muted-foreground md:block"><T k="violations5s.catalog.subtitle" /></p>
       </div>
 
       <Card>

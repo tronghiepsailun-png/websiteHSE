@@ -113,6 +113,37 @@ export async function saveCapaRowAction(_prev: CapaRowState, formData: FormData)
   return { success: true };
 }
 
+/** Kanban drop handler. CAPA has no hand-set status — "completed" is derived from a filled-in
+ *  completion date (see saveCapaRowAction) — so moving a card between columns means filling in
+ *  or clearing that date, and the status follows from it exactly as it does in the table. */
+export async function setCapaCompletedAction(capaId: string, completed: boolean) {
+  const ctx = await requireOrgPermission(PERMISSIONS.CAPA_EDIT);
+
+  const capa = await prisma.capaItem.findUnique({ where: { id: capaId } });
+  assertBelongsToOrg(capa, ctx.organizationId);
+
+  // Keep an existing completion date when re-completing, so a card dragged out and back doesn't
+  // silently overwrite the real date someone typed in the table.
+  const completionDate = completed ? (capa!.completionDate ?? new Date()) : null;
+
+  await prisma.capaItem.update({
+    where: { id: capaId },
+    data: { completionDate, status: completed ? "completed" : "open" },
+  });
+
+  await writeAuditLog({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    module: "capa",
+    recordType: "CapaItem",
+    recordId: capaId,
+    action: "update",
+    changes: [{ field: "status", oldValue: capa!.status, newValue: completed ? "completed" : "open" }],
+  });
+
+  revalidatePath("/capa");
+}
+
 export async function deleteCapaAction(capaId: string) {
   const ctx = await requireOrgPermission(PERMISSIONS.CAPA_DELETE);
 

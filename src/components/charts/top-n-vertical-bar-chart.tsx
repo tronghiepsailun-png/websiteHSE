@@ -8,6 +8,7 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { CHART_BRAND, type ChartDatum } from "./chart-utils";
 import { useDrillDown } from "./use-drill-down";
 import { ViewAllDialog } from "./view-all-dialog";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 // Fixed width per bar (bar + label spacing) — the chart area scrolls horizontally instead of
 // squeezing every category into the card width, matching the Employees department chart.
@@ -87,7 +88,7 @@ export function TopNVerticalBarChart({
         <ViewAllDialog title={title} rows={data} />
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <HorizontalScroll>
           <div className="h-[260px]" style={{ minWidth: `${items.length * ITEM_WIDTH}px` }}>
             <ChartContainer config={{}} className="aspect-auto h-full w-full">
               <BarChart data={items} margin={{ top: 20, right: 8, left: 8, bottom: 44 }} barCategoryGap={16} accessibilityLayer={false}>
@@ -108,7 +109,7 @@ export function TopNVerticalBarChart({
               </BarChart>
             </ChartContainer>
           </div>
-        </div>
+        </HorizontalScroll>
       </CardContent>
     </Card>
   );

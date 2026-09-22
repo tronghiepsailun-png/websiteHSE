@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
+import { TablePagination } from "@/components/ui/table-pagination";
 import { IssuanceTable, type IssuanceRow } from "./issuance-table";
 import { ISSUANCE_COLUMNS_COOKIE, ISSUANCE_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import type { WorkshopOption } from "./item-card";
@@ -21,6 +22,7 @@ export type IssuedItemView = {
 };
 
 const BAR_HEIGHT_PX = 100;
+const PAGE_SIZE = 20;
 
 export function IssuanceReport({
   chartItems,
@@ -41,10 +43,20 @@ export function IssuanceReport({
 }) {
   const t = useT();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, viewAll: false });
 
   const maxIssued = Math.max(...chartItems.map((i) => i.totalIssued), 1);
   const selectedItem = chartItems.find((i) => i.id === selectedId) ?? null;
-  const visibleRows = useMemo(() => (selectedId ? rows.filter((r) => r.item.id === selectedId) : rows), [rows, selectedId]);
+  const filteredRows = useMemo(() => (selectedId ? rows.filter((r) => r.item.id === selectedId) : rows), [rows, selectedId]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const page = Math.min(pagination.page, totalPages);
+  const visibleRows = pagination.viewAll ? filteredRows : filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  function selectItem(id: string | null) {
+    setSelectedId(id);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,7 +74,7 @@ export function IssuanceReport({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedId(active ? null : item.id)}
+                    onClick={() => selectItem(active ? null : item.id)}
                     className={"flex w-16 shrink-0 flex-col items-center gap-1.5 rounded-md p-1 outline-none " + (active ? "bg-accent" : "hover:bg-accent/50")}
                   >
                     <span className="text-xs font-semibold">{item.totalIssued}</span>
@@ -89,7 +101,7 @@ export function IssuanceReport({
           <CardTitle className="text-base font-semibold">{t("inventory.issuance.title")}</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             {selectedItem && (
-              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setSelectedId(null)}>
+              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => selectItem(null)}>
                 {selectedItem.name}
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -99,6 +111,14 @@ export function IssuanceReport({
         </CardHeader>
         <CardContent className="pt-0">
           <IssuanceTable rows={visibleRows} locale={locale} canEdit={canEdit} canDelete={canDelete} workshops={workshops} hiddenColumns={hiddenColumns} />
+          <TablePagination
+            total={filteredRows.length}
+            page={page}
+            pageSize={PAGE_SIZE}
+            viewAll={pagination.viewAll}
+            unitLabelKey="inventory.unitLabel"
+            onChange={setPagination}
+          />
         </CardContent>
       </Card>
     </div>

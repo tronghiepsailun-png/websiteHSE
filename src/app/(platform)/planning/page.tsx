@@ -24,10 +24,13 @@ import { InlineProgressPicker } from "./inline-progress-picker";
 import { WorkPlanItemDialog } from "./work-plan-item-dialog";
 import { DeleteWorkPlanButton } from "./delete-work-plan-button";
 import { ResizableTableProvider, ResizableColGroup, ResizableTh } from "./resizable-columns";
+import { WorkPlanBoard } from "./work-plan-board";
+import { ViewModeTabs } from "@/components/ui/view-mode-tabs";
 import { REPORT_GRID_CLASS } from "@/lib/table-grid";
 import { T } from "@/components/i18n/t";
 import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
+import { isMobileDevice } from "@/lib/device";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -56,6 +59,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const ctx = access;
   const locale = await getLocale();
   const params = await searchParams;
+  const mobile = await isMobileDevice();
 
   const [documents, permissionKeys] = await Promise.all([
     listWorkPlanDocuments(ctx.organizationId),
@@ -68,6 +72,9 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
 
   const canEdit = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_EDIT);
   const canDelete = hasPermission(permissionKeys, PERMISSIONS.WORKPLAN_DELETE);
+  // Kanban's drag-and-drop doesn't translate to touch, and the phone shell has no room for a
+  // view-mode toggle anyway — mobile always gets the table, regardless of a stray ?view=board.
+  const view = !mobile && params.view === "board" ? "board" : "table";
   const showActionsColumn = canEdit || canDelete;
   const requestedId = typeof params.doc === "string" ? params.doc : undefined;
   const current = documents.find((d) => d.id === requestedId) ?? documents[0];
@@ -101,8 +108,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
 
   return (
     <div className="flex flex-col gap-6">
-      <DocumentToolbar current={current} documents={documents} />
-      <p className="-mt-4 text-sm text-muted-foreground"><T k="workplan.pageSubtitle" /></p>
+      <DocumentToolbar current={current} documents={documents} canDelete={canDelete} />
 
       <div className="grid grid-cols-3 gap-3">
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.total" /></p><CardTitle className="text-2xl leading-none font-bold">{stats.total}</CardTitle></CardHeader></Card>
@@ -110,14 +116,32 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="workplan.kpi.overdue" /></p><CardTitle className="text-2xl leading-none font-bold text-destructive">{stats.overdue}</CardTitle></CardHeader></Card>
       </div>
 
-      {canEdit && (
-        <div className="flex justify-start">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {canEdit ? (
           <WorkPlanItemDialog documentId={current.id} phaseOptions={[...new Set(items.map((i) => i.phase).filter((p): p is string => !!p))]} />
-        </div>
-      )}
+        ) : (
+          <span />
+        )}
+        {!mobile && <ViewModeTabs active={view} basePath="/planning" searchParams={params} locale={locale} />}
+      </div>
 
+      {view === "board" ? (
+        <WorkPlanBoard
+          items={items.map((item) => ({
+            id: item.id,
+            title: item.title,
+            phase: item.phase,
+            responsibleName: item.responsibleName,
+            status: item.status,
+            progressPercent: item.progressPercent,
+            timeRange: [fmtDate(item.startDate), fmtDate(item.endDate)].filter(Boolean).join(" - ") || null,
+            overdue: isWorkPlanItemOverdue(item),
+          }))}
+          canEdit={canEdit}
+        />
+      ) : (
       <Card>
-        <CardContent className="overflow-x-auto pt-6">
+        <CardContent className="pt-6">
           <ResizableTableProvider
             storageKey="workplan-table-column-widths"
             defaultWidths={{
@@ -206,6 +230,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
           </ResizableTableProvider>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

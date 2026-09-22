@@ -14,6 +14,7 @@ import {
 } from "@/server/incident-reports";
 import { getIncidentFactoryCode, resolveEmployeeSnapshotNames, localizeEmployeeDisplayName } from "@/server/incidents";
 import { contentDisposition } from "@/server/storage";
+import { exportFileName } from "@/lib/format";
 
 // This route loads the ORIGINAL reference workbook as a template and only overwrites data-cell
 // VALUES at their known positions — every color/font/border/merge/column-width/frozen-pane in
@@ -267,7 +268,7 @@ export async function GET(request: Request) {
     }
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
-    const fileName = `Danh sách sự cố và khảo hạch ${year}.xlsx`;
+    const fileName = `${exportFileName("Danh sách sự cố và khảo hạch")}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {

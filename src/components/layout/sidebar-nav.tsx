@@ -54,7 +54,8 @@ function NavLink({
   onNavigate,
   activeHref,
   collapsed,
-}: NavItem & { onNavigate?: () => void; activeHref: string | null; groupLabelKey?: DictionaryKey; collapsed?: boolean }) {
+  compact,
+}: NavItem & { onNavigate?: () => void; activeHref: string | null; groupLabelKey?: DictionaryKey; collapsed?: boolean; compact?: boolean }) {
   const t = useT();
   const active = href === activeHref;
 
@@ -63,7 +64,8 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       className={cn(
-        "flex items-center gap-2.5 rounded-md py-1.5 text-sm font-medium outline-none transition-colors",
+        "flex items-center gap-2.5 rounded-md text-sm font-medium outline-none transition-colors",
+        compact ? "py-1" : "py-1.5",
         collapsed ? "justify-center px-2" : "pr-3 pl-2",
         "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-white/10 hover:text-sidebar-foreground"
@@ -99,6 +101,7 @@ function NavGroup({
   onToggle,
   onToggleAll,
   railCollapsed,
+  compact,
 }: {
   labelKey?: DictionaryKey;
   items: NavItem[];
@@ -108,6 +111,7 @@ function NavGroup({
   onToggle: () => void;
   onToggleAll: () => void;
   railCollapsed?: boolean;
+  compact?: boolean;
 }) {
   const t = useT();
   const handleClick = useSingleOrDoubleClick(onToggle, onToggleAll);
@@ -116,13 +120,14 @@ function NavGroup({
   const open = railCollapsed || isActiveGroup || !collapsed;
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       {labelKey && !railCollapsed ? (
         <button
           type="button"
           onClick={handleClick}
           className={cn(
-            "flex items-center justify-between rounded-md px-3 py-1 text-xs font-semibold tracking-wide uppercase transition-colors outline-none",
+            "flex items-center justify-between rounded-md px-3 text-xs font-semibold tracking-wide uppercase transition-colors outline-none",
+            compact ? "py-0.5" : "py-1",
             "hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-ring/50",
             isActiveGroup ? "text-sidebar-foreground" : "text-sidebar-foreground/60"
           )}
@@ -134,7 +139,7 @@ function NavGroup({
       <div className="grid min-h-0 transition-[grid-template-rows] duration-150 ease-out" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
         <div className={cn("flex min-h-0 flex-col gap-0.5 overflow-hidden", !railCollapsed && "pl-1")}>
           {items.map((item) => (
-            <NavLink key={item.href} {...item} onNavigate={onNavigate} activeHref={activeHref} groupLabelKey={labelKey} collapsed={railCollapsed} />
+            <NavLink key={item.href} {...item} onNavigate={onNavigate} activeHref={activeHref} groupLabelKey={labelKey} collapsed={railCollapsed} compact={compact} />
           ))}
         </div>
       </div>
@@ -145,9 +150,11 @@ function NavGroup({
 export function SidebarNav({
   onNavigate,
   collapsed,
+  compact,
 }: {
   onNavigate?: () => void;
   collapsed?: boolean;
+  compact?: boolean;
 }) {
   const activeHref = useActiveHref();
   // Every module is always listed — a sub-account without the view permission for one just
@@ -177,7 +184,7 @@ export function SidebarNav({
   }
 
   return (
-    <nav className={cn("flex flex-col gap-3 p-3", collapsed && "items-center px-1.5")}>
+    <nav className={cn("flex flex-col p-3", compact ? "gap-1.5" : "gap-3", collapsed && "items-center px-1.5")}>
       {visibleSections.map((section) => (
         <NavGroup
           key={section.labelKey}
@@ -189,6 +196,7 @@ export function SidebarNav({
           onToggle={() => toggleGroup(section.labelKey)}
           onToggleAll={toggleAll}
           railCollapsed={collapsed}
+          compact={compact}
         />
       ))}
     </nav>

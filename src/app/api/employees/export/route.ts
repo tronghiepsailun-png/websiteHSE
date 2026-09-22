@@ -7,6 +7,7 @@ import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t, type DictionaryKey } from "@/lib/i18n/translate";
 import { employeeExportColumns } from "@/server/employee-export-columns";
 import { contentDisposition } from "@/server/storage";
+import { exportFileName } from "@/lib/format";
 
 export async function GET() {
   return withApiErrorHandling(async () => {
@@ -51,8 +52,7 @@ export async function GET() {
     }
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
-    const fileDate = new Date().toISOString().slice(0, 10);
-    const fileName = `Danh sách nhân viên ${fileDate}.xlsx`;
+    const fileName = `${exportFileName("Danh sách nhân viên")}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {

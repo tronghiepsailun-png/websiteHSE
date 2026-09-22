@@ -75,8 +75,12 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     labelKey: "nav.capa",
     view: PERMISSIONS.CAPA_VIEW,
     edit: [PERMISSIONS.CAPA_CREATE, PERMISSIONS.CAPA_EDIT, PERMISSIONS.CAPA_APPROVE, PERMISSIONS.CAPA_CLOSE],
-    delete: [PERMISSIONS.CAPA_DELETE, PERMISSIONS.DOCUMENT_DELETE],
-    upload: [PERMISSIONS.DOCUMENT_UPLOAD],
+    // DOCUMENT_DELETE/DOCUMENT_UPLOAD are never checked by any CAPA code path — CAPA's own
+    // before/after photo attach lives inside the same CAPA_CREATE/CAPA_EDIT action, not a
+    // separate document permission. Bundling them here used to also (silently) grant them for
+    // Incident, since that module's own Xóa/Tải lên checkboxes check those exact same keys.
+    delete: [PERMISSIONS.CAPA_DELETE],
+    upload: null,
     download: null, // no export/download route exists for CAPA
   },
   {

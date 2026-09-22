@@ -5,14 +5,15 @@ import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { getRecordsDashboardData, localizeRecordType } from "@/server/records";
 import { getLocale } from "@/lib/i18n/get-locale.server";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
 import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
-import type { DictionaryKey } from "@/lib/i18n/translate";
-import { STATUS_TILE_CLASS, STATUS_TEXT_CLASS } from "@/lib/status-tone";
+import { STATUS_TEXT_CLASS } from "@/lib/status-tone";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
+import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
 
 export default async function RecordsPcccDashboardPage() {
   const access = await tryApiAccess(PERMISSIONS.RECORDS_VIEW);
@@ -33,7 +34,7 @@ export default async function RecordsPcccDashboardPage() {
               <h1 className="text-xl font-semibold">
                 <T k="records.moduleName" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="records.pageSubtitle" />
               </p>
             </div>
@@ -44,13 +45,13 @@ export default async function RecordsPcccDashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiCard labelKey="records.kpi.totalTracked" value={data.totalTracked} icon={ClipboardCheck} tone="neutral" />
-        <KpiCard labelKey="records.kpi.sufficient" value={data.sufficientTotal} icon={CheckCircle2} tone="success" />
-        <KpiCard labelKey="records.kpi.needsUpdate" value={data.needsUpdateTotal} icon={RefreshCw} tone="warning" />
-        <KpiCard labelKey="records.kpi.expiringSoon" value={data.expiringSoonTotal} icon={Clock} tone="warning" />
-        <KpiCard labelKey="records.kpi.expired" value={data.expiredTotal} icon={AlertTriangle} tone="critical" />
-      </div>
+      <HorizontalScroll className="flex gap-3 md:grid md:grid-cols-3 lg:grid-cols-5">
+        <div className={KPI_CARD_WIDTH_CLASS}><KpiCard labelKey="records.kpi.totalTracked" value={data.totalTracked} icon={ClipboardCheck} tone="neutral" /></div>
+        <div className={KPI_CARD_WIDTH_CLASS}><KpiCard labelKey="records.kpi.sufficient" value={data.sufficientTotal} icon={CheckCircle2} tone="success" /></div>
+        <div className={KPI_CARD_WIDTH_CLASS}><KpiCard labelKey="records.kpi.needsUpdate" value={data.needsUpdateTotal} icon={RefreshCw} tone="warning" /></div>
+        <div className={KPI_CARD_WIDTH_CLASS}><KpiCard labelKey="records.kpi.expiringSoon" value={data.expiringSoonTotal} icon={Clock} tone="warning" /></div>
+        <div className={KPI_CARD_WIDTH_CLASS}><KpiCard labelKey="records.kpi.expired" value={data.expiredTotal} icon={AlertTriangle} tone="critical" /></div>
+      </HorizontalScroll>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <TopNBarChart titleKey="records.chart.byZone" data={data.byZone} topN={10} />
@@ -111,34 +112,5 @@ export default async function RecordsPcccDashboardPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function KpiCard({
-  labelKey,
-  value,
-  icon: Icon,
-  tone,
-}: {
-  labelKey: DictionaryKey;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: keyof typeof STATUS_TILE_CLASS;
-}) {
-  const t = STATUS_TILE_CLASS[tone];
-  return (
-    <Card className={t.border}>
-      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-        <div>
-          <CardDescription className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-            <T k={labelKey} />
-          </CardDescription>
-          <CardTitle className="text-2xl leading-none font-bold">{value}</CardTitle>
-        </div>
-        <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${t.iconBg} ${t.iconFg}`}>
-          <Icon className="size-4" />
-        </div>
-      </CardHeader>
-    </Card>
   );
 }

@@ -21,7 +21,7 @@ export default function ViolationsLayout({ children }: { children: React.ReactNo
               <h1 className="text-xl font-semibold">
                 <T k="violations.groupTitle" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="violations.groupSubtitle" />
               </p>
             </div>

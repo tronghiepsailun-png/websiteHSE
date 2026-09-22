@@ -19,11 +19,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { OverviewMonthFilter } from "./overview-month-filter";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 import { T } from "@/components/i18n/t";
 import { t } from "@/lib/i18n/translate";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { cn } from "@/lib/utils";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
 
 function vnd(n: number) {
   return `${n.toLocaleString("vi-VN")} đ`;
@@ -159,25 +161,25 @@ export default async function ViolationsOverviewPage({ searchParams }: PageProps
 
       <OverviewMonthFilter year={year} month={month} options={monthOptions} />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <HorizontalScroll className="flex gap-3 md:grid md:grid-cols-4">
         {kpis.map((kpi) => {
-          const Icon = kpi.icon;
           const content = (
-            <Card className={cn("h-full transition-all duration-200", kpi.href !== "#" && "hover:-translate-y-0.5 hover:shadow-lg")}>
-              <CardContent className="flex flex-row items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: kpi.bg, color: kpi.fg }}>
-                  <Icon className="size-4.5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-muted-foreground">{t(locale, kpi.titleKey)}</p>
-                  <p className="truncate text-xl leading-tight font-bold">{kpi.value}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <KpiCard
+              labelKey={kpi.titleKey}
+              value={kpi.value}
+              icon={kpi.icon}
+              iconBg={kpi.bg}
+              iconFg={kpi.fg}
+              className={cn("h-full transition-all duration-200", kpi.href !== "#" && "hover:-translate-y-0.5 hover:shadow-lg")}
+            />
           );
-          return kpi.href === "#" ? <div key={kpi.titleKey}>{content}</div> : <Link key={kpi.titleKey} href={kpi.href}>{content}</Link>;
+          return kpi.href === "#" ? (
+            <div key={kpi.titleKey} className={KPI_CARD_WIDTH_CLASS}>{content}</div>
+          ) : (
+            <Link key={kpi.titleKey} href={kpi.href} className={KPI_CARD_WIDTH_CLASS}>{content}</Link>
+          );
         })}
-      </div>
+      </HorizontalScroll>
 
       {byType.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

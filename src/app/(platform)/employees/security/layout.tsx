@@ -20,7 +20,7 @@ export default function EmployeeSecurityLayout({ children }: { children: React.R
               <h1 className="text-xl font-semibold">
                 <T k="nav.employeeSecurity" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="employees.security.groupSubtitle" />
               </p>
             </div>

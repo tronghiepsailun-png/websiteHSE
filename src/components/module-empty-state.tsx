@@ -14,10 +14,12 @@ export function ModuleEmptyState({
   icon,
   titleKey,
   messageKey,
+  illustrationSrc,
 }: {
   icon: ComponentType<{ className?: string }>;
   titleKey: DictionaryKey;
   messageKey: DictionaryKey;
+  illustrationSrc?: string;
 }) {
   const Icon = icon;
   return (
@@ -40,7 +42,17 @@ export function ModuleEmptyState({
 
       <Card>
         <CardContent className="pt-6">
-          <EmptyState icon={icon} message={<T k={messageKey} />} className="py-16" />
+          {illustrationSrc ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={illustrationSrc} alt="" className="size-32" />
+              <p className="text-sm text-muted-foreground">
+                <T k={messageKey} />
+              </p>
+            </div>
+          ) : (
+            <EmptyState icon={icon} message={<T k={messageKey} />} className="py-16" />
+          )}
         </CardContent>
       </Card>
     </div>

@@ -50,7 +50,7 @@ export async function getCapaSummary(organizationId: string) {
 export async function getCapaDeptBreakdown(organizationId: string) {
   return prisma.capaItem.findMany({
     where: { organizationId },
-    select: { responsibleDept: true, status: true },
+    select: { responsibleDept: true, status: true, classification: true },
   });
 }
 

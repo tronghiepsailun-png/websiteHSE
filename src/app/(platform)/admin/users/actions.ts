@@ -40,12 +40,19 @@ async function buildCustomRole(name: string, permissionKeys: string[]) {
   return role;
 }
 
+// Stored in the same `email` column the login form matches against (see note below) — kept to
+// plain ASCII so it's never ambiguous to type back in at the login screen (Vietnamese diacritics
+// are easy to mistype/mis-render across keyboards, and this column isn't validated as a real
+// email address anyway).
+const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+
 const inviteSchema = z.object({
   username: z
     .string()
     .trim()
     .min(1)
-    .max(120),
+    .max(120)
+    .regex(USERNAME_PATTERN),
   name: z.string().min(1).max(120),
   password: z.string().min(6).max(200),
 });

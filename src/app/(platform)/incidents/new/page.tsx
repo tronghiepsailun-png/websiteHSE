@@ -23,7 +23,7 @@ export default async function NewIncidentPage() {
           ← <T k="nav.incidents" />
         </Link>
         <h1 className="text-xl font-semibold"><T k="incidents.new.title" /></h1>
-        <p className="text-sm text-muted-foreground"><T k="incidents.new.subtitle" /></p>
+        <p className="hidden text-sm text-muted-foreground md:block"><T k="incidents.new.subtitle" /></p>
       </div>
       <IncidentForm
         orgUnits={orgUnits.map((u) => ({ id: u.id, name: u.name }))}

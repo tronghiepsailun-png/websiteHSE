@@ -96,10 +96,10 @@ export async function getEmployeeById(organizationId: string, id: string) {
 
 /** Drives the employee list page's KPI row and department distribution chart. Department
  *  names are read live from the data (grouped by orgUnitLevel2), never hardcoded, so a
- *  newly-imported department shows up automatically. */
+ *  newly-imported department shows up automatically. Active only, throughout — a resigned
+ *  employee isn't part of the day-to-day roster this page is for. */
 export async function getEmployeeStats(organizationId: string) {
-  const [total, active, byOrgUnitLevel2] = await Promise.all([
-    prisma.employee.count({ where: { organizationId } }),
+  const [active, byOrgUnitLevel2] = await Promise.all([
     prisma.employee.count({ where: { organizationId, status: "active" } }),
     prisma.employee.groupBy({ by: ["orgUnitLevel2"], where: { organizationId, status: "active" }, _count: { _all: true } }),
   ]);
@@ -109,7 +109,7 @@ export async function getEmployeeStats(organizationId: string) {
     .map((g) => ({ name: g.orgUnitLevel2 as string, count: g._count._all }))
     .sort((a, b) => b.count - a.count);
 
-  return { total, active, resigned: total - active, byDepartment };
+  return { active, byDepartment };
 }
 
 /** Each dropdown option paired with how many employees currently match it — same idea as an

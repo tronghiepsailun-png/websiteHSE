@@ -168,4 +168,49 @@
     background-color: var(--border);
     border-radius: 9999px;
   }
+
+  /* For horizontal-scroll strips that draw their own always-visible progress track
+     (see HorizontalScroll) — the native OS scrollbar underneath would just be visual noise
+     duplicating what the custom track already shows. */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Mobile shell: real phones get real touch targets, not desktop-mouse-sized controls.
+   Scoped under `.mobile-shell` (only MobileShell sets it — see isMobileDevice() in
+   (platform)/layout.tsx), so AppShell/desktop never sees this. Every Input/Button/Select
+   in the app already goes through these shared primitives' `data-slot`, so this one rule
+   raises touch targets across every existing page without editing each one.
+   Excluded inside <table>: those modules still render their original dense desktop table
+   on mobile this phase (horizontal scroll) until they get a card-based rebuild like
+   incidents-mobile-list.tsx — inflating every row-action icon there would break row height
+   before that happens. */
+@layer utilities {
+  .mobile-shell [data-slot="input"]:not(table, table *),
+  .mobile-shell [data-slot="button"]:not(table, table *),
+  .mobile-shell [data-slot="select-trigger"]:not(table, table *) {
+    min-height: 44px;
+  }
+  /* Buttons with an icon + a real label (not just an icon) were built for desktop widths and
+     forced onto one line (`whitespace-nowrap`, fixed h-8/h-9). Pair that with a `grid-cols-2`
+     two-button row (e.g. "Nhập kho" / "Xuất/Lãnh" in the inventory card) and on a narrow phone
+     the label has nowhere to go but overflow the button's own box, visually spilling text into
+     the next cell. Letting the label wrap instead — and letting the button grow to fit it —
+     turns that overlap into a normal two-line button, the same fix every one of these
+     icon+label buttons across the app needs, not just this one card. */
+  .mobile-shell [data-slot="button"]:not(table, table *) {
+    min-width: 44px;
+    height: auto;
+    white-space: normal;
+    flex-wrap: wrap;
+    row-gap: 0.125rem;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    text-align: center;
+  }
 }

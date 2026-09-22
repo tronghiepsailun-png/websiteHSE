@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
@@ -22,6 +23,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
 
@@ -82,12 +84,9 @@ export function AppShell({
             <Leaf className="size-4.5 text-sidebar-primary" />
           </span>
           {!railCollapsed && (
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-semibold text-sidebar-foreground">{activeOrg?.name ?? t("common.appName")}</p>
-              <p className="truncate text-[10px] text-sidebar-foreground/60">
-                <T k="common.appName" />
-              </p>
-            </div>
+            <p className="min-w-0 truncate text-sm font-semibold text-sidebar-foreground">
+              <T k="common.appName" />
+            </p>
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -115,7 +114,7 @@ export function AppShell({
         <SheetContent side="left" className="w-60 bg-sidebar p-0 text-sidebar-foreground">
           <SheetTitle className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4 text-left text-base text-sidebar-foreground">
             <Leaf className="size-5 text-sidebar-primary" />
-            {activeOrg?.name ?? t("common.appName")}
+            <T k="common.appName" />
           </SheetTitle>
           <SidebarNav onNavigate={() => setMobileNavOpen(false)} />
         </SheetContent>
@@ -136,6 +135,7 @@ export function AppShell({
           </div>
 
           <CommandPalette permissionKeys={permissionKeys} />
+          <KeyboardShortcuts />
 
           <div className="hidden lg:block">
             <Breadcrumb />
@@ -156,24 +156,26 @@ export function AppShell({
                 )}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>{t("common.notifications")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {overdueCapaItems.length === 0 ? (
-                  <p className="px-1.5 py-2 text-sm text-muted-foreground">{t("common.notificationsEmpty")}</p>
-                ) : (
-                  overdueCapaItems.map((item) => (
-                    <DropdownMenuItem key={item.id} render={<Link href="/capa" />} className="flex-col items-start gap-0.5">
-                      <span className="line-clamp-2 text-sm">{item.action}</span>
-                      <span className="text-xs text-destructive">
-                        {t("common.notificationOverdueSince", { date: fmtDate(item.dueDate) })}
-                      </span>
-                    </DropdownMenuItem>
-                  ))
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem render={<Link href="/capa" />} className="justify-center text-sm text-primary">
-                  {t("common.viewAll")}
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>{t("common.notifications")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {overdueCapaItems.length === 0 ? (
+                    <p className="px-1.5 py-2 text-sm text-muted-foreground">{t("common.notificationsEmpty")}</p>
+                  ) : (
+                    overdueCapaItems.map((item) => (
+                      <DropdownMenuItem key={item.id} render={<Link href="/capa" />} className="flex-col items-start gap-0.5">
+                        <span className="line-clamp-2 text-sm">{item.action}</span>
+                        <span className="text-xs text-destructive">
+                          {t("common.notificationOverdueSince", { date: fmtDate(item.dueDate) })}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem render={<Link href="/capa" />} className="justify-center text-sm text-primary">
+                    {t("common.viewAll")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeToggle />

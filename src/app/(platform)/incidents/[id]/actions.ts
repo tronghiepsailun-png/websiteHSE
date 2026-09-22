@@ -48,6 +48,31 @@ async function resolveSeverityId(id: string | undefined, organizationId: string)
   return severity && severity.organizationId === organizationId ? id : undefined;
 }
 
+/** Kanban drop handler — the one field the board can change, without going through the
+ *  detail page's field-presence form. Audited like any other status edit. */
+export async function setIncidentStatusAction(incidentId: string, status: (typeof INCIDENT_STATUSES)[number]) {
+  const ctx = await requireOrgPermission(PERMISSIONS.INCIDENT_EDIT);
+
+  const before = await prisma.incident.findUnique({ where: { id: incidentId } });
+  assertBelongsToOrg(before, ctx.organizationId);
+  if (before!.status === status) return;
+
+  await prisma.incident.update({ where: { id: incidentId }, data: { status } });
+
+  await writeAuditLog({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    module: "incident",
+    recordType: "Incident",
+    recordId: incidentId,
+    action: "update",
+    changes: [{ field: "status", oldValue: before!.status, newValue: status }],
+  });
+
+  revalidatePath("/incidents");
+  revalidatePath(`/incidents/${incidentId}`);
+}
+
 // Each detail-page form only submits the handful of fields it displays (status form,
 // corrective-action form, etc.), so this only touches fields actually present in the
 // FormData — anything not submitted is left untouched rather than nulled out.

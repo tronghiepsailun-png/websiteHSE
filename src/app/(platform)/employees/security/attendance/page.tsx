@@ -86,7 +86,7 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
       </div>
 
       <Card>
-        <CardContent className="overflow-x-auto pt-6">
+        <CardContent className="pt-6">
           {rows.length === 0 ? (
             <EmptyState message={<T k="attendance.noGuards" />} />
           ) : (

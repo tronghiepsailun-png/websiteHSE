@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 export type InventoryTabKey = "stock" | "issuance" | "stockin" | "catalog";
 
@@ -21,7 +22,7 @@ const TABS: { key: InventoryTabKey; href: string; labelKey: DictionaryKey; icon:
 export function InventoryTabs({ active, canManageCatalog }: { active: InventoryTabKey; canManageCatalog: boolean }) {
   const tabs = TABS.filter((tab) => tab.key !== "catalog" || canManageCatalog);
   return (
-    <div className="flex max-w-full flex-wrap items-stretch gap-2 overflow-x-auto">
+    <HorizontalScroll className="flex max-w-full flex-nowrap items-stretch gap-2">
       {tabs.map((tab) => {
         const isActive = tab.key === active;
         const Icon = tab.icon;
@@ -47,6 +48,6 @@ export function InventoryTabs({ active, canManageCatalog }: { active: InventoryT
           </Link>
         );
       })}
-    </div>
+    </HorizontalScroll>
   );
 }

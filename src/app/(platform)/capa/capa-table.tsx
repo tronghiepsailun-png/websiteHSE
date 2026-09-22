@@ -114,7 +114,7 @@ export function CapaTable({
         )}
       </div>
 
-      <Card className="overflow-x-auto py-0">
+      <Card className="py-0">
         <Table>
           <TableHeader>
             <TableRow className="h-11">
@@ -172,7 +172,7 @@ export function CapaTable({
                   )}
                   {!hidden.has("photoAfter") && (
                     <TableCell className="py-3">
-                      {row.status === "completed" ? <Thumb doc={row.after} /> : <span className="text-xs font-medium text-destructive">{t("capa.table.notResolved")}</span>}
+                      {row.after ? <Thumb doc={row.after} /> : <span className="text-xs font-medium text-destructive">{t("capa.table.notResolved")}</span>}
                     </TableCell>
                   )}
                   {!hidden.has("confirmedDate") && (

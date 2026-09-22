@@ -26,13 +26,17 @@ export function StockInTable({
   locale,
   canEdit,
   canDelete,
+  hiddenColumns,
 }: {
   rows: StockInRow[];
   locale: Locale;
   canEdit: boolean;
   canDelete: boolean;
+  hiddenColumns: string[];
 }) {
   const showActions = canEdit || canDelete;
+  const hidden = new Set(hiddenColumns);
+  const columnCount = 3 + [!hidden.has("note"), !hidden.has("recordedBy"), !hidden.has("photos"), showActions].filter(Boolean).length;
   return (
     <Table>
       <TableHeader>
@@ -40,9 +44,9 @@ export function StockInTable({
           <TableHead>{t(locale, "inventory.issuance.table.date")}</TableHead>
           <TableHead>{t(locale, "inventory.issuance.table.item")}</TableHead>
           <TableHead>{t(locale, "inventory.issuance.table.quantity")}</TableHead>
-          <TableHead>{t(locale, "inventory.issuance.table.note")}</TableHead>
-          <TableHead>{t(locale, "inventory.issuance.table.recordedBy")}</TableHead>
-          <TableHead>{t(locale, "inventory.issuance.table.photos")}</TableHead>
+          {!hidden.has("note") && <TableHead>{t(locale, "inventory.issuance.table.note")}</TableHead>}
+          {!hidden.has("recordedBy") && <TableHead>{t(locale, "inventory.issuance.table.recordedBy")}</TableHead>}
+          {!hidden.has("photos") && <TableHead>{t(locale, "inventory.issuance.table.photos")}</TableHead>}
           {showActions && <TableHead />}
         </TableRow>
       </TableHeader>
@@ -54,8 +58,9 @@ export function StockInTable({
             <TableCell className="py-3">
               {row.quantity} {row.item.unit}
             </TableCell>
-            <TableCell className="py-3 text-muted-foreground">{row.note ?? "—"}</TableCell>
-            <TableCell className="py-3 text-muted-foreground">{row.recordedBy?.name ?? "—"}</TableCell>
+            {!hidden.has("note") && <TableCell className="py-3 text-muted-foreground">{row.note ?? "—"}</TableCell>}
+            {!hidden.has("recordedBy") && <TableCell className="py-3 text-muted-foreground">{row.recordedBy?.name ?? "—"}</TableCell>}
+            {!hidden.has("photos") && (
             <TableCell className="py-3">
               {row.photos.length > 0 ? (
                 <div className="flex items-center gap-1.5">
@@ -75,6 +80,7 @@ export function StockInTable({
                 <span className="text-muted-foreground">—</span>
               )}
             </TableCell>
+            )}
             {showActions && (
               <TableCell className="py-3">
                 <div className="flex items-center justify-end gap-1">
@@ -87,7 +93,7 @@ export function StockInTable({
         ))}
         {rows.length === 0 && (
           <TableRow>
-            <TableCell colSpan={showActions ? 7 : 6}>
+            <TableCell colSpan={columnCount}>
               <EmptyState message={<T k="inventory.stockIn.empty" />} />
             </TableCell>
           </TableRow>

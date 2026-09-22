@@ -29,7 +29,7 @@ export default async function InventoryCatalogPage() {
               <h1 className="text-xl font-semibold">
                 <T k="inventory.catalog.title" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="inventory.catalog.subtitle" />
               </p>
             </div>

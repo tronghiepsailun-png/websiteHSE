@@ -35,7 +35,7 @@ export default async function ViolationCatalogPage() {
           ← <T k="violations.moduleName" />
         </Link>
         <h1 className="text-xl font-semibold"><T k="violations.catalog.title" /></h1>
-        <p className="text-sm text-muted-foreground"><T k="violations.catalog.subtitle" /></p>
+        <p className="hidden text-sm text-muted-foreground md:block"><T k="violations.catalog.subtitle" /></p>
       </div>
 
       <Card>

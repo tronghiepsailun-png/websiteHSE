@@ -4,5 +4,12 @@ import { ModuleEmptyState } from "@/components/module-empty-state";
 
 export default async function FormsPage() {
   await requireApiAccess(null);
-  return <ModuleEmptyState icon={FileSpreadsheet} titleKey="nav.forms" messageKey="modules.forms.empty" />;
+  return (
+    <ModuleEmptyState
+      icon={FileSpreadsheet}
+      titleKey="nav.forms"
+      messageKey="modules.forms.empty"
+      illustrationSrc="/illustrations/forms.webp"
+    />
+  );
 }

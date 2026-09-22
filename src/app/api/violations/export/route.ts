@@ -5,6 +5,7 @@ import { requireApiAccess, withApiErrorHandling } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { listViolations, getSubsidyReport } from "@/server/violations";
 import { contentDisposition } from "@/server/storage";
+import { exportFileName } from "@/lib/format";
 
 // This route loads the ORIGINAL reference workbook as a template and only overwrites data-cell
 // VALUES at their known positions — every color/font/border/merge/column-width in the downloaded
@@ -194,7 +195,7 @@ export async function GET(request: Request) {
     if (s2Rows.length > s2TotalRowNumber) s2Rows.length = s2TotalRowNumber;
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
-    const fileName = `Vi phạm an toàn viên tháng ${month}-${year}.xlsx`;
+    const fileName = `${exportFileName("Vi phạm an toàn viên")}.xlsx`;
 
     return new NextResponse(arrayBuffer as ArrayBuffer, {
       headers: {

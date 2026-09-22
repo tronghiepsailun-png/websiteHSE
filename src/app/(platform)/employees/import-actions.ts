@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
-import { previewEmployeeImport, commitEmployeeImport } from "@/server/employee-import";
+import { previewEmployeeImport, commitEmployeeImport, EmployeeImportStructureError } from "@/server/employee-import";
 import type { ClassifiedEmployeeRow, EmployeeImportCommitResult, EmployeeImportPreview } from "@/server/employee-import-shared";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
@@ -30,9 +30,17 @@ export async function previewEmployeeImportAction(_prev: PreviewActionState, for
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const preview = await previewEmployeeImport({ organizationId: ctx.organizationId, buffer });
-
-  return { preview };
+  try {
+    const preview = await previewEmployeeImport({ organizationId: ctx.organizationId, buffer });
+    return { preview };
+  } catch (error) {
+    if (error instanceof EmployeeImportStructureError) {
+      return {
+        error: t(locale, error.reason === "sheet_not_found" ? "employees.import.errorSheetNotFound" : "employees.import.errorNoDataRows"),
+      };
+    }
+    throw error;
+  }
 }
 
 export async function confirmEmployeeImportAction(

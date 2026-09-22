@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, ListTodo } from "lucide-react";
-import { renameWorkPlanDocumentAction } from "./actions";
+import { Pencil, ListTodo, Trash2 } from "lucide-react";
+import { renameWorkPlanDocumentAction, deleteWorkPlanDocumentAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -62,7 +63,43 @@ function RenameDocumentDialog({ id, name }: { id: string; name: string }) {
   );
 }
 
-export function DocumentToolbar({ current, documents }: { current: DocOption; documents: DocOption[] }) {
+function DeleteDocumentButton({ id }: { id: string }) {
+  const t = useT();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  function handleConfirm() {
+    startTransition(async () => {
+      await deleteWorkPlanDocumentAction(id);
+      router.push("/planning");
+      router.refresh();
+    });
+  }
+
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button type="button" variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" disabled={pending} title={t("workplan.deleteDocument.title")}>
+          <Trash2 className="size-3.5" />
+        </Button>
+      }
+      description={t("workplan.deleteDocument.confirm")}
+      confirmLabel={t("common.delete")}
+      onConfirm={handleConfirm}
+      pending={pending}
+    />
+  );
+}
+
+export function DocumentToolbar({
+  current,
+  documents,
+  canDelete,
+}: {
+  current: DocOption;
+  documents: DocOption[];
+  canDelete?: boolean;
+}) {
   const t = useT();
   const router = useRouter();
 
@@ -75,17 +112,18 @@ export function DocumentToolbar({ current, documents }: { current: DocOption; do
           </span>
           <div>
             <h1 className="text-xl font-semibold">{t("workplan.pageTitle")}</h1>
-            <p className="text-sm text-muted-foreground">{t("workplan.pageSubtitle")}</p>
+            <p className="hidden text-sm text-muted-foreground md:block">{t("workplan.pageSubtitle")}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1.5">
             <h2 className="text-base font-medium">{current.name}</h2>
             <RenameDocumentDialog id={current.id} name={current.name} />
+            {canDelete && <DeleteDocumentButton id={current.id} />}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={current.id} onValueChange={(id) => router.push(`/planning?doc=${id}`)}>
-              <SelectTrigger className="w-56">
+              <SelectTrigger className="w-full sm:w-56">
                 <SelectValue placeholder={t("workplan.pageTitle")}>
                   {(id: string) => documents.find((d) => d.id === id)?.name ?? id}
                 </SelectValue>

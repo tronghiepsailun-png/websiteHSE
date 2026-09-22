@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
 import type { DictionaryKey } from "@/lib/i18n/translate";
+import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
   { href: "/violations", labelKey: "violations.tabs.overview", icon: LayoutGrid, fg: "#16a34a", bg: "#dcfce7" },
@@ -22,7 +23,7 @@ const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: strin
 export function ViolationsTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex max-w-full flex-wrap items-stretch gap-2 overflow-x-auto">
+    <HorizontalScroll className="flex max-w-full flex-nowrap items-stretch gap-2">
       {TABS.map((tab) => {
         const active = pathname === tab.href;
         const Icon = tab.icon;
@@ -52,6 +53,6 @@ export function ViolationsTabs() {
           </a>
         );
       })}
-    </div>
+    </HorizontalScroll>
   );
 }

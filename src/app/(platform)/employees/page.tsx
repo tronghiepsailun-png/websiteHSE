@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { Users, UserCheck, UserX, Download, IdCard } from "lucide-react";
+import { Download, IdCard } from "lucide-react";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
@@ -17,7 +17,7 @@ import { EmployeeFilters } from "./employee-filters";
 import { EmployeeRowActions } from "./employee-row-actions";
 import { ImportDialog } from "./import-dialog";
 import { DepartmentChart } from "./department-chart";
-import { STATUS_TILE_CLASS, STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
+import { STATUS_OUTLINE_CLASS } from "@/lib/status-tone";
 import { ColumnVisibilityMenu } from "@/components/ui/column-visibility-menu";
 import { parseHiddenColumns, type ToggleableColumn } from "@/lib/column-visibility";
 
@@ -57,7 +57,11 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
   const team = parseFilterParam(params.team);
   const shift = parseFilterParam(params.shift);
   const position = parseFilterParam(params.position);
-  const status = parseFilterParam(params.status);
+  // "Đang làm việc" is the resting state, not just one option among equals — a resigned
+  // employee is no longer relevant day-to-day, so the list defaults to active-only rather
+  // than a mixed roster. `?status=all` (an explicit "Tất cả trạng thái" pick) still shows
+  // everyone; only the no-param case (first visit, or "Xóa bộ lọc") falls back to active.
+  const status = typeof params.status === "string" && params.status !== "" ? parseFilterParam(params.status) : "active";
   const page = Number(params.page) || 1;
   const viewAll = params.viewAll === "1";
 
@@ -109,7 +113,7 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
               <h1 className="text-xl font-semibold">
                 <T k="employees.moduleName" />
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground md:block">
                 <T k="employees.pageSubtitle" />
               </p>
             </div>
@@ -131,51 +135,9 @@ export default async function EmployeesPage({ searchParams }: PageProps<"/employ
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Users className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                <T k="employees.kpi.total" />
-              </p>
-              <p className="text-2xl leading-none font-bold">{stats.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={STATUS_TILE_CLASS.success.border}>
-          <CardContent className="flex items-center gap-3 p-3">
-            <div className={`flex size-8 shrink-0 items-center justify-center rounded-md ${STATUS_TILE_CLASS.success.iconBg} ${STATUS_TILE_CLASS.success.iconFg}`}>
-              <UserCheck className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                <T k="employees.kpi.active" />
-              </p>
-              <p className="text-2xl leading-none font-bold">{stats.active}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <UserX className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                <T k="employees.kpi.resigned" />
-              </p>
-              <p className="text-2xl leading-none font-bold">{stats.resigned}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <DepartmentChart
         data={stats.byDepartment}
-        total={stats.total}
+        total={stats.active}
         selected={orgUnitLevel2}
         hierarchy={hierarchy}
         defaultOrgUnitLevel1={defaultOrgUnitLevel1}

@@ -19,7 +19,7 @@ export default async function SettingsPage() {
         <h1 className="text-xl font-semibold">
           <T k="settings.title" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           <T k="settings.subtitle" />
         </p>
       </div>

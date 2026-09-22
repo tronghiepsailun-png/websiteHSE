@@ -97,10 +97,13 @@ export default async function RecordsListPage({ searchParams }: PageProps<"/reco
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <Link href="/records/pccc" className="text-sm text-muted-foreground hover:underline">
+          ← <T k="records.moduleName" />
+        </Link>
         <h1 className="text-xl font-semibold">
           <T k="records.list.title" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           <T k="records.moduleName" />
         </p>
       </div>

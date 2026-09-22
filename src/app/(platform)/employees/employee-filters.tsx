@@ -60,15 +60,15 @@ export function EmployeeFilters({
   return (
     <Card>
       <CardContent className="p-3">
-        <form ref={formRef} className="flex flex-wrap items-center gap-2">
-          <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
+        <form ref={formRef} className="flex flex-wrap items-start gap-2">
+          <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-4">
             <EmployeeSearchBox
               name="q"
               placeholder={t("employees.filter.searchPlaceholder")}
               defaultValue={search}
               emptyLabel={t("incidents.new.noEmployeeMatch")}
               onSubmit={submitOnChange}
-              className="col-span-2 w-full sm:col-span-1"
+              className="w-full sm:col-span-1"
             />
             {selectField("orgUnitLevel1", orgUnitLevel1, options.orgUnitLevel1, "employees.filter.orgUnitLevel1", "employees.filter.allOrgUnitLevel1")}
             {selectField("orgUnitLevel2", orgUnitLevel2, options.orgUnitLevel2, "employees.filter.orgUnitLevel2", "employees.filter.allOrgUnitLevel2")}
@@ -90,7 +90,7 @@ export function EmployeeFilters({
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <FilterCountBadge count={activeCount} />
             <Link href="/employees" className={buttonVariants({ variant: "outline", size: "sm" })}>
               {t("common.clearFilters")}

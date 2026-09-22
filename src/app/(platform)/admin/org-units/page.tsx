@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
@@ -37,8 +38,11 @@ export default async function OrgUnitsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
+          ← <T k="settings.title" />
+        </Link>
         <h1 className="text-xl font-semibold"><T k="admin.orgUnits.title" /></h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden text-sm text-muted-foreground md:block">
           <T k="admin.orgUnits.subtitle" />
         </p>
       </div>

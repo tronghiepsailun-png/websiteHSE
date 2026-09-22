@@ -7,36 +7,44 @@ import {
   type EmployeeImportCommitResult,
   type EmployeeImportPreview,
   type FieldDiff,
-  type FieldKey,
   type ParsedEmployeeFields,
   FIELD_LABEL_KEYS,
-  REQUIRED_FIELDS,
 } from "@/server/employee-import-shared";
 
 // ─────────────────────────────────────────────────────────────────────────
-// Column header aliases — mixes the source spreadsheet's Chinese headers with
-// the Vietnamese labels the user's spec calls each field by, same convention
-// as incident-import.ts's HEADER_ALIASES. 序号 (row number) and VALUE (a
-// formula column duplicating 工号) are intentionally not mapped to any field —
-// they carry no information beyond what employeeCode already stores.
+// HR's monthly roster export is always the same workbook shape: a sheet
+// literally named 在职 ("currently employed") holding the live roster, plus a
+// handful of other sheets (departed staff, interns, temp badge swaps, ...)
+// that must never be read as if they were current employees. Earlier this
+// scanned every sheet for whichever row best matched known header text and
+// imported from there — which is exactly how data from those other sheets
+// could end up misread as active-roster data. Locking onto 在职 by name, and
+// onto fixed column letters within it (per an explicit ask from the person
+// who receives this file every month — the two-row merged header above them
+// is consistent release to release, but fragile to parse by text), removes
+// that failure mode entirely rather than making the heuristic smarter.
 // ─────────────────────────────────────────────────────────────────────────
 
-const HEADER_ALIASES: Record<FieldKey, string[]> = {
-  employeeCode: ["工号", "mã nhân viên", "mã nv"],
-  fullName: ["越文名", "họ tên tiếng việt", "tên tiếng việt"],
-  fullNameZh: ["中文名", "tên tiếng trung"],
-  gender: ["性别", "giới tính"],
-  education: ["学历", "trình độ"],
-  birthDate: ["出生日期", "ngày sinh"],
-  nationalId: ["身份证号码", "cccd", "số cccd"],
-  orgUnitLevel1: ["一级部门", "bộ phận cấp 1"],
-  region: ["区域", "khu vực"],
-  costCenterName: ["成本中心名称", "tên trung tâm chi phí"],
-  orgUnitLevel2: ["二级部门", "bộ phận cấp 2"],
-  team: ["班组", "tổ nhóm"],
-  shift: ["班次", "ca làm việc", "ca"],
-  position: ["职位", "chức vụ"],
-};
+const REQUIRED_SHEET_NAME = "在职";
+
+// B 工号 / D 中文名 / E 越文名 / F 性别 / H 一级部门 / I 区域 / K 二级部门 / L 班组 / M 班次 / N 职位.
+// Everything outside these columns (学历, 出生日期, 身份证号码, 成本中心名称, and every column
+// past N) is deliberately never read — not because those fields don't exist in the workbook,
+// but because this platform was told not to take them from this file.
+const FIXED_COLUMNS = {
+  employeeCode: 2,
+  fullNameZh: 4,
+  fullName: 5,
+  gender: 6,
+  orgUnitLevel1: 8,
+  region: 9,
+  orgUnitLevel2: 11,
+  team: 12,
+  shift: 13,
+  position: 14,
+} as const;
+
+type FixedField = keyof typeof FIXED_COLUMNS;
 
 const GENDER_ALIASES: Record<string, "male" | "female"> = {
   "男": "male",
@@ -48,10 +56,6 @@ const GENDER_ALIASES: Record<string, "male" | "female"> = {
   "m": "male",
   "f": "female",
 };
-
-function normalizeHeader(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase();
-}
 
 function cellText(value: ExcelJS.CellValue): string {
   if (value == null) return "";
@@ -73,80 +77,30 @@ function cellText(value: ExcelJS.CellValue): string {
   return String(value).trim();
 }
 
-function isPlausibleBirthDate(d: Date): boolean {
-  const year = d.getUTCFullYear();
-  return year >= 1900 && year <= 2100;
-}
-
-function cellDateIso(value: ExcelJS.CellValue): { iso: string | null; invalid: boolean } {
-  if (value == null || value === "") return { iso: null, invalid: false };
-
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime()) || !isPlausibleBirthDate(value)) return { iso: null, invalid: true };
-    return { iso: value.toISOString().slice(0, 10), invalid: false };
+// The two-row merged header above the data (a grouped title row, then the real per-column
+// labels) isn't the same fixed row number every month — but column B (工号) always holds a
+// plain numeric employee code on the first real data row and never does on a header/title
+// row, so that's what marks where the roster actually starts.
+function findFirstDataRow(worksheet: ExcelJS.Worksheet): number | null {
+  const maxScan = Math.min(15, worksheet.rowCount);
+  for (let rowNumber = 1; rowNumber <= maxScan; rowNumber++) {
+    const value = cellText(worksheet.getRow(rowNumber).getCell(FIXED_COLUMNS.employeeCode).value);
+    if (/^\d{3,}$/.test(value)) return rowNumber;
   }
-
-  // A cell that holds a raw Excel serial date number (not recognized/formatted as a
-  // date by the source spreadsheet) must be converted via Excel's epoch — treating it
-  // as a date-ish string instead (e.g. new Date("33574")) silently produces nonsense
-  // dates like the year 29513.
-  if (typeof value === "number") {
-    const parsed = new Date(Math.round((value - 25569) * 86400 * 1000));
-    if (Number.isNaN(parsed.getTime()) || !isPlausibleBirthDate(parsed)) return { iso: null, invalid: true };
-    return { iso: parsed.toISOString().slice(0, 10), invalid: false };
-  }
-
-  const text = cellText(value);
-  if (!text) return { iso: null, invalid: false };
-  const parsed = new Date(text);
-  if (Number.isNaN(parsed.getTime()) || !isPlausibleBirthDate(parsed)) return { iso: null, invalid: true };
-  return { iso: parsed.toISOString().slice(0, 10), invalid: false };
-}
-
-/** Scans the first 10 rows of every sheet for the row that best matches our known headers —
- *  same technique as incident-import.ts's locateHeaderRow, generalized here for reuse. */
-function locateHeaderRow(workbook: ExcelJS.Workbook) {
-  let best: { worksheet: ExcelJS.Worksheet; rowNumber: number; columnsByField: Partial<Record<FieldKey, number>>; score: number } | null = null;
-
-  for (const worksheet of workbook.worksheets) {
-    const maxScanRow = Math.min(10, worksheet.rowCount);
-    for (let rowNumber = 1; rowNumber <= maxScanRow; rowNumber++) {
-      const row = worksheet.getRow(rowNumber);
-      const columnsByField: Partial<Record<FieldKey, number>> = {};
-      let score = 0;
-
-      row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-        const normalized = normalizeHeader(cellText(cell.value));
-        if (!normalized) return;
-        for (const [field, aliases] of Object.entries(HEADER_ALIASES) as [FieldKey, string[]][]) {
-          if (columnsByField[field]) continue; // first match wins
-          if (aliases.some((alias) => normalized === alias)) {
-            columnsByField[field] = colNumber;
-            score += 1;
-          }
-        }
-      });
-
-      if (!best || score > best.score) {
-        best = { worksheet, rowNumber, columnsByField, score };
-      }
-    }
-  }
-
-  return best;
+  return null;
 }
 
 function diffableFields(a: Omit<ParsedEmployeeFields, "employeeCode">, b: ParsedEmployeeFields): FieldDiff[] {
-  const compareFields: Exclude<FieldKey, "employeeCode">[] = [
+  // Only fields this importer actually reads are diffable — comparing a field it no longer
+  // reads (education, birthDate, nationalId, costCenterName) against an existing employee's
+  // real value would always show as "changed to —", a false diff for data this import was
+  // never told to touch in the first place.
+  const compareFields: Exclude<FixedField, "employeeCode">[] = [
     "fullName",
     "fullNameZh",
     "gender",
-    "education",
-    "birthDate",
-    "nationalId",
     "orgUnitLevel1",
     "region",
-    "costCenterName",
     "orgUnitLevel2",
     "team",
     "shift",
@@ -195,31 +149,34 @@ function toParsedFields(employee: {
   };
 }
 
+/** Thrown when the workbook doesn't have the shape this importer requires — a dedicated type
+ *  so the action wrapper can show a specific, correct message instead of the generic
+ *  "missing column" one, which doesn't fit "wrong sheet" or "can't find where data starts". */
+export class EmployeeImportStructureError extends Error {
+  constructor(public reason: "sheet_not_found" | "no_data_rows") {
+    super(reason);
+  }
+}
+
 export async function previewEmployeeImport(params: { organizationId: string; buffer: Buffer }): Promise<EmployeeImportPreview> {
   const { organizationId, buffer } = params;
 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
-  const located = locateHeaderRow(workbook);
-  const missingRequired = REQUIRED_FIELDS.filter((f) => !located?.columnsByField[f]);
-  if (!located || missingRequired.length > 0) {
-    return { ok: false, headerErrors: missingRequired.map((column) => ({ column })) };
-  }
+  const worksheet = workbook.getWorksheet(REQUIRED_SHEET_NAME);
+  if (!worksheet) throw new EmployeeImportStructureError("sheet_not_found");
 
-  const { worksheet, rowNumber: headerRowNumber, columnsByField } = located;
+  const firstDataRow = findFirstDataRow(worksheet);
+  if (firstDataRow == null) throw new EmployeeImportStructureError("no_data_rows");
 
-  const get = (row: ExcelJS.Row, field: FieldKey) => {
-    const col = columnsByField[field];
-    return col ? row.getCell(col).value : null;
-  };
+  const get = (row: ExcelJS.Row, field: FixedField) => row.getCell(FIXED_COLUMNS[field]).value;
 
   const rows: ClassifiedEmployeeRow[] = [];
   const codesSeenInFile = new Set<string>();
-  const nationalIdsSeenInFile = new Map<string, string>(); // nationalId -> first employeeCode that used it
   let totalDataRows = 0;
 
-  for (let rowNumber = headerRowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber++) {
+  for (let rowNumber = firstDataRow; rowNumber <= worksheet.rowCount; rowNumber++) {
     const row = worksheet.getRow(rowNumber);
     const employeeCode = cellText(get(row, "employeeCode"));
     if (!employeeCode) continue; // blank/trailing row — not real data, don't count or error on it
@@ -230,12 +187,9 @@ export async function previewEmployeeImport(params: { organizationId: string; bu
     const fullName = cellText(get(row, "fullName"));
     const orgUnitLevel1 = cellText(get(row, "orgUnitLevel1"));
     const genderRaw = cellText(get(row, "gender"));
-    const { iso: birthDate, invalid: birthDateInvalid } = cellDateIso(get(row, "birthDate"));
-    const nationalId = cellText(get(row, "nationalId")) || null;
 
     if (!fullName) errors.push("employees.import.errorMissingName");
     if (!orgUnitLevel1) errors.push("employees.import.errorMissingDepartment");
-    if (birthDateInvalid) errors.push("employees.import.errorInvalidBirthDate");
     let gender: "male" | "female" | null = null;
     if (genderRaw) {
       gender = GENDER_ALIASES[genderRaw.toLowerCase()] ?? null;
@@ -247,15 +201,6 @@ export async function previewEmployeeImport(params: { organizationId: string; bu
     }
     codesSeenInFile.add(employeeCode);
 
-    if (nationalId) {
-      const firstCode = nationalIdsSeenInFile.get(nationalId);
-      if (firstCode && firstCode !== employeeCode) {
-        errors.push("employees.import.errorDuplicateNationalIdInFile");
-      } else {
-        nationalIdsSeenInFile.set(nationalId, employeeCode);
-      }
-    }
-
     if (errors.length > 0) {
       rows.push({ row: rowNumber, status: "error", employeeCode, employeeId: null, data: null, diffs: [], errors });
       continue;
@@ -266,12 +211,12 @@ export async function previewEmployeeImport(params: { organizationId: string; bu
       fullName,
       fullNameZh: cellText(get(row, "fullNameZh")) || null,
       gender,
-      education: cellText(get(row, "education")) || null,
-      birthDate,
-      nationalId,
+      education: null,
+      birthDate: null,
+      nationalId: null,
       orgUnitLevel1,
       region: cellText(get(row, "region")) || null,
-      costCenterName: cellText(get(row, "costCenterName")) || null,
+      costCenterName: null,
       orgUnitLevel2: cellText(get(row, "orgUnitLevel2")) || null,
       team: cellText(get(row, "team")) || null,
       shift: cellText(get(row, "shift")) || null,
@@ -281,31 +226,23 @@ export async function previewEmployeeImport(params: { organizationId: string; bu
     rows.push({ row: rowNumber, status: "new", employeeCode, employeeId: null, data, diffs: [], errors: [] });
   }
 
-  // ── Classify against existing DB records (new / existing / updated), and flag
-  //    nationalId collisions against a *different* existing employee as errors. ──
+  // ── Classify against existing DB records (new / existing / updated). ──
   const existingEmployees = await prisma.employee.findMany({ where: { organizationId } });
   const existingByCode = new Map(existingEmployees.map((e) => [e.employeeCode, e]));
-  const existingByNationalId = new Map(existingEmployees.filter((e) => e.nationalId).map((e) => [e.nationalId!, e]));
 
   for (const classified of rows) {
     if (classified.status === "error" || !classified.data) continue;
-
-    if (classified.data.nationalId) {
-      const owner = existingByNationalId.get(classified.data.nationalId);
-      if (owner && owner.employeeCode !== classified.employeeCode) {
-        classified.status = "error";
-        classified.errors = ["employees.import.errorDuplicateNationalId"];
-        classified.data = null;
-        continue;
-      }
-    }
 
     const existing = existingByCode.get(classified.employeeCode);
     if (!existing) continue; // stays "new"
 
     classified.employeeId = existing.id;
     const diffs = diffableFields(toParsedFields(existing), classified.data);
-    if (diffs.length > 0) {
+    // Being in this file at all means "currently active" — someone previously marked resigned
+    // (e.g. by last month's departed-employee sweep) who's back in this month's 在职 sheet must
+    // be reactivated even when every tracked field is otherwise unchanged, or a diff-only check
+    // would file them under "existing" and commit would never touch (or un-resign) them.
+    if (diffs.length > 0 || existing.status !== "active") {
       classified.status = "updated";
       classified.diffs = diffs;
     } else {
@@ -384,17 +321,18 @@ export async function commitEmployeeImport(params: {
     orgUnitIdByRowValue.set(name, await resolveOrgUnitId(name));
   }
 
+  // Deliberately omits education/birthDate/nationalId/costCenterName — this importer no longer
+  // reads those columns (see FIXED_COLUMNS), and including them here at all would overwrite
+  // whatever was already on record for every touched employee with null. Leaving the keys out
+  // of a Prisma update payload leaves the existing column value alone; for a brand-new employee
+  // there's nothing to preserve, so they simply start out unset until entered another way.
   function toFields(data: ParsedEmployeeFields) {
     return {
       fullName: data.fullName,
       fullNameZh: data.fullNameZh,
       gender: data.gender,
-      education: data.education,
-      birthDate: data.birthDate ? new Date(data.birthDate) : null,
-      nationalId: data.nationalId,
       orgUnitLevel1: data.orgUnitLevel1,
       region: data.region,
-      costCenterName: data.costCenterName,
       orgUnitLevel2: data.orgUnitLevel2,
       team: data.team,
       shift: data.shift,
