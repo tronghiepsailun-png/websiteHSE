@@ -63,26 +63,26 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     labelKey: "nav.groupDocumentMgmt",
     items: [
-      { href: "/documents/hse", labelKey: "nav.documentsHse", icon: FileText },
+      { href: "/documents/hse", labelKey: "nav.documentsHse", permission: PERMISSIONS.DOCS_HSE_VIEW, icon: FileText },
       { href: "/records/pccc", labelKey: "nav.recordsPccc", permission: PERMISSIONS.RECORDS_VIEW, icon: FileCheck2 },
-      { href: "/documents/environment", labelKey: "nav.documentsEnvironment", icon: Leaf },
+      { href: "/documents/environment", labelKey: "nav.documentsEnvironment", permission: PERMISSIONS.DOCS_ENVIRONMENT_VIEW, icon: Leaf },
     ],
   },
   {
     labelKey: "nav.groupProcurementMgmt",
     items: [
-      { href: "/procurement", labelKey: "nav.procurement", icon: ShoppingCart },
+      { href: "/procurement", labelKey: "nav.procurement", permission: PERMISSIONS.PROCUREMENT_VIEW, icon: ShoppingCart },
       { href: "/inventory", labelKey: "nav.inventory", permission: PERMISSIONS.INVENTORY_VIEW, icon: Warehouse },
-      { href: "/forms", labelKey: "nav.forms", icon: FileSpreadsheet },
+      { href: "/forms", labelKey: "nav.forms", permission: PERMISSIONS.FORMS_VIEW, icon: FileSpreadsheet },
     ],
   },
   {
     labelKey: "nav.groupTrainingMgmt",
     items: [
-      { href: "/training/new-employees", labelKey: "nav.trainingNewEmployees", icon: GraduationCap },
-      { href: "/training/incidents", labelKey: "nav.trainingIncidents", icon: BookOpen },
-      { href: "/training/materials", labelKey: "nav.trainingMaterials", icon: Library },
-      { href: "/training/forms", labelKey: "nav.trainingForms", icon: FileSpreadsheet },
+      { href: "/training/new-employees", labelKey: "nav.trainingNewEmployees", permission: PERMISSIONS.TRAINING_NEW_EMPLOYEES_VIEW, icon: GraduationCap },
+      { href: "/training/incidents", labelKey: "nav.trainingIncidents", permission: PERMISSIONS.TRAINING_INCIDENTS_VIEW, icon: BookOpen },
+      { href: "/training/materials", labelKey: "nav.trainingMaterials", permission: PERMISSIONS.TRAINING_MATERIALS_VIEW, icon: Library },
+      { href: "/training/forms", labelKey: "nav.trainingForms", permission: PERMISSIONS.TRAINING_FORMS_VIEW, icon: FileSpreadsheet },
     ],
   },
 ];

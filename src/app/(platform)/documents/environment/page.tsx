@@ -1,9 +1,12 @@
 import { Leaf } from "lucide-react";
-import { requireApiAccess } from "@/server/api-guard";
+import { tryApiAccess } from "@/server/api-guard";
+import { NoPermissionState } from "@/components/no-permission-state";
+import { PERMISSIONS } from "@/server/permissions";
 import { ModuleEmptyState } from "@/components/module-empty-state";
 
 export default async function DocumentsEnvironmentPage() {
-  await requireApiAccess(null);
+  const access = await tryApiAccess(PERMISSIONS.DOCS_ENVIRONMENT_VIEW);
+  if ("denied" in access) return <NoPermissionState />;
   return (
     <ModuleEmptyState
       icon={Leaf}

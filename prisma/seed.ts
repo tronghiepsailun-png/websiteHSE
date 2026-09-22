@@ -35,6 +35,14 @@ const PERMISSION_DEFS = [
   { key: "employee.manage", module: "employee", description: "Legacy alias of employee.edit, kept for old role rows" },
   { key: "security.view", module: "security", description: "View the security-guard attendance/evaluation module" },
   { key: "security.edit", module: "security", description: "Edit security-guard attendance records" },
+  { key: "docs_hse.view", module: "docs_hse", description: "View the HSE documents module (placeholder)" },
+  { key: "docs_environment.view", module: "docs_environment", description: "View the environment documents module (placeholder)" },
+  { key: "procurement.view", module: "procurement", description: "View the procurement module (placeholder)" },
+  { key: "forms.view", module: "forms", description: "View the forms module (placeholder)" },
+  { key: "training_new_employees.view", module: "training_new_employees", description: "View the new-employee training module (placeholder)" },
+  { key: "training_incidents.view", module: "training_incidents", description: "View the incident-training module (placeholder)" },
+  { key: "training_materials.view", module: "training_materials", description: "View the training materials module (placeholder)" },
+  { key: "training_forms.view", module: "training_forms", description: "View the training forms module (placeholder)" },
   { key: "incident.view", module: "incident", description: "View incidents" },
   { key: "incident.create", module: "incident", description: "Report new incidents" },
   { key: "incident.edit", module: "incident", description: "Edit incidents" },
@@ -67,11 +75,17 @@ const PERMISSION_DEFS = [
 ] as const;
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  viewer: ["organization.view", "employee.view", "security.view", "incident.view", "capa.view", "records.view", "violation.view", "workplan.view", "inventory.view"],
+  viewer: [
+    "organization.view", "employee.view", "security.view", "incident.view", "capa.view", "records.view", "violation.view", "workplan.view", "inventory.view",
+    "docs_hse.view", "docs_environment.view", "procurement.view", "forms.view",
+    "training_new_employees.view", "training_incidents.view", "training_materials.view", "training_forms.view",
+  ],
   org_admin: [
     "organization.view", "organization.manage", "user.manage", "config.manage",
     "employee.view", "employee.edit", "employee.download",
     "security.view", "security.edit",
+    "docs_hse.view", "docs_environment.view", "procurement.view", "forms.view",
+    "training_new_employees.view", "training_incidents.view", "training_materials.view", "training_forms.view",
     "incident.view", "incident.create", "incident.edit", "incident.delete", "incident.download",
     "capa.view", "capa.create", "capa.edit", "capa.approve", "capa.close", "capa.delete",
     "document.upload", "document.delete",
