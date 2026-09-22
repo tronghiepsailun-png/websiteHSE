@@ -64,6 +64,7 @@ export function MobileShell({
   user,
   activeOrg,
   organizations,
+  permissionKeys,
   showSettings,
   overdueCapaItems,
 }: {
@@ -172,7 +173,7 @@ export function MobileShell({
             <LanguageSwitcher />
           </div>
           <div className="flex-1 overflow-y-auto">
-            <SidebarNav onNavigate={() => setMoreOpen(false)} compact />
+            <SidebarNav onNavigate={() => setMoreOpen(false)} compact permissionKeys={permissionKeys} />
           </div>
         </SheetContent>
       </Sheet>

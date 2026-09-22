@@ -26,7 +26,7 @@ export async function setAttendanceStatusAction(
   hours: number,
   notes: string
 ) {
-  const ctx = await requireOrgPermission(PERMISSIONS.EMPLOYEE_EDIT);
+  const ctx = await requireOrgPermission(PERMISSIONS.SECURITY_EDIT);
   const parsed = setStatusSchema.safeParse({ employeeId, date, status, hours, notes });
   if (!parsed.success) return;
 

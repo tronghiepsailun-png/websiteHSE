@@ -8,6 +8,8 @@ export const PERMISSIONS = {
   EMPLOYEE_EDIT: "employee.edit",
   EMPLOYEE_DOWNLOAD: "employee.download",
   EMPLOYEE_MANAGE: "employee.manage", // legacy alias, kept for old role rows — new code checks EMPLOYEE_EDIT instead
+  SECURITY_VIEW: "security.view",
+  SECURITY_EDIT: "security.edit",
   INCIDENT_VIEW: "incident.view",
   INCIDENT_CREATE: "incident.create",
   INCIDENT_EDIT: "incident.edit",
@@ -91,6 +93,15 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     delete: null, // employees are deactivated, never hard-deleted
     upload: null,
     download: [PERMISSIONS.EMPLOYEE_DOWNLOAD],
+  },
+  {
+    key: "security",
+    labelKey: "nav.employeeSecurity",
+    view: PERMISSIONS.SECURITY_VIEW,
+    edit: [PERMISSIONS.SECURITY_EDIT],
+    delete: null,
+    upload: null,
+    download: null,
   },
   {
     key: "violation",

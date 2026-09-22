@@ -513,7 +513,7 @@ const zh: Record<DictionaryKey, string> = {
   "capa.addButton": "添加 CAPA",
   "capa.table.stt": "序号",
   "capa.table.area": "区域",
-  "capa.table.issue": "发现的问题",
+  "capa.table.issue": "问题发生",
   "capa.table.discoveredDate": "发现日期",
   "capa.table.classification": "问题分类",
   "capa.table.photoBefore": "改善前照片",

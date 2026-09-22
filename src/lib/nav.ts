@@ -53,7 +53,7 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: "nav.groupEmployeeMgmt",
     items: [
       { href: "/employees", labelKey: "nav.employees", permission: PERMISSIONS.EMPLOYEE_VIEW, icon: IdCard },
-      { href: "/employees/security", labelKey: "nav.employeeSecurity", icon: ShieldCheck },
+      { href: "/employees/security", labelKey: "nav.employeeSecurity", permission: PERMISSIONS.SECURITY_VIEW, icon: ShieldCheck },
     ],
   },
   {

@@ -33,6 +33,8 @@ const PERMISSION_DEFS = [
   { key: "employee.edit", module: "employee", description: "Create/edit employees" },
   { key: "employee.download", module: "employee", description: "Export the employee list" },
   { key: "employee.manage", module: "employee", description: "Legacy alias of employee.edit, kept for old role rows" },
+  { key: "security.view", module: "security", description: "View the security-guard attendance/evaluation module" },
+  { key: "security.edit", module: "security", description: "Edit security-guard attendance records" },
   { key: "incident.view", module: "incident", description: "View incidents" },
   { key: "incident.create", module: "incident", description: "Report new incidents" },
   { key: "incident.edit", module: "incident", description: "Edit incidents" },
@@ -65,10 +67,11 @@ const PERMISSION_DEFS = [
 ] as const;
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  viewer: ["organization.view", "employee.view", "incident.view", "capa.view", "records.view", "violation.view", "workplan.view", "inventory.view"],
+  viewer: ["organization.view", "employee.view", "security.view", "incident.view", "capa.view", "records.view", "violation.view", "workplan.view", "inventory.view"],
   org_admin: [
     "organization.view", "organization.manage", "user.manage", "config.manage",
     "employee.view", "employee.edit", "employee.download",
+    "security.view", "security.edit",
     "incident.view", "incident.create", "incident.edit", "incident.delete", "incident.download",
     "capa.view", "capa.create", "capa.edit", "capa.approve", "capa.close", "capa.delete",
     "document.upload", "document.delete",

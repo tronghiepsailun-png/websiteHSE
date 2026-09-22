@@ -25,14 +25,11 @@ export function CommandPalette({ permissionKeys }: { permissionKeys: string[] | 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const visibleItems = useMemo(() => {
-    // Main-sidebar modules are always listed, matching SidebarNav — clicking into one without
-    // the view permission shows a friendly message rather than the item disappearing. The
-    // admin hub (Settings) items keep the real permission filter since that hub is a separate,
-    // more sensitive area reached through its own gated menu entry.
-    const always: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+    // Matches SidebarNav: a module the sub-account can't view doesn't show up here either.
+    const mainItems = NAV_SECTIONS.flatMap((s) => s.items).filter((item) => canSee(item, permissionKeys));
     const adminOnly = ADMIN_NAV_ITEMS.filter((item) => canSee(item, permissionKeys));
     const seen = new Set<string>();
-    return [...always, ...adminOnly].filter((item) => {
+    return [...mainItems, ...adminOnly].filter((item) => {
       if (seen.has(item.href)) return false;
       seen.add(item.href);
       return true;

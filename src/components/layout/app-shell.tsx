@@ -90,7 +90,7 @@ export function AppShell({
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
-          <SidebarNav collapsed={railCollapsed} />
+          <SidebarNav collapsed={railCollapsed} permissionKeys={permissionKeys} />
         </div>
         <button
           type="button"
@@ -116,7 +116,7 @@ export function AppShell({
             <Leaf className="size-5 text-sidebar-primary" />
             <T k="common.appName" />
           </SheetTitle>
-          <SidebarNav onNavigate={() => setMobileNavOpen(false)} />
+          <SidebarNav onNavigate={() => setMobileNavOpen(false)} permissionKeys={permissionKeys} />
         </SheetContent>
       </Sheet>
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_SECTIONS, type NavItem } from "@/lib/nav";
+import { NAV_SECTIONS, canSee, type NavItem } from "@/lib/nav";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -151,16 +151,24 @@ export function SidebarNav({
   onNavigate,
   collapsed,
   compact,
+  permissionKeys,
 }: {
   onNavigate?: () => void;
   collapsed?: boolean;
   compact?: boolean;
+  /** null = platform admin / full access. A sub-account without the view permission for a
+   *  module doesn't see it at all — an empty section (all its items filtered out) is dropped
+   *  entirely rather than rendering a heading with nothing under it. */
+  permissionKeys?: string[] | null;
 }) {
   const activeHref = useActiveHref();
-  // Every module is always listed — a sub-account without the view permission for one just
-  // sees a friendly "ask your admin" message on click (see NoPermissionState), rather than
-  // the module disappearing from the sidebar entirely.
-  const visibleSections = NAV_SECTIONS;
+  const visibleSections = useMemo(
+    () =>
+      NAV_SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => canSee(item, permissionKeys ?? null)) })).filter(
+        (section) => section.items.length > 0
+      ),
+    [permissionKeys]
+  );
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
   function toggleGroup(key: string) {

@@ -22,7 +22,7 @@ function hasPermission(permissionKeys: string[] | null, key: string) {
 }
 
 export default async function EmployeeAttendancePage({ searchParams }: PageProps<"/employees/security/attendance">) {
-  const access = await tryApiAccess(PERMISSIONS.EMPLOYEE_VIEW);
+  const access = await tryApiAccess(PERMISSIONS.SECURITY_VIEW);
   if ("denied" in access) return <NoPermissionState />;
   const ctx = access;
   const locale = await getLocale();
@@ -43,7 +43,7 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
           .then((r) => r.flatMap((role) => role.role.rolePermissions.map((rp) => rp.permission.key))),
   ]);
   const stats = getAttendanceStats(rows);
-  const canManage = hasPermission(permissionKeys, PERMISSIONS.EMPLOYEE_EDIT);
+  const canManage = hasPermission(permissionKeys, PERMISSIONS.SECURITY_EDIT);
 
   return (
     <div className="flex flex-col gap-6">
