@@ -2,6 +2,15 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 
 const PUBLIC_PATHS = ["/login"];
+// Inventory item photos are plain public files under public/inventory (see the comment on
+// saveInventoryImage in inventory/catalog/actions.ts) — served with no auth/download route by
+// design. They share the "/inventory" prefix with the real (auth-required) Tồn kho page, so a
+// plain prefix check can't tell them apart; only the actual filenames have an image extension.
+// This has to be public specifically because Next's own image-optimization endpoint fetches
+// the source file via a fresh, cookie-less internal request — without this, that fetch always
+// hit the login redirect instead of the image, which one specific requested size effectively
+// hid until now.
+const INVENTORY_IMAGE_PATH = /^\/inventory\/[^/]+\.(png|jpe?g|webp|gif)$/i;
 // Kept as literals (not imported from src/lib/device.ts) because that module also imports
 // `cookies` from "next/headers", which isn't valid inside the proxy's own bundle — must match
 // DEVICE_COOKIE/LIVENESS_COOKIE there exactly.
@@ -35,10 +44,18 @@ function setDeviceCookie(req: NextRequest, response: NextResponse) {
   return response;
 }
 
+function isPublicPath(pathname: string) {
+  return (
+    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/login" ||
+    INVENTORY_IMAGE_PATH.test(pathname)
+  );
+}
+
 const wrappedAuth = auth((req) => {
   const { pathname } = req.nextUrl;
-  const isPublic =
-    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/api/auth") || pathname === "/api/login";
+  const isPublic = isPublicPath(pathname);
   const origin = publicOrigin(req);
 
   let response: NextResponse;
@@ -75,8 +92,7 @@ export default async function proxy(req: NextRequest, event: Parameters<typeof w
 
   if (staleSession) {
     const { pathname } = req.nextUrl;
-    const isPublic =
-      PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/api/auth") || pathname === "/api/login";
+    const isPublic = isPublicPath(pathname);
     let response: NextResponse;
     if (isPublic) {
       response = NextResponse.next();
