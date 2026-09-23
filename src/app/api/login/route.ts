@@ -7,6 +7,7 @@ import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 import { ACTIVE_ORG_COOKIE_SECURE } from "@/server/org-context";
 import { LIVENESS_COOKIE } from "@/lib/device";
+import { writeAuditLog } from "@/server/audit";
 
 // Plain Route Handler instead of a Server Action: a Server Action that mutates cookies (which
 // signIn() does internally) triggers Next.js's "automatically re-render the current page"
@@ -32,7 +33,18 @@ export async function POST(request: Request) {
       secure: ACTIVE_ORG_COOKIE_SECURE,
     });
     // Best-effort — never let a logging failure block a successful login.
-    await prisma.user.update({ where: { email }, data: { lastLoginAt: new Date() } }).catch(() => {});
+    const user = await prisma.user.update({ where: { email }, data: { lastLoginAt: new Date() } }).catch(() => null);
+    if (user) {
+      // Not scoped to one org yet at this point (org selection happens after login) — logged
+      // once per org the account belongs to, so each org's own admin sees it in their audit
+      // log, same as everyone else's activity there.
+      const memberships = await prisma.userOrganization.findMany({ where: { userId: user.id }, select: { organizationId: true } });
+      await Promise.all(
+        memberships.map((m) =>
+          writeAuditLog({ organizationId: m.organizationId, userId: user.id, module: "organization", recordType: "User", recordId: user.id, action: "login" })
+        )
+      ).catch(() => {});
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof AuthError) {

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { createIncidentAction, previewIncidentNumberAction, type CreateIncidentState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateTime24Input } from "@/components/ui/datetime-24-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +13,7 @@ import { FieldError } from "@/components/ui/field-error";
 import { IncidentStatusBadge } from "@/components/incidents/severity-badge";
 import { EmployeeCombobox } from "@/components/employees/employee-combobox";
 import { useT } from "@/lib/i18n/locale-context";
-import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY, deriveFactoryCode } from "@/lib/incident-constants";
+import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY, deriveFactoryCode, INJURED_BODY_PART_OPTIONS } from "@/lib/incident-constants";
 
 type Option = { id: string; name: string };
 type SeverityOption = Option & { code: string };
@@ -96,14 +97,12 @@ export function IncidentForm({
       <Card size="sm">
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t("incidents.table.occurred")}>
-            <Input
-              id="occurredAt"
+            <DateTime24Input
               name="occurredAt"
-              type="datetime-local"
               value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
+              onChange={setOccurredAt}
               required
-              aria-invalid={!!state?.fieldErrors?.occurredAt}
+              ariaInvalid={!!state?.fieldErrors?.occurredAt}
             />
             <FieldError kind={state?.fieldErrors?.occurredAt} />
           </Field>
@@ -207,7 +206,12 @@ export function IncidentForm({
                   />
                 </Field>
                 <Field label={t("incidents.detail.injuredBodyPart")}>
-                  <Input id="injuredBodyPart" name="injuredBodyPart" />
+                  <Input id="injuredBodyPart" name="injuredBodyPart" list="injured-body-part-options" />
+                  <datalist id="injured-body-part-options">
+                    {INJURED_BODY_PART_OPTIONS.map((part) => (
+                      <option key={part} value={part} />
+                    ))}
+                  </datalist>
                 </Field>
               </div>
               <div className="grid grid-cols-1 gap-3 border-t pt-3 sm:grid-cols-3">

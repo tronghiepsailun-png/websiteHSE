@@ -20,3 +20,29 @@ export function deriveFactoryCode(orgUnitName: string | null | undefined): strin
   const match = FACTORY_CODE_BY_ZONE.find((z) => orgUnitName.includes(z.zone));
   return match ? match.code : null;
 }
+
+/** Common injured-body-part values for the quick-pick <datalist> on "Vị trí bị thương" — the
+ *  field stays a plain free-text input (a <datalist> never restricts what can be typed), this
+ *  just gives reporters a fast, consistent set of options instead of retyping the same values
+ *  every time. */
+export const INJURED_BODY_PART_OPTIONS = [
+  "Đầu",
+  "Mặt",
+  "Mắt",
+  "Cổ",
+  "Vai",
+  "Cánh tay",
+  "Cổ tay",
+  "Bàn tay",
+  "Ngón tay",
+  "Ngực",
+  "Bụng",
+  "Lưng",
+  "Hông",
+  "Đùi",
+  "Đầu gối",
+  "Cổ chân",
+  "Bàn chân",
+  "Ngón chân",
+  "Toàn thân",
+];

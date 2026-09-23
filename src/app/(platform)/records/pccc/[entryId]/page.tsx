@@ -11,6 +11,8 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { DataStatusBadge, ExpiryStatusBadge } from "../status-badges";
 import { VersionHistoryList } from "./version-history";
 import { RecordSlotsGrid } from "./record-slots";
+import { EditRecordTypeDialog } from "./edit-record-type-dialog";
+import { EditEntryStatusDialog } from "./edit-entry-status-dialog";
 
 function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
@@ -62,12 +64,13 @@ export default async function RecordEntryDetailPage({ params }: PageProps<"/reco
         <p className="text-sm text-muted-foreground">{orgUnit.name}</p>
       </div>
 
-      {/* 1. Catalog info (read-only) */}
+      {/* 1. Catalog info — shared across every site using this record type */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold">
             <T k="records.detail.catalogInfo" />
           </CardTitle>
+          {canManage && <EditRecordTypeDialog recordType={entry.recordType} />}
         </CardHeader>
         <CardContent className="flex flex-wrap justify-between gap-x-10 gap-y-4">
           <Field label={<T k="records.detail.legalBasis" />} value={recordType.legalBasis} className="max-w-sm" />
@@ -82,10 +85,11 @@ export default async function RecordEntryDetailPage({ params }: PageProps<"/reco
 
       {/* 2. Current status */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold">
             <T k="records.detail.currentStatus" />
           </CardTitle>
+          {canManage && <EditEntryStatusDialog entryId={entry.id} responsiblePerson={entry.responsiblePerson} />}
         </CardHeader>
         <CardContent className="flex flex-wrap justify-between gap-x-10 gap-y-4">
           <div className="flex flex-col gap-1">

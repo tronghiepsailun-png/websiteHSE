@@ -7,7 +7,7 @@ import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
 import { assertBelongsToOrg } from "@/server/org-context";
-import { createRecordType, setRecordTypeActive, applyRecordTypeToSites } from "@/server/records-catalog";
+import { createRecordType, setRecordTypeActive, applyRecordTypeToSites, updateRecordType } from "@/server/records-catalog";
 import { writeAuditLog } from "@/server/audit";
 
 // A crafted request can bypass the form's type="number" input, so a non-numeric string must
@@ -75,6 +75,50 @@ export async function createRecordTypeAction(formData: FormData) {
 
   revalidateRecordsPaths();
   redirect("/records/pccc/catalog");
+}
+
+const updateSchema = z.object({
+  id: z.string().min(1),
+  legalBasis: z.string().optional(),
+  legalBasisZh: z.string().optional(),
+  frequencyLabel: z.string().optional(),
+  frequencyLabelZh: z.string().optional(),
+  cycleMonths: z.string().optional(),
+  responsibleUnit: z.string().optional(),
+  responsibleUnitZh: z.string().optional(),
+});
+
+/** Edits an existing type's catalog fields — reachable both from the catalog page and from
+ *  the "Sửa" button on a record entry's own "Thông tin hồ sơ chuẩn" card. No redirect (unlike
+ *  createRecordTypeAction): both callers manage their own dialog/close state and just need the
+ *  page revalidated, not navigated away. */
+export async function updateRecordTypeAction(formData: FormData) {
+  const ctx = await requireOrgPermission(PERMISSIONS.RECORDS_EDIT);
+  const parsed = updateSchema.parse(Object.fromEntries(formData.entries()));
+
+  const recordType = await prisma.recordType.findUnique({ where: { id: parsed.id }, include: { group: { include: { domain: true } } } });
+  assertBelongsToOrg(recordType?.group.domain ?? null, ctx.organizationId);
+
+  await updateRecordType(parsed.id, {
+    legalBasis: parsed.legalBasis?.trim() || null,
+    legalBasisZh: parsed.legalBasisZh?.trim() || null,
+    frequencyLabel: parsed.frequencyLabel?.trim() || null,
+    frequencyLabelZh: parsed.frequencyLabelZh?.trim() || null,
+    cycleMonths: toFiniteNumberOrNull(parsed.cycleMonths),
+    responsibleUnit: parsed.responsibleUnit?.trim() || null,
+    responsibleUnitZh: parsed.responsibleUnitZh?.trim() || null,
+  });
+
+  await writeAuditLog({
+    organizationId: ctx.organizationId,
+    userId: ctx.userId,
+    module: "records",
+    recordType: "RecordType",
+    recordId: parsed.id,
+    action: "update",
+  });
+
+  revalidateRecordsPaths();
 }
 
 export async function toggleRecordTypeActiveAction(formData: FormData) {

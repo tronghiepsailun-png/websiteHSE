@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { History, Plus, Pencil, Trash2 } from "lucide-react";
+import { History, Plus, Pencil, Trash2, LogIn } from "lucide-react";
 import { requireOrgPermission } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
 import { listAuditLogForOrg, listAuditLogModules } from "@/server/audit";
@@ -29,6 +29,7 @@ const ACTION_STYLE: Record<string, { icon: typeof Plus; className: string; label
   create: { icon: Plus, className: "bg-success/10 text-success", labelKey: "audit.action.create" },
   update: { icon: Pencil, className: "bg-blue-500/10 text-blue-600", labelKey: "audit.action.update" },
   delete: { icon: Trash2, className: "bg-destructive/10 text-destructive", labelKey: "audit.action.delete" },
+  login: { icon: LogIn, className: "bg-slate-500/10 text-slate-600", labelKey: "audit.action.login" },
 };
 
 function fmtDateTime(d: Date) {

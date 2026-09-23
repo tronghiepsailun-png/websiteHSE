@@ -168,14 +168,14 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
         </div>
       </HorizontalScroll>
 
-      {(totalByDeptData.length > 0 || byClassificationData.length > 0) && (
+      {(unresolvedByDeptData.length > 0 || byClassificationData.length > 0) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <TopNBarChart titleKey="capa.chart.byDepartment" data={totalByDeptData} topN={8} />
+          <TopNBarChart titleKey="capa.chart.unresolvedByDepartment" data={unresolvedByDeptData} topN={8} />
           <DonutChart titleKey="capa.chart.byClassification" data={byClassificationData} topN={6} colorMap={byClassificationColorMap} />
         </div>
       )}
 
-      {unresolvedByDeptData.length > 0 && <TopNVerticalBarChart titleKey="capa.chart.unresolvedByDepartment" data={unresolvedByDeptData} />}
+      {totalByDeptData.length > 0 && <TopNVerticalBarChart titleKey="capa.chart.byDepartment" data={totalByDeptData} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <CapaFilters search={search} status={status} classification={classification} />

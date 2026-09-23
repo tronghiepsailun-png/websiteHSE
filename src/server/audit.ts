@@ -8,7 +8,7 @@ export async function writeAuditLog(params: {
   module: string;
   recordType: string;
   recordId: string;
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "login";
   changes?: FieldChange[];
 }) {
   const { organizationId, userId, module, recordType, recordId, action, changes } = params;

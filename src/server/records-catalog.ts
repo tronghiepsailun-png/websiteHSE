@@ -40,11 +40,17 @@ export async function createRecordType(params: {
   });
 }
 
+export async function setRecordTypeActive(id: string, isActive: boolean) {
+  return prisma.recordType.update({ where: { id }, data: { isActive } });
+}
+
+/** Edits the shared catalog definition for one record type — affects every site's entry of
+ *  this type (that's the point: "Thông tin hồ sơ chuẩn" is the standard, not a per-site copy
+ *  of it). code/name/group are intentionally not editable here — changing which catalog row
+ *  an entry points to is a different, riskier operation than correcting its own fields. */
 export async function updateRecordType(
   id: string,
   params: {
-    name: string;
-    nameZh?: string | null;
     legalBasis?: string | null;
     legalBasisZh?: string | null;
     frequencyLabel?: string | null;
@@ -52,14 +58,9 @@ export async function updateRecordType(
     cycleMonths?: number | null;
     responsibleUnit?: string | null;
     responsibleUnitZh?: string | null;
-    sharedAcrossSites: boolean;
   }
 ) {
   return prisma.recordType.update({ where: { id }, data: params });
-}
-
-export async function setRecordTypeActive(id: string, isActive: boolean) {
-  return prisma.recordType.update({ where: { id }, data: { isActive } });
 }
 
 /** "Áp dụng cho khu" — bulk-creates the missing RecordEntry rows for the selected sites.

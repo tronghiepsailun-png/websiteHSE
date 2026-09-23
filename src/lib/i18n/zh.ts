@@ -173,6 +173,7 @@ const zh: Record<DictionaryKey, string> = {
   "audit.action.create": "创建了",
   "audit.action.update": "修改了",
   "audit.action.delete": "删除了",
+  "audit.action.login": "登录了",
   "audit.pageSubtitle": "组织内所有账户的创建/修改/删除活动，最新的排在最前。",
   "audit.filterAll": "所有模块",
   "audit.colWhen": "时间",
@@ -671,6 +672,10 @@ const zh: Record<DictionaryKey, string> = {
   "records.table.noResults": "没有符合筛选条件的档案。",
 
   "records.detail.catalogInfo": "标准档案信息",
+  "records.detail.editCatalogInfoTitle": "编辑标准档案信息",
+  "records.detail.editCatalogInfoHint": "这是该档案类型的通用信息——在此修改会应用于所有使用同一档案类型的区域，不仅是当前查看的这一份。",
+  "records.detail.editStatusTitle": "编辑当前状态",
+  "records.detail.editStatusHint": "其他信息（执行日期、到期日期）根据最近更新的文件自动获取——此处只能直接修改负责人。",
   "records.detail.legalBasis": "法律依据 / 标准",
   "records.detail.frequency": "要求频率",
   "records.detail.cycle": "周期",

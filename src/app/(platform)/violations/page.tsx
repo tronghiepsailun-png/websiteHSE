@@ -10,6 +10,7 @@ import { getWorkInjuryDeductionSummary, availableWorkInjuryDeductionMonths, list
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
+import { TopNVerticalBarChart } from "@/components/charts/top-n-vertical-bar-chart";
 import type { ChartDatum } from "@/components/charts/chart-utils";
 import {
   DropdownMenu,
@@ -102,16 +103,19 @@ export default async function ViolationsOverviewPage({ searchParams }: PageProps
   };
 
   // Department comparison — every one of the 3 violation types snapshots the offending
-  // employee's orgUnitLevel1 at logging time, so all three roll up into one ranking regardless
-  // of which module they came from.
+  // employee's cấp-2 department (+ giai đoạn/khu vực, e.g. "草坪车间 - 二期") at logging time, so
+  // all three roll up into one ranking regardless of which module they came from. Cấp 2 (not
+  // cấp 1) because cấp 1 is too coarse to be actionable — several giai đoạn share the same cấp
+  // 1 name, hiding which specific workshop actually has the problem.
   const departmentCounts = new Map<string, number>();
-  function addDept(dept: string | null | undefined) {
-    if (!dept) return;
-    departmentCounts.set(dept, (departmentCounts.get(dept) ?? 0) + 1);
+  function addDept(level2: string | null | undefined, region: string | null | undefined) {
+    if (!level2) return;
+    const label = region ? `${level2} - ${region}` : level2;
+    departmentCounts.set(label, (departmentCounts.get(label) ?? 0) + 1);
   }
-  internalRows.forEach((v) => addDept(v.safetyOfficer.employee.orgUnitLevel1));
-  safety5sRows.forEach((v) => addDept(v.orgUnitLevel1Snapshot));
-  lienDeRows.forEach((v) => addDept(v.orgUnitLevel1Snapshot));
+  internalRows.forEach((v) => addDept(v.safetyOfficer.employee.orgUnitLevel2, v.safetyOfficer.employee.region));
+  safety5sRows.forEach((v) => addDept(v.orgUnitLevel2Snapshot, v.regionSnapshot));
+  lienDeRows.forEach((v) => addDept(v.orgUnitLevel2Snapshot, v.regionSnapshot));
   const byDepartment: ChartDatum[] = [...departmentCounts.entries()].map(([key, value]) => ({ key, value })).sort((a, b) => b.value - a.value);
 
   // Violation-content ranking — only 5S (free-text violationContent) and An toàn viên (its
@@ -184,7 +188,7 @@ export default async function ViolationsOverviewPage({ searchParams }: PageProps
       {byType.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DonutChart titleKey="violations.overview.chart.byType" data={byType} topN={3} colorMap={byTypeColorMap} />
-          <TopNBarChart titleKey="violations.overview.chart.byDepartment" data={byDepartment} topN={8} />
+          <TopNVerticalBarChart titleKey="violations.overview.chart.byDepartment" data={byDepartment} />
         </div>
       ) : (
         <Card>

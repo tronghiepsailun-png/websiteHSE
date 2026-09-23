@@ -7,6 +7,7 @@ import { updateIncidentFullAction, type UpdateIncidentFullState } from "./action
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateTime24Input } from "@/components/ui/datetime-24-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +15,7 @@ import { EmployeeCombobox } from "@/components/employees/employee-combobox";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import type { EmployeeLite } from "@/server/employees";
-import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY, deriveFactoryCode } from "@/lib/incident-constants";
+import { DEFAULT_POINTS_DEDUCTED_BY_SEVERITY, deriveFactoryCode, INJURED_BODY_PART_OPTIONS } from "@/lib/incident-constants";
 
 type Option = { id: string; name: string };
 type SeverityOption = Option & { code: string };
@@ -154,7 +155,7 @@ export function EditIncidentDialog({
               </Select>
             </Field>
             <Field label={t("incidents.table.occurred")}>
-              <Input name="occurredAt" type="datetime-local" defaultValue={toDateTimeLocal(incident.occurredAt)} required />
+              <DateTime24Input name="occurredAt" defaultValue={toDateTimeLocal(incident.occurredAt)} required />
             </Field>
             <Field label={t("incidents.new.fields.locationDetail")}>
               <Input name="locationDetail" defaultValue={incident.locationDetail ?? ""} />
@@ -219,7 +220,12 @@ export function EditIncidentDialog({
               <Input name="pointsDeducted" type="number" step="0.1" value={pointsDeducted} readOnly className="bg-muted text-muted-foreground" />
             </Field>
             <Field label={t("incidents.detail.injuredBodyPart")}>
-              <Input name="injuredBodyPart" defaultValue={incident.injuredBodyPart ?? ""} />
+              <Input name="injuredBodyPart" defaultValue={incident.injuredBodyPart ?? ""} list="injured-body-part-options-edit" />
+              <datalist id="injured-body-part-options-edit">
+                {INJURED_BODY_PART_OPTIONS.map((part) => (
+                  <option key={part} value={part} />
+                ))}
+              </datalist>
             </Field>
           </div>
 

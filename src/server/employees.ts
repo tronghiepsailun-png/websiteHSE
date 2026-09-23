@@ -195,6 +195,34 @@ function sortByCountDesc<T extends { count: number }>(items: T[]): T[] {
   return items.sort((a, b) => b.count - a.count);
 }
 
+// Khu vực (region) values encode a factory phase (一期/二期/三期/...) as a substring — sorting by
+// headcount instead of phase number made this list read in a visually random order. Extracted
+// rank puts recognized phases first in numeric order; anything else falls back after them,
+// by headcount, same as before.
+const PHASE_MARKERS = ["一期", "二期", "三期", "四期", "五期"];
+function phaseRank(region: string | null): number {
+  if (!region) return PHASE_MARKERS.length + 1;
+  const idx = PHASE_MARKERS.findIndex((marker) => region.includes(marker));
+  return idx === -1 ? PHASE_MARKERS.length : idx;
+}
+function sortRegionsByPhase<T extends { region: string | null; count: number }>(items: T[]): T[] {
+  return items.sort((a, b) => phaseRank(a.region) - phaseRank(b.region) || b.count - a.count);
+}
+
+// Ca (shift) values are the rotating team letter (A/B/C — see attendance.ts's TEAM_ROTATION)
+// for most employees, and some other raw string (e.g. a fixed day-shift label) for the rest —
+// sorting those by headcount interleaved them with A/B/C unpredictably. A/B/C now always sort
+// first in that order; every other value (including "unspecified") follows, by headcount.
+const SHIFT_ORDER = ["A", "B", "C"];
+function shiftRank(shift: string | null): number {
+  if (!shift) return SHIFT_ORDER.length + 1;
+  const idx = SHIFT_ORDER.indexOf(shift.trim().toUpperCase());
+  return idx === -1 ? SHIFT_ORDER.length : idx;
+}
+function sortShiftsByTeam<T extends { shift: string | null; count: number }>(items: T[]): T[] {
+  return items.sort((a, b) => shiftRank(a.shift) - shiftRank(b.shift) || b.count - a.count);
+}
+
 type HierarchyRow = { orgUnitLevel1: string | null; orgUnitLevel2: string | null; region: string | null; team: string | null; shift: string | null };
 
 /** Full Bộ phận cấp 1 → cấp 2 → Khu vực → Tổ nhóm → Ca hierarchy with headcounts at every
@@ -221,11 +249,11 @@ export async function getEmployeeHierarchy(organizationId: string): Promise<Leve
         const teams = [...byTeam.entries()].map(([team, tmRows]): TeamBreakdown => {
           const byShift = groupBy(tmRows, (r) => r.shift);
           const shifts = [...byShift.entries()].map(([shift, shRows]): ShiftBreakdown => ({ shift, count: shRows.length }));
-          return { team, count: tmRows.length, shifts: sortByCountDesc(shifts) };
+          return { team, count: tmRows.length, shifts: sortShiftsByTeam(shifts) };
         });
         return { region, count: rgRows.length, teams: sortByCountDesc(teams) };
       });
-      return { orgUnitLevel2, count: l2Rows.length, regions: sortByCountDesc(regions) };
+      return { orgUnitLevel2, count: l2Rows.length, regions: sortRegionsByPhase(regions) };
     });
     return { orgUnitLevel1, count: l1Rows.length, level2: sortByCountDesc(level2) };
   });

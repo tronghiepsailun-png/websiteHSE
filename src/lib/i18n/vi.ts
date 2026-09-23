@@ -172,6 +172,7 @@ const vi = {
   "audit.action.create": "đã tạo",
   "audit.action.update": "đã sửa",
   "audit.action.delete": "đã xoá",
+  "audit.action.login": "đã đăng nhập",
   "audit.pageSubtitle": "Toàn bộ hoạt động tạo/sửa/xóa của mọi tài khoản trong tổ chức, mới nhất trước.",
   "audit.filterAll": "Tất cả module",
   "audit.colWhen": "Thời gian",
@@ -670,6 +671,10 @@ const vi = {
   "records.table.noResults": "Không tìm thấy hồ sơ nào khớp với bộ lọc.",
 
   "records.detail.catalogInfo": "Thông tin hồ sơ chuẩn",
+  "records.detail.editCatalogInfoTitle": "Sửa thông tin hồ sơ chuẩn",
+  "records.detail.editCatalogInfoHint": "Đây là thông tin chung của loại hồ sơ này — sửa ở đây sẽ áp dụng cho mọi khu vực đang dùng chung loại hồ sơ này, không chỉ riêng hồ sơ đang xem.",
+  "records.detail.editStatusTitle": "Sửa trạng thái hiện tại",
+  "records.detail.editStatusHint": "Các thông tin khác (ngày thực hiện, ngày hết hạn) được tự động lấy theo tài liệu cập nhật gần nhất — chỉ Người phụ trách có thể sửa trực tiếp ở đây.",
   "records.detail.legalBasis": "Căn cứ pháp lý / Tiêu chuẩn",
   "records.detail.frequency": "Tần suất yêu cầu",
   "records.detail.cycle": "Chu kỳ",
