@@ -23,6 +23,8 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { getIncidentDashboardData } from "@/server/incidents";
 import { getCapaSummary } from "@/server/capa";
 import { listViolations } from "@/server/violations";
+import { getSafety5sViolationSummary } from "@/server/safety-5s-violations";
+import { getWorkInjuryDeductionSummary } from "@/server/work-injury-deductions";
 import { listInventoryItemsWithStock, isLowStock, localizeInventoryItem } from "@/server/inventory";
 import { DonutChart } from "@/components/charts/donut-chart";
 import type { ChartDatum } from "@/components/charts/chart-utils";
@@ -63,6 +65,11 @@ export default async function DashboardPage() {
     canSeeViolations ? listViolations(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : [],
   ]);
 
+  const [safety5sSummary, lienDeSummary] = await Promise.all([
+    canSeeViolations ? getSafety5sViolationSummary(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : null,
+    canSeeViolations ? getWorkInjuryDeductionSummary(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : null,
+  ]);
+
   const [employeesCount, pcccCount, severities, inventoryItems] = await Promise.all([
     canSeeEmployees ? prisma.employee.count({ where: { organizationId: ctx.organizationId, status: "active" } }) : 0,
     canSeeRecords ? prisma.recordEntry.count({ where: { organizationId: ctx.organizationId, notApplicable: false } }) : 0,
@@ -77,15 +84,19 @@ export default async function DashboardPage() {
   const orgName = org?.name ?? t(locale, "common.appName");
   const severityColorByName = Object.fromEntries(severities.filter((s) => s.colorHex).map((s) => [s.name, s.colorHex as string]));
 
-  const violationsByTypeChart: ChartDatum[] = Object.entries(
-    violationsThisMonth.reduce<Record<string, number>>((acc, v) => {
-      const name = (locale === "zh" ? v.violationType?.labelZh : v.violationType?.labelVi) ?? v.violationType?.labelVi ?? "—";
-      acc[name] = (acc[name] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .map(([key, value]) => ({ key, value }))
-    .sort((a, b) => b.value - a.value);
+  // Same "Theo loại vi phạm" breakdown as the Violations module's own overview page (5S vs An
+  // toàn viên vs Liên đới) — not a breakdown of the internal violationType catalog, which is a
+  // different, narrower thing this card used to show by mistake.
+  const violationsByTypeChart: ChartDatum[] = [
+    { key: t(locale, "nav.violations5s"), value: safety5sSummary?.count ?? 0 },
+    { key: t(locale, "nav.violationsInternal"), value: violationsThisMonth.length },
+    { key: t(locale, "nav.violationsLienDe"), value: lienDeSummary?.count ?? 0 },
+  ].filter((d) => d.value > 0);
+  const violationsByTypeColorMap: Record<string, string> = {
+    [t(locale, "nav.violations5s")]: "#fb923c",
+    [t(locale, "nav.violationsInternal")]: "#f87171",
+    [t(locale, "nav.violationsLienDe")]: "#60a5fa",
+  };
   const latestViolation = violationsThisMonth.at(-1);
 
   // ── 5 KPI cards — every number traced to a real query above, none invented. ──
@@ -257,45 +268,16 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* 2 real-data cards — CAPA status breakdown + violations-by-type chart. Chấm công and
-          the old plain violations-count card were dropped: attendance already has its own
-          dedicated page, and a chart reads better here than a bare number + text list. */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {canSeeCapa && capaSummary ? (
-          <Card className="transition-shadow duration-200 hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">
-                <T k="dashboard.card.capa" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm">
-              <Row labelKey="status.capa.completed" value={capaSummary.completed} tone="text-success" />
-              <Row labelKey="status.capa.in_progress" value={capaSummary.open - capaSummary.overdue} tone="text-foreground" />
-              <Row labelKey="status.capa.overdue" value={capaSummary.overdue} tone="text-destructive" />
-            </CardContent>
-          </Card>
-        ) : (
-          <LockedCard titleKey="dashboard.card.capa" />
-        )}
-        {canSeeViolations ? (
-          violationsByTypeChart.length > 0 ? (
-            <DonutChart titleKey="dashboard.card.violations" data={violationsByTypeChart} topN={5} />
-          ) : (
-            <Card className="transition-shadow duration-200 hover:shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold">
-                  <T k="dashboard.card.violations" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{violationsThisMonth.length}</p>
-              </CardContent>
-            </Card>
-          )
-        ) : (
-          <LockedCard titleKey="dashboard.card.violations" />
-        )}
-      </div>
+      {/* "Theo loại vi phạm" — same chart as the Violations module's own overview page.
+          Khắc phục's status-breakdown card was dropped from the dashboard entirely (CAPA
+          already has its own completion-rate KPI in the top row and its own module page). */}
+      {canSeeViolations ? (
+        violationsByTypeChart.length > 0 ? (
+          <DonutChart titleKey="violations.overview.chart.byType" data={violationsByTypeChart} topN={3} colorMap={violationsByTypeColorMap} />
+        ) : null
+      ) : (
+        <LockedCard titleKey="violations.overview.chart.byType" />
+      )}
 
       {/* Low-stock alert — thumbnail + name + count per item, scannable at a glance without
           reading; hidden entirely when nothing is below tiêu chuẩn (a clean dashboard is the
@@ -377,16 +359,5 @@ function LockedCard({ titleKey }: { titleKey: DictionaryKey }) {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function Row({ labelKey, value, tone }: { labelKey: DictionaryKey; value: number; tone: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">
-        <T k={labelKey} />
-      </span>
-      <span className={`font-semibold ${tone}`}>{value}</span>
-    </div>
   );
 }
