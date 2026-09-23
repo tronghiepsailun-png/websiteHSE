@@ -268,48 +268,51 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* "Theo loại vi phạm" — same chart as the Violations module's own overview page.
-          Khắc phục's status-breakdown card was dropped from the dashboard entirely (CAPA
-          already has its own completion-rate KPI in the top row and its own module page). */}
-      {canSeeViolations ? (
-        violationsByTypeChart.length > 0 ? (
-          <DonutChart titleKey="violations.overview.chart.byType" data={violationsByTypeChart} topN={3} colorMap={violationsByTypeColorMap} />
-        ) : null
-      ) : (
-        <LockedCard titleKey="violations.overview.chart.byType" />
-      )}
-
-      {/* Low-stock alert — thumbnail + name + count per item, scannable at a glance without
-          reading; hidden entirely when nothing is below tiêu chuẩn (a clean dashboard is the
-          normal case, not an empty-state to explain). */}
-      {canSeeInventory && lowStockItems.length > 0 && (
-        <Card className="border-destructive/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
-              <PackageX className="size-4.5" />
-              <T k="dashboard.card.lowStock" vars={{ n: lowStockItems.length }} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HorizontalScroll className="flex gap-2.5">
-              {lowStockItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href="/inventory"
-                  className="flex w-[104px] shrink-0 flex-col items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-2.5 transition-colors hover:bg-destructive/10"
-                >
-                  <div className="flex size-11 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-white">
-                    {item.imageUrl && <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="h-full w-full object-contain" />}
-                  </div>
-                  <span className="line-clamp-2 text-center text-[11px] leading-tight font-medium">{item.name}</span>
-                  <span className={`text-xs font-bold ${item.stock === 0 ? "text-destructive" : "text-warning"}`}>
-                    {item.stock}/{item.minStockLevel}
-                  </span>
-                </Link>
-              ))}
-            </HorizontalScroll>
-          </CardContent>
-        </Card>
+      {/* "Theo loại vi phạm" (col 1, same width as the trend chart above it) + low-stock alert
+          (col 3, directly under "Hoạt động gần đây") — column 2 is deliberately left empty,
+          matching the row above's 3-column rhythm rather than stretching either card full-width. */}
+      {(canSeeViolations || (canSeeInventory && lowStockItems.length > 0)) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {canSeeViolations ? (
+            violationsByTypeChart.length > 0 ? (
+              <DonutChart titleKey="violations.overview.chart.byType" data={violationsByTypeChart} topN={3} colorMap={violationsByTypeColorMap} />
+            ) : (
+              <div />
+            )
+          ) : (
+            <LockedCard titleKey="violations.overview.chart.byType" />
+          )}
+          <div />
+          {canSeeInventory && lowStockItems.length > 0 && (
+            <Card className="border-destructive/30 lg:col-start-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
+                  <PackageX className="size-4.5" />
+                  <T k="dashboard.card.lowStock" vars={{ n: lowStockItems.length }} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex max-h-[260px] flex-col gap-1.5 overflow-y-auto">
+                  {lowStockItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      href="/inventory"
+                      className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1.5 transition-colors hover:bg-destructive/10"
+                    >
+                      <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border/60 bg-white">
+                        {item.imageUrl && <Image src={item.imageUrl} alt={item.name} width={28} height={28} className="h-full w-full object-contain" />}
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.name}</span>
+                      <span className={`shrink-0 text-xs font-bold ${item.stock === 0 ? "text-destructive" : "text-warning"}`}>
+                        {item.stock}/{item.minStockLevel}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Quick links to real routes only */}
