@@ -49,7 +49,7 @@ export default async function AuditLogPage({ searchParams }: PageProps<"/admin/a
   const activeModule = typeof params.module === "string" && params.module !== "" ? params.module : undefined;
 
   const [entries, modules] = await Promise.all([
-    listAuditLogForOrg(ctx.organizationId, { module: activeModule }),
+    listAuditLogForOrg(ctx.organizationId, { module: activeModule, limit: 20 }),
     listAuditLogModules(ctx.organizationId),
   ]);
 

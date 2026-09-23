@@ -254,6 +254,7 @@ const vi = {
   "dashboard.card.capa": "Khắc phục",
   "dashboard.card.violations": "Vi phạm An toàn viên (tháng này)",
   "dashboard.card.attendance": "Chấm công (tháng này)",
+  "dashboard.card.lowStock": "Tồn kho dưới chuẩn ({n} sản phẩm)",
   "dashboard.recentPhotos": "Hình ảnh sự cố gần đây",
   "incidents.moduleName": "Quản lý Sự cố",
   "incidents.unitLabel": "sự cố",

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertTriangle,
   IdCard,
@@ -8,6 +9,7 @@ import {
   Warehouse,
   ListTodo,
   Lock,
+  PackageX,
 } from "lucide-react";
 import { requireApiAccess } from "@/server/api-guard";
 import { PERMISSIONS } from "@/server/permissions";
@@ -21,8 +23,9 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { getIncidentDashboardData } from "@/server/incidents";
 import { getCapaSummary } from "@/server/capa";
 import { listViolations } from "@/server/violations";
-import { getAttendanceMonth, getAttendanceStats } from "@/server/attendance";
+import { listInventoryItemsWithStock, isLowStock, localizeInventoryItem } from "@/server/inventory";
 import { DonutChart } from "@/components/charts/donut-chart";
+import type { ChartDatum } from "@/components/charts/chart-utils";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
@@ -60,28 +63,29 @@ export default async function DashboardPage() {
     canSeeViolations ? listViolations(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : [],
   ]);
 
-  const [attendanceMonth, employeesCount, pcccCount, severities] = await Promise.all([
-    canSeeEmployees ? getAttendanceMonth(ctx.organizationId, now.getFullYear(), now.getMonth() + 1) : null,
+  const [employeesCount, pcccCount, severities, inventoryItems] = await Promise.all([
     canSeeEmployees ? prisma.employee.count({ where: { organizationId: ctx.organizationId, status: "active" } }) : 0,
     canSeeRecords ? prisma.recordEntry.count({ where: { organizationId: ctx.organizationId, notApplicable: false } }) : 0,
     canSeeIncidents
       ? prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, select: { name: true, colorHex: true } })
       : [],
+    canSeeInventory ? listInventoryItemsWithStock(ctx.organizationId) : [],
   ]);
+
+  const lowStockItems = inventoryItems.filter(isLowStock).map((item) => localizeInventoryItem(item, locale));
 
   const orgName = org?.name ?? t(locale, "common.appName");
   const severityColorByName = Object.fromEntries(severities.filter((s) => s.colorHex).map((s) => [s.name, s.colorHex as string]));
-  const attendanceStats = attendanceMonth ? getAttendanceStats(attendanceMonth.rows) : null;
 
-  const violationsByType = Object.entries(
+  const violationsByTypeChart: ChartDatum[] = Object.entries(
     violationsThisMonth.reduce<Record<string, number>>((acc, v) => {
       const name = (locale === "zh" ? v.violationType?.labelZh : v.violationType?.labelVi) ?? v.violationType?.labelVi ?? "—";
       acc[name] = (acc[name] ?? 0) + 1;
       return acc;
     }, {})
   )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => b.value - a.value);
   const latestViolation = violationsThisMonth.at(-1);
 
   // ── 5 KPI cards — every number traced to a real query above, none invented. ──
@@ -253,10 +257,10 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* 3 small real-data cards — CAPA / Violations / Attendance (Risk, Environment,
-          Training are intentionally omitted: no real data model backs them yet). Always all 3
-          slots; a locked placeholder fills in for whichever the account can't view. */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      {/* 2 real-data cards — CAPA status breakdown + violations-by-type chart. Chấm công and
+          the old plain violations-count card were dropped: attendance already has its own
+          dedicated page, and a chart reads better here than a bare number + text list. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {canSeeCapa && capaSummary ? (
           <Card className="transition-shadow duration-200 hover:shadow-md">
             <CardHeader className="pb-2">
@@ -274,42 +278,57 @@ export default async function DashboardPage() {
           <LockedCard titleKey="dashboard.card.capa" />
         )}
         {canSeeViolations ? (
-          <Card className="transition-shadow duration-200 hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">
-                <T k="dashboard.card.violations" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm">
-              <p className="text-2xl font-bold">{violationsThisMonth.length}</p>
-              {violationsByType.map(([name, count]) => (
-                <div key={name} className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="truncate">{name}</span>
-                  <span className="font-medium text-foreground">{count}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          violationsByTypeChart.length > 0 ? (
+            <DonutChart titleKey="dashboard.card.violations" data={violationsByTypeChart} topN={5} />
+          ) : (
+            <Card className="transition-shadow duration-200 hover:shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">
+                  <T k="dashboard.card.violations" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{violationsThisMonth.length}</p>
+              </CardContent>
+            </Card>
+          )
         ) : (
           <LockedCard titleKey="dashboard.card.violations" />
         )}
-        {canSeeEmployees && attendanceStats ? (
-          <Card className="transition-shadow duration-200 hover:shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">
-                <T k="dashboard.card.attendance" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm">
-              <Row labelKey="attendance.legend.day" value={attendanceStats.day} tone="text-foreground" />
-              <Row labelKey="attendance.legend.night" value={attendanceStats.night} tone="text-foreground" />
-              <Row labelKey="attendance.kpi.off" value={attendanceStats.off} tone="text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : (
-          <LockedCard titleKey="dashboard.card.attendance" />
-        )}
       </div>
+
+      {/* Low-stock alert — thumbnail + name + count per item, scannable at a glance without
+          reading; hidden entirely when nothing is below tiêu chuẩn (a clean dashboard is the
+          normal case, not an empty-state to explain). */}
+      {canSeeInventory && lowStockItems.length > 0 && (
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
+              <PackageX className="size-4.5" />
+              <T k="dashboard.card.lowStock" vars={{ n: lowStockItems.length }} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HorizontalScroll className="flex gap-2.5">
+              {lowStockItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href="/inventory"
+                  className="flex w-[104px] shrink-0 flex-col items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-2 py-2.5 transition-colors hover:bg-destructive/10"
+                >
+                  <div className="flex size-11 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-white">
+                    {item.imageUrl && <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="h-full w-full object-contain" />}
+                  </div>
+                  <span className="line-clamp-2 text-center text-[11px] leading-tight font-medium">{item.name}</span>
+                  <span className={`text-xs font-bold ${item.stock === 0 ? "text-destructive" : "text-warning"}`}>
+                    {item.stock}/{item.minStockLevel}
+                  </span>
+                </Link>
+              ))}
+            </HorizontalScroll>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick links to real routes only */}
       {quickLinks.length > 0 && (

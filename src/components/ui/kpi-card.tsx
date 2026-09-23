@@ -49,7 +49,7 @@ export function KpiCard({
     // opt into) — consistency across modules was the whole point of having one shared component.
     <Card
       className={cn(
-        "h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-primary/50",
+        "h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-primary/50",
         tile?.border,
         className
       )}

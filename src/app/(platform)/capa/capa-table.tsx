@@ -157,7 +157,7 @@ export function CapaTable({
                 <TableRow key={row.id} className="h-24">
                   <TableCell className="py-3 text-muted-foreground">{i + 1}</TableCell>
                   {!hidden.has("area") && <TableCell className="py-3 font-medium">{row.area || "—"}</TableCell>}
-                  <TableCell className="max-w-xs py-3">{row.action}</TableCell>
+                  <TableCell className="max-w-xs py-3 whitespace-normal break-words">{row.action}</TableCell>
                   {!hidden.has("discoveredDate") && (
                     <TableCell className="py-3">{row.discoveredDate ? new Date(row.discoveredDate).toLocaleDateString() : "—"}</TableCell>
                   )}

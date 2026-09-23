@@ -114,8 +114,10 @@ function RecordSlotBox({
   const box = (
     <div
       className={
-        "flex h-24 flex-col items-center justify-center gap-1 rounded-md border p-2 text-center text-xs " +
-        (filled ? "border-border bg-muted/40" : "border-dashed border-border/60 text-muted-foreground")
+        "flex h-24 flex-col items-center justify-center gap-1 rounded-md border p-2 text-center text-xs transition-colors " +
+        (filled
+          ? "border-success/30 bg-success/10 text-success hover:bg-success/15"
+          : "border-dashed border-border/60 text-muted-foreground hover:border-border hover:bg-muted/40")
       }
     >
       {filled ? (

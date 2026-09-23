@@ -255,6 +255,7 @@ const zh: Record<DictionaryKey, string> = {
   "dashboard.card.capa": "CAPA",
   "dashboard.card.violations": "安全员违规（本月）",
   "dashboard.card.attendance": "考勤（本月）",
+  "dashboard.card.lowStock": "库存低于标准（{n} 项产品）",
   "dashboard.recentPhotos": "近期事故照片",
   "incidents.moduleName": "事故管理",
   "incidents.unitLabel": "起事故",
