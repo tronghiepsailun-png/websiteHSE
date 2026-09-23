@@ -67,11 +67,14 @@ export function DonutChart({
 
     const sin = Math.sin(-RADIAN * midAngle);
     const cos = Math.cos(-RADIAN * midAngle);
-    const sx = cx + (OUTER_RADIUS + 8) * cos;
-    const sy = cy + (OUTER_RADIUS + 8) * sin;
-    const mx = cx + (OUTER_RADIUS + 26) * cos;
-    const my = cy + (OUTER_RADIUS + 26) * sin;
-    const ex = mx + (cos >= 0 ? 1 : -1) * 18;
+    // Shorter leader line + smaller label text than the original — a chart this size now
+    // often sits in a narrower column (dashboard, module overview cards) where a long label
+    // ("Vi phạm liên đế (1)") could run past the card's edge with the old wider offsets.
+    const sx = cx + (OUTER_RADIUS + 6) * cos;
+    const sy = cy + (OUTER_RADIUS + 6) * sin;
+    const mx = cx + (OUTER_RADIUS + 16) * cos;
+    const my = cy + (OUTER_RADIUS + 16) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 12;
     const ey = my;
     const textAnchor = cos >= 0 ? "start" : "end";
 
@@ -83,11 +86,11 @@ export function DonutChart({
         <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" strokeWidth={2} />
         <circle cx={ex} cy={ey} r={3} fill={fill} stroke="none" />
         <text
-          x={ex + (cos >= 0 ? 1 : -1) * 7}
+          x={ex + (cos >= 0 ? 1 : -1) * 5}
           y={ey}
-          dy={5}
+          dy={4}
           textAnchor={textAnchor}
-          className="fill-foreground text-[15px] font-semibold"
+          className="fill-foreground text-[12px] font-semibold"
         >
           {item.label} <tspan className="fill-muted-foreground font-medium">({item.value})</tspan>
         </text>

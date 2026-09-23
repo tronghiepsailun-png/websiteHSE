@@ -646,7 +646,7 @@ const zh: Record<DictionaryKey, string> = {
   "records.kpi.expiringSoon": "即将到期（≤60天）",
   "records.kpi.expired": "已过期",
   "records.chart.byZone": "各区域「齐全」档案数",
-  "records.chart.byGroup": "各分组「齐全」档案数",
+  "records.chart.byZoneStatus": "各区域档案状态",
   "records.chart.warningTable": "到期预警",
   "records.chart.warningTableEmpty": "没有即将到期或已过期的档案。",
   "records.chart.daysLeft": "{n} 天",

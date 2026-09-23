@@ -645,7 +645,7 @@ const vi = {
   "records.kpi.expiringSoon": "Gần hết hạn (≤60 ngày)",
   "records.kpi.expired": "Đã quá hạn",
   "records.chart.byZone": "Số hồ sơ \"Đủ\" theo khu",
-  "records.chart.byGroup": "Số hồ sơ \"Đủ\" theo nhóm",
+  "records.chart.byZoneStatus": "Số hồ sơ theo khu",
   "records.chart.warningTable": "Cảnh báo hạn",
   "records.chart.warningTableEmpty": "Không có hồ sơ nào sắp hết hạn hoặc quá hạn.",
   "records.chart.daysLeft": "{n} ngày",

@@ -190,14 +190,19 @@ export async function getRecordEntryDetail(organizationId: string, id: string) {
   };
 }
 
-type ZoneOrGroupBucket = { key: string; value: number; total: number; sufficient: number; needsUpdate: number };
+type ZoneBucket = { key: string; value: number; total: number; sufficient: number; needsUpdate: number };
+export type ZoneStatusBucket = { key: string; sufficient: number; needsUpdate: number; expired: number };
 
-export async function getRecordsDashboardData(organizationId: string, domainCode = "PCCC", locale: Locale = "vi") {
+export async function getRecordsDashboardData(organizationId: string, domainCode = "PCCC") {
   const entries = await listRecordEntries(organizationId, domainCode);
 
   const emptyBucket = () => ({ total: 0, sufficient: 0, needsUpdate: 0 });
   const byZoneMap = new Map<string, ReturnType<typeof emptyBucket>>();
-  const byGroupMap = new Map<string, ReturnType<typeof emptyBucket>>();
+  // Mutually-exclusive per-zone breakdown for the "Đủ / Cần cập nhật / Quá hạn" stacked chart —
+  // unlike byZoneMap above (data-completeness axis only), an expired doc counts as "Quá hạn"
+  // here regardless of its data-completeness status, since that's the more urgent fact about it.
+  const emptyStatusBucket = () => ({ sufficient: 0, needsUpdate: 0, expired: 0 });
+  const byZoneStatusMap = new Map<string, ReturnType<typeof emptyStatusBucket>>();
 
   let sufficientTotal = 0;
   let needsUpdateTotal = 0;
@@ -209,31 +214,29 @@ export async function getRecordsDashboardData(organizationId: string, domainCode
     if (e.dataStatus === "not_applicable") {
       notApplicableTotal++;
     } else {
-      const group = localizeRecordGroup(e.recordType.group, locale);
       const zoneKey = e.orgUnit.name;
-      const groupKey = `${group.code} · ${group.name}`;
       if (!byZoneMap.has(zoneKey)) byZoneMap.set(zoneKey, emptyBucket());
-      if (!byGroupMap.has(groupKey)) byGroupMap.set(groupKey, emptyBucket());
+      if (!byZoneStatusMap.has(zoneKey)) byZoneStatusMap.set(zoneKey, emptyStatusBucket());
       const z = byZoneMap.get(zoneKey)!;
-      const g = byGroupMap.get(groupKey)!;
+      const zs = byZoneStatusMap.get(zoneKey)!;
       z.total++;
-      g.total++;
       if (e.dataStatus === "sufficient") {
         z.sufficient++;
-        g.sufficient++;
         sufficientTotal++;
       } else if (e.dataStatus === "needs_update") {
         z.needsUpdate++;
-        g.needsUpdate++;
         needsUpdateTotal++;
       }
+      if (e.expiryStatus === "expired") zs.expired++;
+      else if (e.dataStatus === "sufficient") zs.sufficient++;
+      else zs.needsUpdate++;
     }
     if (e.expiryStatus === "expiring_soon") expiringSoonTotal++;
     if (e.expiryStatus === "expired") expiredTotal++;
   }
 
-  const toBuckets = (map: Map<string, ReturnType<typeof emptyBucket>>): ZoneOrGroupBucket[] =>
-    [...map.entries()].map(([key, v]) => ({ key, value: v.sufficient, ...v }));
+  const byZone: ZoneBucket[] = [...byZoneMap.entries()].map(([key, v]) => ({ key, value: v.sufficient, ...v }));
+  const byZoneStatus: ZoneStatusBucket[] = [...byZoneStatusMap.entries()].map(([key, v]) => ({ key, ...v }));
 
   const warningList = entries
     .filter((e) => e.expiryStatus === "expiring_soon" || e.expiryStatus === "expired")
@@ -246,8 +249,8 @@ export async function getRecordsDashboardData(organizationId: string, domainCode
     notApplicableTotal,
     expiringSoonTotal,
     expiredTotal,
-    byZone: toBuckets(byZoneMap),
-    byGroup: toBuckets(byGroupMap),
+    byZone,
+    byZoneStatus,
     warningList,
   };
 }

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buttonVariants } from "@/components/ui/button";
 import { TopNBarChart } from "@/components/charts/top-n-bar-chart";
+import { ZoneStatusBarChart } from "@/components/charts/zone-status-bar-chart";
 import { EmptyState } from "@/components/ui/empty-state";
 import { T } from "@/components/i18n/t";
 import { STATUS_TEXT_CLASS } from "@/lib/status-tone";
@@ -20,7 +21,7 @@ export default async function RecordsPcccDashboardPage() {
   if ("denied" in access) return <NoPermissionState />;
   const ctx = access;
   const locale = await getLocale();
-  const data = await getRecordsDashboardData(ctx.organizationId, "PCCC", locale);
+  const data = await getRecordsDashboardData(ctx.organizationId, "PCCC");
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,7 +56,7 @@ export default async function RecordsPcccDashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <TopNBarChart titleKey="records.chart.byZone" data={data.byZone} topN={10} />
-        <TopNBarChart titleKey="records.chart.byGroup" data={data.byGroup} topN={10} />
+        <ZoneStatusBarChart titleKey="records.chart.byZoneStatus" data={data.byZoneStatus} />
       </div>
 
       <Card>
