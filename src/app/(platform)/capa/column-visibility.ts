@@ -8,6 +8,7 @@ export const CAPA_COLUMNS_COOKIE = "capa_hidden_columns";
 
 export const CAPA_TOGGLEABLE_COLUMNS: ToggleableColumn[] = [
   { id: "area", labelKey: "capa.table.area" },
+  { id: "improvementRequirement", labelKey: "capa.table.improvementRequirement" },
   { id: "discoveredDate", labelKey: "capa.table.discoveredDate" },
   { id: "classification", labelKey: "capa.table.classification" },
   { id: "responsibleDept", labelKey: "capa.form.responsible" },

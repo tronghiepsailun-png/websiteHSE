@@ -5,7 +5,7 @@ import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
 import { listWorkInjuryDeductions, getWorkInjuryDeductionSummary, availableWorkInjuryDeductionMonths } from "@/server/work-injury-deductions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DeductionFilters } from "./filters";
 import { DeductionTable } from "./deduction-table";

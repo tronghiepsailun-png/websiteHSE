@@ -563,6 +563,7 @@ model CapaItem {
   discoveredDate DateTime? // Ngày phát hiện — when the issue was actually found, may predate createdAt
   classification String? // Phân loại vấn đề — one of CAPA_CLASSIFICATIONS
   responsibleDept String? // Bộ phận phụ trách — free text, standalone CAPA's "who owns this" (a team, not a named individual)
+  improvementRequirement String? // Yêu cầu cải thiện — what must be done to fix it (the hazard report's 整改要求 row)
 
   responsiblePersonId String? // still used by the incident-linked CAPA flow (named individual)
   dueDate             DateTime?

@@ -6,7 +6,7 @@ import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
 import { listSafety5sViolations, getSafety5sViolationSummary, availableSafety5sViolationMonths } from "@/server/safety-5s-violations";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Safety5sFilters } from "./filters";
 import { Safety5sTable } from "./safety-5s-table";

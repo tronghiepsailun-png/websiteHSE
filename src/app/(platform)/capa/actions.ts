@@ -19,6 +19,7 @@ const rowSchema = z.object({
   capaId: z.string().optional(),
   area: z.string().optional(),
   action: z.string().min(1),
+  improvementRequirement: z.string().optional(),
   discoveredDate: z.string().optional(),
   classification: z.enum(CAPA_CLASSIFICATIONS).optional().or(z.literal("")),
   responsibleDept: z.string().optional(),
@@ -82,6 +83,7 @@ export async function saveCapaRowAction(_prev: CapaRowState, formData: FormData)
 
   const fields = {
     action: data.action,
+    improvementRequirement: data.improvementRequirement?.trim() || null,
     area: data.area?.trim() || null,
     discoveredDate: data.discoveredDate ? new Date(data.discoveredDate) : null,
     classification: data.classification || null,

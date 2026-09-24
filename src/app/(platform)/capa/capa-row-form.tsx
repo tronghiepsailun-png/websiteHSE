@@ -15,6 +15,7 @@ export type CapaRowFormValues = {
   id: string;
   area: string | null;
   action: string;
+  improvementRequirement: string | null;
   discoveredDate: Date | string | null;
   classification: string | null;
   responsibleDept: string | null;
@@ -107,6 +108,18 @@ export function CapaRowCells({
       <TableCell className={cellClass}>
         <Input name="action" form={formId} defaultValue={existing?.action ?? ""} placeholder={t("capa.form.issuePlaceholder")} required className="min-w-40" />
       </TableCell>
+
+      {!hiddenColumns.has("improvementRequirement") && (
+        <TableCell className={cellClass}>
+          <Input
+            name="improvementRequirement"
+            form={formId}
+            defaultValue={existing?.improvementRequirement ?? ""}
+            placeholder={t("capa.form.improvementPlaceholder")}
+            className="min-w-40"
+          />
+        </TableCell>
+      )}
 
       {!hiddenColumns.has("discoveredDate") && (
         <TableCell className={cellClass}>

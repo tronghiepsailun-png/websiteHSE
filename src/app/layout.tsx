@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,6 +31,14 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "24HSE",
   },
+};
+
+// Tints the phone browser's address bar/status area to match the app's light or dark surface.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

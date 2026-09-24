@@ -15,11 +15,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 import { CAPA_COLUMNS_COOKIE, CAPA_TOGGLEABLE_COLUMNS } from "./column-visibility";
+import { CapaReportDialog } from "./capa-report-dialog";
 
 export type CapaRowData = {
   id: string;
   area: string | null;
   action: string;
+  improvementRequirement: string | null;
   discoveredDate: Date | null;
   classification: string | null;
   responsibleDept: string | null;
@@ -43,6 +45,7 @@ function toFormValues(row: CapaRowData): CapaRowFormValues {
     id: row.id,
     area: row.area,
     action: row.action,
+    improvementRequirement: row.improvementRequirement,
     discoveredDate: row.discoveredDate,
     classification: row.classification,
     responsibleDept: row.responsibleDept,
@@ -59,6 +62,7 @@ export function CapaTable({
   canEdit,
   canDelete,
   hiddenColumns,
+  reporterName,
 }: {
   items: CapaRowData[];
   workshops: WorkshopOption[];
@@ -66,10 +70,12 @@ export function CapaTable({
   canEdit: boolean;
   canDelete: boolean;
   hiddenColumns: string[];
+  reporterName: string;
 }) {
   const t = useT();
   const router = useRouter();
   const hidden = new Set(hiddenColumns);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addingNew, setAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, startDeleteTransition] = useTransition();
@@ -94,6 +100,24 @@ export function CapaTable({
 
   const showActionsColumn = canEdit || canDelete;
   const activeId = addingNew ? "" : editingId;
+  // Only ids still present in the current (possibly re-filtered) list count as selected.
+  const visibleIds = new Set(items.map((i) => i.id));
+  const selectedIds = [...selected].filter((id) => visibleIds.has(id));
+  const allSelected = items.length > 0 && selectedIds.length === items.length;
+  const unresolvedIds = items.filter((i) => i.status !== "completed" && i.status !== "closed").map((i) => i.id);
+
+  function toggleRow(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(items.map((i) => i.id)));
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -105,6 +129,7 @@ export function CapaTable({
       </form>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
+        <CapaReportDialog selectedIds={selectedIds} unresolvedIds={unresolvedIds} defaultReporter={reporterName} />
         <ColumnVisibilityMenu columns={CAPA_TOGGLEABLE_COLUMNS} hiddenColumns={hiddenColumns} cookieName={CAPA_COLUMNS_COOKIE} />
         {canCreate && !addingNew && !editingId && (
           <Button type="button" size="sm" onClick={() => setAddingNew(true)}>
@@ -118,9 +143,20 @@ export function CapaTable({
         <Table>
           <TableHeader>
             <TableRow className="h-11">
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  className="size-4 cursor-pointer accent-primary"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  disabled={items.length === 0}
+                  aria-label={t("capa.table.selectAll")}
+                />
+              </TableHead>
               <TableHead className="w-12">{t("capa.table.stt")}</TableHead>
               {!hidden.has("area") && <TableHead>{t("capa.table.area")}</TableHead>}
               <TableHead className="min-w-48">{t("capa.table.issue")}</TableHead>
+              {!hidden.has("improvementRequirement") && <TableHead className="min-w-40">{t("capa.table.improvementRequirement")}</TableHead>}
               {!hidden.has("discoveredDate") && <TableHead>{t("capa.table.discoveredDate")}</TableHead>}
               {!hidden.has("classification") && <TableHead>{t("capa.table.classification")}</TableHead>}
               {!hidden.has("responsibleDept") && <TableHead>{t("capa.form.responsible")}</TableHead>}
@@ -134,6 +170,7 @@ export function CapaTable({
           <TableBody>
             {addingNew && (
               <TableRow>
+                <TableCell className="p-1.5" />
                 <CapaRowCells stt={items.length + 1} existing={null} workshops={workshops} formId={FORM_ID} hiddenColumns={hidden} />
                 {showActionsColumn && (
                   <TableCell className="p-1.5 align-top">
@@ -146,6 +183,7 @@ export function CapaTable({
             {items.map((row, i) =>
               editingId === row.id ? (
                 <TableRow key={row.id}>
+                  <TableCell className="p-1.5" />
                   <CapaRowCells stt={i + 1} existing={toFormValues(row)} workshops={workshops} formId={FORM_ID} hiddenColumns={hidden} />
                   {showActionsColumn && (
                     <TableCell className="p-1.5 align-top">
@@ -154,10 +192,22 @@ export function CapaTable({
                   )}
                 </TableRow>
               ) : (
-                <TableRow key={row.id} className="h-24">
+                <TableRow key={row.id} className="h-24" data-state={selected.has(row.id) ? "selected" : undefined}>
+                  <TableCell className="py-3">
+                    <input
+                      type="checkbox"
+                      className="size-4 cursor-pointer accent-primary"
+                      checked={selected.has(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      aria-label={t("capa.table.selectRow")}
+                    />
+                  </TableCell>
                   <TableCell className="py-3 text-muted-foreground">{i + 1}</TableCell>
                   {!hidden.has("area") && <TableCell className="py-3 font-medium">{row.area || "—"}</TableCell>}
                   <TableCell className="max-w-xs py-3 whitespace-normal break-words">{row.action}</TableCell>
+                  {!hidden.has("improvementRequirement") && (
+                    <TableCell className="max-w-xs py-3 whitespace-normal break-words">{row.improvementRequirement || "—"}</TableCell>
+                  )}
                   {!hidden.has("discoveredDate") && (
                     <TableCell className="py-3">{row.discoveredDate ? new Date(row.discoveredDate).toLocaleDateString() : "—"}</TableCell>
                   )}
@@ -189,13 +239,14 @@ export function CapaTable({
                             variant="ghost"
                             className="size-7"
                             disabled={addingNew}
+                            aria-label={t("common.edit")}
                             onClick={() => setEditingId(row.id)}
                           >
                             <Pencil className="size-3.5" />
                           </Button>
                         )}
                         {canDelete && (
-                          <Button type="button" size="icon" variant="ghost" className="size-7 text-destructive" onClick={() => setConfirmDeleteId(row.id)}>
+                          <Button type="button" size="icon" variant="ghost" className="size-7 text-destructive" aria-label={t("common.delete")} onClick={() => setConfirmDeleteId(row.id)}>
                             <Trash2 className="size-3.5" />
                           </Button>
                         )}
@@ -208,7 +259,7 @@ export function CapaTable({
 
             {items.length === 0 && !addingNew && (
               <TableRow>
-                <TableCell colSpan={2 + CAPA_TOGGLEABLE_COLUMNS.length - hidden.size + (showActionsColumn ? 1 : 0)}>
+                <TableCell colSpan={3 + CAPA_TOGGLEABLE_COLUMNS.length - hidden.size + (showActionsColumn ? 1 : 0)}>
                   <EmptyState message={t("capa.table.noResults")} />
                 </TableCell>
               </TableRow>
@@ -232,12 +283,13 @@ export function CapaTable({
 }
 
 function RowActions({ pending, onCancel }: { pending: boolean; onCancel: () => void }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-1">
-      <Button type="submit" form={FORM_ID} size="icon" variant="ghost" className="size-7 text-primary" disabled={pending}>
+      <Button type="submit" form={FORM_ID} size="icon" variant="ghost" className="size-7 text-primary" disabled={pending} aria-label={t("common.save")}>
         <Check className="size-3.5" />
       </Button>
-      <Button type="button" size="icon" variant="ghost" className="size-7" onClick={onCancel} disabled={pending}>
+      <Button type="button" size="icon" variant="ghost" className="size-7" onClick={onCancel} disabled={pending} aria-label={t("common.cancel")}>
         <X className="size-3.5" />
       </Button>
     </div>

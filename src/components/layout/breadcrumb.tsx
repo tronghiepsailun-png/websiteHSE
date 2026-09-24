@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
@@ -20,11 +20,10 @@ function findBestMatch<T extends { href: string; labelKey: DictionaryKey }>(path
   return best;
 }
 
-export function Breadcrumb() {
+function useBreadcrumbTrail() {
   const pathname = usePathname();
-  const t = useT();
 
-  const trail = useMemo(() => {
+  return useMemo(() => {
     if (pathname.startsWith("/admin") || pathname === "/settings" || ADMIN_NAV_ITEMS.some((i) => pathname.startsWith(i.href))) {
       const match = findBestMatch(pathname, ADMIN_NAV_ITEMS);
       return match ? [{ href: "/settings", labelKey: "nav.settings" as const }, match] : [{ href: "/settings", labelKey: "nav.settings" as const }];
@@ -34,6 +33,25 @@ export function Breadcrumb() {
     if (!match || match.href === "/") return [];
     return [{ href: "/", labelKey: "nav.dashboard" as const }, match];
   }, [pathname]);
+}
+
+/** Keeps the browser tab title in step with the current module ("Sự cố · 24HSE") — every page
+ *  used to show the same generic app title, which made multiple open tabs indistinguishable. */
+export function DocumentTitle() {
+  const trail = useBreadcrumbTrail();
+  const t = useT();
+  const current = trail.length > 0 ? t(trail[trail.length - 1].labelKey) : t("nav.dashboard");
+
+  useEffect(() => {
+    document.title = `${current} · 24HSE`;
+  }, [current]);
+
+  return null;
+}
+
+export function Breadcrumb() {
+  const trail = useBreadcrumbTrail();
+  const t = useT();
 
   if (trail.length === 0) return null;
 

@@ -60,7 +60,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
   const search = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
   const view = params.view === "board" ? "board" : "table";
 
-  const [capaItems, summary, deptBreakdown, permissionKeys, workshopsRaw] = await Promise.all([
+  const [capaItems, summary, deptBreakdown, permissionKeys, workshopsRaw, currentUser] = await Promise.all([
     listCapaForOrg(ctx.organizationId, { status, classification, search }),
     getCapaSummary(ctx.organizationId),
     getCapaDeptBreakdown(ctx.organizationId),
@@ -70,6 +70,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
           .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
     listActiveSafetyWorkshops(ctx.organizationId),
+    prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
   ]);
 
   const workshops = workshopsRaw.map((w) => ({ id: w.id, name: locale === "vi" && w.nameVi ? w.nameVi : w.name }));
@@ -130,6 +131,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       id: c.id,
       area: localizeWorkshopValue(c.area),
       action: c.action,
+      improvementRequirement: c.improvementRequirement,
       discoveredDate: c.discoveredDate,
       classification: c.classification,
       responsibleDept: localizeWorkshopValue(c.responsibleDept),
@@ -185,7 +187,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       {view === "board" ? (
         <CapaBoard items={rows} canEdit={canEdit} />
       ) : (
-        <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} />
+        <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} reporterName={currentUser?.name ?? ""} />
       )}
     </div>
   );

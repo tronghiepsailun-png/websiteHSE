@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { X, Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";

@@ -21,6 +21,7 @@ import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { DocumentTitle } from "@/components/layout/breadcrumb";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
@@ -82,6 +83,7 @@ export function MobileShell({
 
   return (
     <div className="mobile-shell flex h-screen flex-col overflow-hidden">
+      <DocumentTitle />
       <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <Leaf className="size-4.5 text-primary" />
@@ -91,7 +93,7 @@ export function MobileShell({
         </p>
 
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="relative" title={t("common.notifications")} />}>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="relative" title={t("common.notifications")} aria-label={t("common.notifications")} />}>
             <Bell className="size-4.5" />
             {overdueCapaItems.length > 0 && (
               <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
@@ -130,7 +132,7 @@ export function MobileShell({
         </div>
       )}
 
-      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted pb-4">
+      <main id="main-content" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted pb-4">
         <div className="w-full p-3">{children}</div>
       </main>
 
@@ -143,6 +145,7 @@ export function MobileShell({
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
                 active ? "text-primary" : "text-muted-foreground"

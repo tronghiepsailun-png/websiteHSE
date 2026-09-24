@@ -22,7 +22,7 @@ import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { Breadcrumb, DocumentTitle } from "@/components/layout/breadcrumb";
 import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
@@ -70,6 +70,13 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <DocumentTitle />
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        {t("common.skipToContent")}
+      </a>
       {/* Desktop sidebar — the shell is viewport-height with overflow hidden, and only
           <main> below scrolls internally, so the sidebar (and header) stay in view no
           matter how long a page's content gets, instead of scrolling away with it. */}
@@ -122,7 +129,7 @@ export function AppShell({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileNavOpen(true)}>
+          <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("common.menu")} onClick={() => setMobileNavOpen(true)}>
             <Menu className="size-5" />
           </Button>
 
@@ -145,7 +152,7 @@ export function AppShell({
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="ghost" size="icon" className="relative" title={t("common.notifications")} />
+                  <Button variant="ghost" size="icon" className="relative" title={t("common.notifications")} aria-label={t("common.notifications")} />
                 }
               >
                 <Bell className="size-4.5" />
@@ -189,7 +196,7 @@ export function AppShell({
           <OrgSwitcher activeOrg={activeOrg} organizations={organizations} />
         </div>
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-muted">
+        <main id="main-content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-muted outline-none">
           <div className="mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6">{children}</div>
           <footer className="shrink-0 border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground">
             {activeOrg?.name ?? t("common.appName")} · <T k="common.appName" /> · © {new Date().getFullYear()}
