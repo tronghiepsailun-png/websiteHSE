@@ -9,16 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
 
-export type WorkshopOption = { id: string; name: string };
+export type CatalogOption = { value: string; label: string };
 
 export type CapaRowFormValues = {
   id: string;
   area: string | null;
+  areaLabel: string | null;
   action: string;
   improvementRequirement: string | null;
   discoveredDate: Date | string | null;
   classification: string | null;
   responsibleDept: string | null;
+  responsibleDeptLabel: string | null;
   completionDate: Date | string | null;
   beforePhoto: { fileName: string } | null;
   afterPhoto: { fileName: string } | null;
@@ -79,18 +81,25 @@ function InlineSelect({
 export function CapaRowCells({
   stt,
   existing,
-  workshops,
+  areaOptions,
+  deptOptions,
   formId,
   hiddenColumns,
 }: {
   stt: number;
   existing: CapaRowFormValues;
-  workshops: WorkshopOption[];
+  areaOptions: CatalogOption[];
+  deptOptions: CatalogOption[];
   formId: string;
   hiddenColumns: Set<string>;
 }) {
   const t = useT();
-  const workshopOptions = workshops.map((w) => ({ value: w.name, label: w.name }));
+  // A row's saved value may belong to an entry that has since been hidden or deleted — keep it
+  // selectable so editing the row doesn't silently drop it.
+  const withCurrent = (options: CatalogOption[], value: string | null | undefined, label: string | null | undefined) =>
+    value && !options.some((o) => o.value === value) ? [...options, { value, label: label || value }] : options;
+  const rowAreaOptions = withCurrent(areaOptions, existing?.area, existing?.areaLabel);
+  const rowDeptOptions = withCurrent(deptOptions, existing?.responsibleDept, existing?.responsibleDeptLabel);
   const classificationOptions = CAPA_CLASSIFICATIONS.map((c) => ({ value: c, label: t(`capa.classification.${c}` as DictionaryKey) }));
 
   return (
@@ -101,7 +110,7 @@ export function CapaRowCells({
 
       {!hiddenColumns.has("area") && (
         <TableCell className={cellClass}>
-          <InlineSelect name="area" formId={formId} defaultValue={existing?.area} placeholder={t("capa.form.areaPlaceholder")} options={workshopOptions} />
+          <InlineSelect name="area" formId={formId} defaultValue={existing?.area} placeholder={t("capa.form.areaPlaceholder")} options={rowAreaOptions} />
         </TableCell>
       )}
 
@@ -152,7 +161,7 @@ export function CapaRowCells({
             formId={formId}
             defaultValue={existing?.responsibleDept}
             placeholder={t("capa.form.responsibleDeptPlaceholder")}
-            options={workshopOptions}
+            options={rowDeptOptions}
           />
         </TableCell>
       )}

@@ -4,7 +4,7 @@ import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { listCapaForOrg, getCapaSummary, getCapaDeptBreakdown, daysUnresolved, getCapaPhotosMap } from "@/server/capa";
-import { listActiveSafetyWorkshops } from "@/server/inventory";
+import { listCatalogItems, localizedCatalogName, makeCatalogResolver } from "@/server/catalog";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { KpiCard, KPI_CARD_WIDTH_CLASS } from "@/components/ui/kpi-card";
@@ -60,7 +60,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
   const search = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
   const view = params.view === "board" ? "board" : "table";
 
-  const [capaItems, summary, deptBreakdown, permissionKeys, workshopsRaw, currentUser] = await Promise.all([
+  const [capaItems, summary, deptBreakdown, permissionKeys, areaItems, deptItems, currentUser] = await Promise.all([
     listCapaForOrg(ctx.organizationId, { status, classification, search }),
     getCapaSummary(ctx.organizationId),
     getCapaDeptBreakdown(ctx.organizationId),
@@ -69,29 +69,33 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       : prisma.userOrganizationRole
           .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
-    listActiveSafetyWorkshops(ctx.organizationId),
+    listCatalogItems(ctx.organizationId, "capa", "area"),
+    listCatalogItems(ctx.organizationId, "capa", "dept"),
     prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
   ]);
 
-  const workshops = workshopsRaw.map((w) => ({ id: w.id, name: locale === "vi" && w.nameVi ? w.nameVi : w.name }));
+  // Only active entries are offered in the dropdowns; the option value is the Vietnamese name
+  // (what gets stored) and the label follows the viewer's language.
+  const toOptions = (items: typeof areaItems) =>
+    items.filter((i) => i.isActive).map((i) => ({ value: i.nameVi, label: localizedCatalogName(i, locale) }));
+  const areaOptions = toOptions(areaItems);
+  const deptOptions = toOptions(deptItems);
 
-  // "area"/"responsibleDept" are stored as the plain workshop name that was selected at
-  // save time, in whichever locale was active then — so a row saved in Vietnamese still
-  // showed its Vietnamese name after switching to Chinese. Re-resolve against the catalog
-  // (matching either language) and re-render in the current locale on every read.
-  function localizeWorkshopValue(value: string | null): string | null {
-    if (!value) return value;
-    const match = workshopsRaw.find((w) => w.name === value || w.nameVi === value);
-    if (!match) return value;
-    return locale === "vi" && match.nameVi ? match.nameVi : match.name;
-  }
+  // "area"/"responsibleDept" are stored as plain text (the entry's name when it was saved —
+  // Vietnamese now, sometimes Chinese on older rows). Re-resolve against the module's own
+  // catalog, matching either language, and re-render in the current locale on every read — so
+  // switching language, or renaming an entry, is reflected everywhere at once.
+  const resolveArea = makeCatalogResolver(areaItems, locale);
+  const resolveDept = makeCatalogResolver(deptItems, locale);
+  const canonicalOf = (items: typeof areaItems, value: string | null) =>
+    value ? (items.find((i) => i.nameVi === value || i.nameZh === value)?.nameVi ?? value) : null;
 
   // Two views of the same breakdown: how many issues each department has raised in total,
   // and — the one that actually needs attention — how many of those are still unresolved.
   const totalByDept = new Map<string, number>();
   const unresolvedByDept = new Map<string, number>();
   for (const row of deptBreakdown) {
-    const dept = localizeWorkshopValue(row.responsibleDept);
+    const dept = resolveDept(row.responsibleDept);
     if (!dept) continue;
     totalByDept.set(dept, (totalByDept.get(dept) ?? 0) + 1);
     if (row.status !== "completed" && row.status !== "closed") {
@@ -129,12 +133,14 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
     const photos = photosMap.get(c.id) ?? { before: null, after: null };
     return {
       id: c.id,
-      area: localizeWorkshopValue(c.area),
+      area: resolveArea(c.area),
+      areaValue: canonicalOf(areaItems, c.area),
       action: c.action,
       improvementRequirement: c.improvementRequirement,
       discoveredDate: c.discoveredDate,
       classification: c.classification,
-      responsibleDept: localizeWorkshopValue(c.responsibleDept),
+      responsibleDept: resolveDept(c.responsibleDept),
+      responsibleDeptValue: canonicalOf(deptItems, c.responsibleDept),
       dueDate: c.dueDate,
       completionDate: c.completionDate,
       status: c.status,
@@ -187,7 +193,7 @@ export default async function CapaPage({ searchParams }: PageProps<"/capa">) {
       {view === "board" ? (
         <CapaBoard items={rows} canEdit={canEdit} />
       ) : (
-        <CapaTable items={rows} workshops={workshops} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} reporterName={currentUser?.name ?? ""} />
+        <CapaTable items={rows} areaOptions={areaOptions} deptOptions={deptOptions} canCreate={canCreate} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} reporterName={currentUser?.name ?? ""} />
       )}
     </div>
   );

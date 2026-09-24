@@ -34,6 +34,7 @@ model Organization {
   documents            Document[]
   documentTypes        DocumentType[]
   picklists            Picklist[]
+  catalogItems         CatalogItem[]
   incidentCategories   IncidentCategory[]
   incidentSeverities   IncidentSeverity[]
   idSequenceConfigs    IdSequenceConfig[]
@@ -346,6 +347,27 @@ model Picklist {
 
   @@unique([organizationId, key])
   @@map("picklists")
+}
+
+/// One bilingual entry of a module's own editable dropdown list (e.g. CAPA's "Khu vực" and
+/// "Bộ phận phụ trách"). Each module owns its lists — editing CAPA's areas never touches the
+/// shared SafetyWorkshop catalog that incidents/inventory/HSE targets still read from.
+/// Rows that reference an entry store its Vietnamese name as plain text (see server/catalog.ts).
+model CatalogItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  module         String // e.g. capa
+  kind           String // e.g. area | dept — which dropdown within the module
+  nameVi         String
+  nameZh         String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, module, kind])
+  @@map("catalog_items")
 }
 
 model PicklistItem {

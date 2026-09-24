@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useTransition, useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Check, X } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Trash2, Plus, Check, X, ListTree } from "lucide-react";
 import { deleteCapaAction, saveCapaRowAction, type CapaRowState } from "./actions";
-import { CapaRowCells, type CapaRowFormValues, type WorkshopOption } from "./capa-row-form";
-import { Button } from "@/components/ui/button";
+import { CapaRowCells, type CapaRowFormValues, type CatalogOption } from "./capa-row-form";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -20,11 +21,13 @@ import { CapaReportDialog } from "./capa-report-dialog";
 export type CapaRowData = {
   id: string;
   area: string | null;
+  areaValue: string | null;
   action: string;
   improvementRequirement: string | null;
   discoveredDate: Date | null;
   classification: string | null;
   responsibleDept: string | null;
+  responsibleDeptValue: string | null;
   dueDate: Date | null;
   completionDate: Date | null;
   status: string;
@@ -43,12 +46,14 @@ function Thumb({ doc }: { doc: { id: string; fileName: string } | null }) {
 function toFormValues(row: CapaRowData): CapaRowFormValues {
   return {
     id: row.id,
-    area: row.area,
+    area: row.areaValue,
+    areaLabel: row.area,
     action: row.action,
     improvementRequirement: row.improvementRequirement,
     discoveredDate: row.discoveredDate,
     classification: row.classification,
-    responsibleDept: row.responsibleDept,
+    responsibleDept: row.responsibleDeptValue,
+    responsibleDeptLabel: row.responsibleDept,
     completionDate: row.completionDate,
     beforePhoto: row.before,
     afterPhoto: row.after,
@@ -57,7 +62,8 @@ function toFormValues(row: CapaRowData): CapaRowFormValues {
 
 export function CapaTable({
   items,
-  workshops,
+  areaOptions,
+  deptOptions,
   canCreate,
   canEdit,
   canDelete,
@@ -65,7 +71,8 @@ export function CapaTable({
   reporterName,
 }: {
   items: CapaRowData[];
-  workshops: WorkshopOption[];
+  areaOptions: CatalogOption[];
+  deptOptions: CatalogOption[];
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
@@ -129,6 +136,12 @@ export function CapaTable({
       </form>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {canEdit && (
+          <Link href="/capa/catalog" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <ListTree className="size-4" />
+            {t("capa.catalog.button")}
+          </Link>
+        )}
         <CapaReportDialog selectedIds={selectedIds} unresolvedIds={unresolvedIds} defaultReporter={reporterName} />
         <ColumnVisibilityMenu columns={CAPA_TOGGLEABLE_COLUMNS} hiddenColumns={hiddenColumns} cookieName={CAPA_COLUMNS_COOKIE} />
         {canCreate && !addingNew && !editingId && (
@@ -171,7 +184,7 @@ export function CapaTable({
             {addingNew && (
               <TableRow>
                 <TableCell className="p-1.5" />
-                <CapaRowCells stt={items.length + 1} existing={null} workshops={workshops} formId={FORM_ID} hiddenColumns={hidden} />
+                <CapaRowCells stt={items.length + 1} existing={null} areaOptions={areaOptions} deptOptions={deptOptions} formId={FORM_ID} hiddenColumns={hidden} />
                 {showActionsColumn && (
                   <TableCell className="p-1.5 align-top">
                     <RowActions pending={pending} onCancel={() => setAddingNew(false)} />
@@ -184,7 +197,7 @@ export function CapaTable({
               editingId === row.id ? (
                 <TableRow key={row.id}>
                   <TableCell className="p-1.5" />
-                  <CapaRowCells stt={i + 1} existing={toFormValues(row)} workshops={workshops} formId={FORM_ID} hiddenColumns={hidden} />
+                  <CapaRowCells stt={i + 1} existing={toFormValues(row)} areaOptions={areaOptions} deptOptions={deptOptions} formId={FORM_ID} hiddenColumns={hidden} />
                   {showActionsColumn && (
                     <TableCell className="p-1.5 align-top">
                       <RowActions pending={pending} onCancel={() => setEditingId(null)} />

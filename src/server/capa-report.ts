@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { storageService } from "@/server/storage";
 import { getCapaPhotosMap } from "@/server/capa";
+import { listCatalogItems, makeBilingualResolver } from "@/server/catalog";
 
 // Geometry (inches) and colors copied from the org's own "BÁO CÁO NGUY HIỂM TIỀM ẨN" deck so the
 // generated file looks like the hand-made one: green title bar, orange table header, two
@@ -165,19 +166,15 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
  *  dropped), resolves area/department to "Chinese + Vietnamese" via the workshop catalog, and
  *  pulls each row's before/after photo bytes from storage. Keeps the caller's id order. */
 export async function loadCapaReportItems(organizationId: string, ids: string[]): Promise<CapaReportItem[]> {
-  const [rows, workshops, photos] = await Promise.all([
+  const [rows, areaItems, deptItems, photos] = await Promise.all([
     prisma.capaItem.findMany({ where: { organizationId, id: { in: ids } } }),
-    prisma.safetyWorkshop.findMany({ where: { organizationId } }),
+    listCatalogItems(organizationId, "capa", "area"),
+    listCatalogItems(organizationId, "capa", "dept"),
     getCapaPhotosMap(organizationId, ids),
   ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
-
-  const bilingual = (value: string | null) => {
-    if (!value) return null;
-    const match = workshops.find((w) => w.name === value || w.nameVi === value);
-    if (!match || !match.nameVi || match.nameVi === match.name) return value;
-    return `${match.name}\n${match.nameVi}`;
-  };
+  const bilingualArea = makeBilingualResolver(areaItems);
+  const bilingualDept = makeBilingualResolver(deptItems);
 
   const readPhoto = async (doc: { id: string } | null) => {
     if (!doc) return null;
@@ -192,10 +189,10 @@ export async function loadCapaReportItems(organizationId: string, ids: string[])
     if (!row) continue;
     const p = photos.get(id) ?? { before: null, after: null };
     items.push({
-      area: bilingual(row.area),
+      area: bilingualArea(row.area),
       action: row.action,
       improvementRequirement: row.improvementRequirement,
-      responsibleDept: bilingual(row.responsibleDept),
+      responsibleDept: bilingualDept(row.responsibleDept),
       discoveredDate: row.discoveredDate ?? row.createdAt,
       completionDate: row.completionDate,
       before: await readPhoto(p.before),
