@@ -72,7 +72,15 @@ export function DeductionRowCells({
 
       {!hiddenColumns.has("reporterName") && (
         <TableCell className={cellClass}>
-          <Input name="reporterName" form={formId} defaultValue={existing?.reporterName ?? ""} placeholder={t("violationsLienDe.form.reporterPlaceholder")} className="min-w-32" />
+          <EmployeeCombobox
+            name="reporterName"
+            formId={formId}
+            valueMode="name"
+            defaultText={existing?.reporterName ?? ""}
+            placeholder={t("violationsLienDe.form.reporterPlaceholder")}
+            emptyLabel={t("violationsLienDe.form.reporterEmpty")}
+            className="min-w-52"
+          />
         </TableCell>
       )}
 

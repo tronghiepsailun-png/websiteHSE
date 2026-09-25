@@ -21,11 +21,20 @@ export function EmployeeCombobox({
   className,
   defaultValue,
   formId,
+  valueMode = "id",
+  defaultText,
 }: {
   name: string;
   placeholder: string;
   emptyLabel: string;
   className?: string;
+  /** "id" (default) submits the picked employee's id and requires a pick. "name" submits the
+   *  text in the box instead — picking a suggestion fills in that employee's Vietnamese name,
+   *  but whatever is typed is kept as-is, for fields stored as plain text that may also name
+   *  someone outside the roster (e.g. a report's author). */
+  valueMode?: "id" | "name";
+  /** Initial text for "name" mode (the value already saved on the record being edited). */
+  defaultText?: string;
   /** Pre-selects an employee (e.g. editing a record that already has one) without an extra
    *  search round-trip — the caller already has the full row loaded. */
   defaultValue?: EmployeeLite | null;
@@ -33,7 +42,8 @@ export function EmployeeCombobox({
    *  cells sitting outside any <form> ancestor) via the native form="" attribute. */
   formId?: string;
 }) {
-  const [inputValue, setInputValue] = useState(defaultValue ? formatEmployee(defaultValue) : "");
+  const nameMode = valueMode === "name";
+  const [inputValue, setInputValue] = useState(nameMode ? (defaultText ?? "") : defaultValue ? formatEmployee(defaultValue) : "");
   const [options, setOptions] = useState<EmployeeLite[]>([]);
   const [selected, setSelected] = useState<EmployeeLite | null>(defaultValue ?? null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,17 +83,20 @@ export function EmployeeCombobox({
       {/* Rendered as a sibling of Root, not a child — Base UI's own `name` prop doesn't
           generate a form-submittable hidden input for object-typed item values, and an
           extra child inside Root risks confusing its internal item collection. */}
-      <input type="hidden" name={name} form={formId} value={selected?.id ?? ""} />
+      <input type="hidden" name={name} form={formId} value={nameMode ? inputValue.trim() : (selected?.id ?? "")} />
       <Combobox.Root<EmployeeLite>
         items={options}
-        itemToStringLabel={formatEmployee}
+        itemToStringLabel={nameMode ? (e) => e.fullName : formatEmployee}
         itemToStringValue={(e) => e.id}
         inputValue={inputValue}
         onInputValueChange={handleInputValueChange}
+        // Name mode keeps the pick under our control, so typing over a picked name really does
+        // un-pick it instead of Base UI snapping the text back to that name when focus leaves.
+        {...(nameMode ? { value: selected } : {})}
         onValueChange={(value) => {
           justSelectedRef.current = true;
           setSelected(value);
-          if (value) setInputValue(formatEmployee(value));
+          if (value) setInputValue(nameMode ? value.fullName : formatEmployee(value));
         }}
         filter={null}
       >
