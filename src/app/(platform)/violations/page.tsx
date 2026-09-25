@@ -110,7 +110,10 @@ export default async function ViolationsOverviewPage({ searchParams }: PageProps
   const departmentCounts = new Map<string, number>();
   function addDept(level2: string | null | undefined, region: string | null | undefined) {
     if (!level2) return;
-    const label = region ? `${level2} - ${region}` : level2;
+    // Giai đoạn first, then the workshop, written together ("一期簇绒车间") — the same form the
+    // rest of the module uses for a department name. Skipped when the name already carries the
+    // phase, so it never doubles up ("一期一期…").
+    const label = region && !level2.startsWith(region) ? `${region}${level2}` : level2;
     departmentCounts.set(label, (departmentCounts.get(label) ?? 0) + 1);
   }
   internalRows.forEach((v) => addDept(v.safetyOfficer.employee.orgUnitLevel2, v.safetyOfficer.employee.region));
