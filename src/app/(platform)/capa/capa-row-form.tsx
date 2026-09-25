@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CAPA_CLASSIFICATIONS } from "@/lib/capa-constants";
 import { Input } from "@/components/ui/input";
-import { FileInput } from "@/components/ui/file-input";
+import { AnnotatedPhotoInput } from "@/components/ui/annotated-photo-input";
 import { TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/locale-context";
@@ -169,14 +169,14 @@ export function CapaRowCells({
       {!hiddenColumns.has("photoBefore") && (
         <TableCell className={cellClass}>
           {existing?.beforePhoto && <p className="max-w-32 truncate text-[11px] text-muted-foreground">{existing.beforePhoto.fileName}</p>}
-          <FileInput name="beforeFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-32 text-xs" />
+          <AnnotatedPhotoInput name="beforeFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-36 text-xs" />
         </TableCell>
       )}
 
       {!hiddenColumns.has("photoAfter") && (
         <TableCell className={cellClass}>
           {existing?.afterPhoto && <p className="max-w-32 truncate text-[11px] text-muted-foreground">{existing.afterPhoto.fileName}</p>}
-          <FileInput name="afterFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-32 text-xs" />
+          <AnnotatedPhotoInput name="afterFile" formId={formId} accept="image/jpeg,image/png,image/webp,image/gif" className="w-36 text-xs" />
         </TableCell>
       )}
 

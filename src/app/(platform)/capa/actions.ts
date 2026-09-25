@@ -30,7 +30,11 @@ const rowSchema = z.object({
 async function saveTaggedPhoto(params: { organizationId: string; capaId: string; tag: "before" | "after"; file: File; userId: string | null }) {
   let buffer = Buffer.from(await params.file.arrayBuffer());
   if (params.file.type.startsWith("image/")) {
-    buffer = await sharp(buffer).resize(1024, 1024, { fit: "cover", position: sharp.strategy.attention }).toBuffer();
+    // Keep the whole picture (fit "inside", never enlarged) instead of center-cropping to a
+    // square — a red box or arrow drawn near an edge in the photo editor must not be cut off.
+    // Tables still show square thumbnails (object-cover in ImageLightbox); the full image is
+    // what opens on click and what goes into the PowerPoint report.
+    buffer = await sharp(buffer).rotate().resize(1600, 1600, { fit: "inside", withoutEnlargement: true }).toBuffer();
   }
 
   const existing = await prisma.document.findFirst({ where: { organizationId: params.organizationId, module: "capa", recordId: params.capaId, tag: params.tag } });
