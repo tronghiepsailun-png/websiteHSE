@@ -26,7 +26,9 @@ import { listViolations } from "@/server/violations";
 import { getSafety5sViolationSummary } from "@/server/safety-5s-violations";
 import { getWorkInjuryDeductionSummary } from "@/server/work-injury-deductions";
 import { listInventoryItemsWithStock, isLowStock, localizeInventoryItem } from "@/server/inventory";
+import { getRecordsDashboardData } from "@/server/records";
 import { DonutChart } from "@/components/charts/donut-chart";
+import { ZoneStatusBarChart } from "@/components/charts/zone-status-bar-chart";
 import type { ChartDatum } from "@/components/charts/chart-utils";
 import { TrendLineChart } from "@/components/charts/trend-line-chart";
 import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
@@ -70,9 +72,10 @@ export default async function DashboardPage() {
     canSeeViolations ? getWorkInjuryDeductionSummary(ctx.organizationId, { year: now.getFullYear(), month: now.getMonth() + 1 }) : null,
   ]);
 
-  const [employeesCount, pcccCount, severities, inventoryItems] = await Promise.all([
+  const [employeesCount, pcccCount, recordsDashboard, severities, inventoryItems] = await Promise.all([
     canSeeEmployees ? prisma.employee.count({ where: { organizationId: ctx.organizationId, status: "active" } }) : 0,
     canSeeRecords ? prisma.recordEntry.count({ where: { organizationId: ctx.organizationId, notApplicable: false } }) : 0,
+    canSeeRecords ? getRecordsDashboardData(ctx.organizationId, "PCCC") : null,
     canSeeIncidents
       ? prisma.incidentSeverity.findMany({ where: { organizationId: ctx.organizationId, isActive: true }, select: { name: true, colorHex: true } })
       : [],
@@ -268,10 +271,9 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* "Theo loại vi phạm" (col 1, same width as the trend chart above it) + low-stock alert
-          (col 3, directly under "Hoạt động gần đây") — column 2 is deliberately left empty,
-          matching the row above's 3-column rhythm rather than stretching either card full-width. */}
-      {(canSeeViolations || (canSeeInventory && lowStockItems.length > 0)) && (
+      {/* Same 3-column rhythm as the row above: "Theo loại vi phạm" (col 1), PCCC records by khu
+          (col 2), low-stock alert (col 3, directly under "Hoạt động gần đây"). */}
+      {(canSeeViolations || canSeeRecords || (canSeeInventory && lowStockItems.length > 0)) && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {canSeeViolations ? (
             violationsByTypeChart.length > 0 ? (
@@ -282,9 +284,17 @@ export default async function DashboardPage() {
           ) : (
             <LockedCard titleKey="violations.overview.chart.byType" />
           )}
-          <div />
-          {canSeeInventory && lowStockItems.length > 0 && (
-            <Card className="border-destructive/30 lg:col-start-3">
+          {canSeeRecords ? (
+            recordsDashboard && recordsDashboard.byZoneStatus.length > 0 ? (
+              <ZoneStatusBarChart titleKey="records.chart.byZoneStatus" data={recordsDashboard.byZoneStatus} className="h-full" chartHeight={280} />
+            ) : (
+              <div />
+            )
+          ) : (
+            <LockedCard titleKey="records.chart.byZoneStatus" />
+          )}
+          {canSeeInventory && lowStockItems.length > 0 ? (
+            <Card className="h-full border-destructive/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold text-destructive">
                   <PackageX className="size-4.5" />
@@ -292,25 +302,32 @@ export default async function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex max-h-[260px] flex-col gap-1.5 overflow-y-auto">
+                {/* Two columns of tiles with a real-size photo each — a single narrow list left the
+                    row mostly empty space between a tiny thumbnail and the number. */}
+                <div className="grid max-h-[340px] grid-cols-2 gap-2 overflow-y-auto">
                   {lowStockItems.map((item) => (
                     <Link
                       key={item.id}
                       href="/inventory"
-                      className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1.5 transition-colors hover:bg-destructive/10"
+                      className="flex items-center gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-2 transition-colors hover:bg-destructive/10"
                     >
-                      <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-border/60 bg-white">
-                        {item.imageUrl && <Image src={item.imageUrl} alt={item.name} width={28} height={28} className="h-full w-full object-contain" />}
+                      <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-white">
+                        {item.imageUrl && <Image src={item.imageUrl} alt={item.name} width={56} height={56} className="h-full w-full object-contain" />}
                       </div>
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.name}</span>
-                      <span className={`shrink-0 text-xs font-bold ${item.stock === 0 ? "text-destructive" : "text-warning"}`}>
-                        {item.stock}/{item.minStockLevel}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-xs leading-snug font-medium">{item.name}</p>
+                        <p className={`mt-0.5 text-base leading-none font-bold ${item.stock === 0 ? "text-destructive" : "text-warning"}`}>
+                          {item.stock}
+                          <span className="text-xs font-medium text-muted-foreground">/{item.minStockLevel}</span>
+                        </p>
+                      </div>
                     </Link>
                   ))}
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <div />
           )}
         </div>
       )}
