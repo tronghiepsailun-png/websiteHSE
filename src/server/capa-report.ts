@@ -10,10 +10,16 @@ import { listCatalogItems, makeBilingualResolver } from "@/server/catalog";
 // Geometry (inches) and colors copied from the org's own "BÁO CÁO NGUY HIỂM TIỀM ẨN" deck so the
 // generated file looks like the hand-made one: green title bar, orange table header, two
 // red-framed photos joined by a blue arrow.
-const LOGO_PATH = path.join(process.cwd(), "src/server/templates/capa-report-logo.png");
+const TEMPLATE_DIR = path.join(process.cwd(), "src/server/templates");
+const LOGO_PATH = path.join(TEMPLATE_DIR, "capa-report-logo.png");
+// The deck's own decorative green facets (its slide master), rendered once from the original
+// .pptx at 1920x1080: cover = white page, content = beige page (EAE6DB) with the same facets.
+const COVER_BG_PATH = path.join(TEMPLATE_DIR, "capa-report-bg-cover.png");
+const CONTENT_BG_PATH = path.join(TEMPLATE_DIR, "capa-report-bg-content.png");
 const GREEN = "90C226";
-const ORANGE = "ED7D31";
-const BEIGE = "EAE6DB";
+// The template's table header uses the master theme's "accent2" (Facet theme = green), not the
+// default Office orange.
+const TABLE_HEADER = "54A021";
 const RED = "FF0000";
 const BLUE = "00B0F0";
 
@@ -65,13 +71,13 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
   pptx.layout = "LAYOUT_WIDE"; // 13.333 x 7.5 in — same 16:9 size as the original deck
   pptx.title = "BÁO CÁO NGUY HIỂM TIỀM ẨN";
 
-  const logo = await fs.readFile(LOGO_PATH);
-  const logoData = `image/png;base64,${logo.toString("base64")}`;
+  const asPng = async (file: string) => `image/png;base64,${(await fs.readFile(file)).toString("base64")}`;
+  const [logoData, coverBg, contentBg] = await Promise.all([asPng(LOGO_PATH), asPng(COVER_BG_PATH), asPng(CONTENT_BG_PATH)]);
   const addLogo = (slide: PptxGenJS.Slide) => slide.addImage({ data: logoData, x: 11.15, y: 0.3, w: 1.75, h: 0.302 });
 
   // ---- Cover ----
   const cover = pptx.addSlide();
-  cover.background = { color: "FFFFFF" };
+  cover.background = { data: coverBg };
   addLogo(cover);
   cover.addText(
     [
@@ -86,7 +92,7 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
   // ---- One slide per issue ----
   for (const item of params.items) {
     const slide = pptx.addSlide();
-    slide.background = { color: BEIGE };
+    slide.background = { data: contentBg };
     addLogo(slide);
 
     slide.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 0.32, w: 7.9, h: 0.86, fill: { color: GREEN }, line: { type: "none" }, rectRadius: 0.07 });
@@ -128,7 +134,7 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
         { text: zh, options: { breakLine: true } },
         { text: vi },
       ],
-      options: { align: "center" as const, valign: "middle" as const, fontFace: "Times New Roman", fontSize: 12, color: "000000", fill: { color: ORANGE }, border, margin: [2, 4, 2, 4] as [number, number, number, number] },
+      options: { align: "center" as const, valign: "middle" as const, fontFace: "Times New Roman", fontSize: 12, color: "000000", fill: { color: TABLE_HEADER }, border, margin: [2, 4, 2, 4] as [number, number, number, number] },
     });
     const bodyCell = (text: string) => ({
       text,
