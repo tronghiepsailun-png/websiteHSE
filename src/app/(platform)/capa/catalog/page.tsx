@@ -4,7 +4,7 @@ import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { listCatalogItems } from "@/server/catalog";
 import { T } from "@/components/i18n/t";
-import { CatalogEditor } from "./catalog-editor";
+import { CatalogEditor } from "@/components/catalog/catalog-editor";
 
 export default async function CapaCatalogPage() {
   const access = await tryApiAccess(PERMISSIONS.CAPA_EDIT);
@@ -29,8 +29,8 @@ export default async function CapaCatalogPage() {
         </p>
       </div>
 
-      <CatalogEditor kind="area" titleKey="capa.catalog.area" items={areas} />
-      <CatalogEditor kind="dept" titleKey="capa.catalog.dept" items={depts} />
+      <CatalogEditor module="capa" kind="area" titleKey="capa.catalog.area" items={areas} />
+      <CatalogEditor module="capa" kind="dept" titleKey="capa.catalog.dept" items={depts} />
     </div>
   );
 }

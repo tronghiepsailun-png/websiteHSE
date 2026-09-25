@@ -45,11 +45,13 @@ export const PERMISSIONS = {
   DOCS_HSE_VIEW: "docs_hse.view",
   DOCS_ENVIRONMENT_VIEW: "docs_environment.view",
   PROCUREMENT_VIEW: "procurement.view",
-  FORMS_VIEW: "forms.view",
   TRAINING_NEW_EMPLOYEES_VIEW: "training_new_employees.view",
   TRAINING_INCIDENTS_VIEW: "training_incidents.view",
   TRAINING_MATERIALS_VIEW: "training_materials.view",
-  TRAINING_FORMS_VIEW: "training_forms.view",
+  // Thư viện biểu mẫu (form library) — a real module: view = see/download every form; edit = add,
+  // change, replace files of, hide or delete forms and manage the categories.
+  FORMS_VIEW: "forms.view",
+  FORMS_EDIT: "forms.edit",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -179,9 +181,9 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   },
   {
     key: "forms",
-    labelKey: "nav.forms",
+    labelKey: "nav.formLibrary",
     view: PERMISSIONS.FORMS_VIEW,
-    edit: null,
+    edit: [PERMISSIONS.FORMS_EDIT],
     delete: null,
     upload: null,
     download: null,
@@ -208,15 +210,6 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     key: "training_materials",
     labelKey: "nav.trainingMaterials",
     view: PERMISSIONS.TRAINING_MATERIALS_VIEW,
-    edit: null,
-    delete: null,
-    upload: null,
-    download: null,
-  },
-  {
-    key: "training_forms",
-    labelKey: "nav.trainingForms",
-    view: PERMISSIONS.TRAINING_FORMS_VIEW,
     edit: null,
     delete: null,
     upload: null,

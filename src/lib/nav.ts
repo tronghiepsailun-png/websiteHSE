@@ -14,7 +14,7 @@ import {
   Leaf,
   ShoppingCart,
   Warehouse,
-  FileSpreadsheet,
+  FolderOpen,
   GraduationCap,
   BookOpen,
   Library,
@@ -74,7 +74,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/procurement", labelKey: "nav.procurement", permission: PERMISSIONS.PROCUREMENT_VIEW, icon: ShoppingCart },
       { href: "/inventory", labelKey: "nav.inventory", permission: PERMISSIONS.INVENTORY_VIEW, icon: Warehouse },
-      { href: "/forms", labelKey: "nav.forms", permission: PERMISSIONS.FORMS_VIEW, icon: FileSpreadsheet },
     ],
   },
   {
@@ -83,8 +82,11 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/training/new-employees", labelKey: "nav.trainingNewEmployees", permission: PERMISSIONS.TRAINING_NEW_EMPLOYEES_VIEW, icon: GraduationCap },
       { href: "/training/incidents", labelKey: "nav.trainingIncidents", permission: PERMISSIONS.TRAINING_INCIDENTS_VIEW, icon: BookOpen },
       { href: "/training/materials", labelKey: "nav.trainingMaterials", permission: PERMISSIONS.TRAINING_MATERIALS_VIEW, icon: Library },
-      { href: "/training/forms", labelKey: "nav.trainingForms", permission: PERMISSIONS.TRAINING_FORMS_VIEW, icon: FileSpreadsheet },
     ],
+  },
+  {
+    labelKey: "nav.groupFormLibrary",
+    items: [{ href: "/form-library", labelKey: "nav.formLibrary", permission: PERMISSIONS.FORMS_VIEW, icon: FolderOpen }],
   },
 ];
 

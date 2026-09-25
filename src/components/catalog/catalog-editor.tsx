@@ -18,13 +18,25 @@ import {
   toggleCatalogItemAction,
   updateCatalogItemAction,
   type CatalogActionResult,
-} from "./actions";
+} from "./catalog-actions";
 
 type Item = { id: string; nameVi: string; nameZh: string | null; isActive: boolean };
 
 /** One editable list (add / rename / reorder / hide / delete). Every change goes straight to the
  *  server and the page refreshes, so the CAPA dropdowns pick it up immediately. */
-export function CatalogEditor({ kind, titleKey, items }: { kind: "area" | "dept"; titleKey: DictionaryKey; items: Item[] }) {
+export function CatalogEditor({
+  module,
+  kind,
+  titleKey,
+  items,
+  deleteConfirmKey = "capa.catalog.deleteConfirm",
+}: {
+  module: string;
+  kind: string;
+  titleKey: DictionaryKey;
+  items: Item[];
+  deleteConfirmKey?: DictionaryKey;
+}) {
   const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -67,7 +79,7 @@ export function CatalogEditor({ kind, titleKey, items }: { kind: "area" | "dept"
           onSubmit={(e) => {
             e.preventDefault();
             run(
-              () => createCatalogItemAction(kind, { nameVi: newVi, nameZh: newZh }),
+              () => createCatalogItemAction(module, kind, { nameVi: newVi, nameZh: newZh }),
               () => {
                 setNewVi("");
                 setNewZh("");
@@ -177,7 +189,7 @@ export function CatalogEditor({ kind, titleKey, items }: { kind: "area" | "dept"
       <ConfirmDialog
         open={deleteId !== null}
         onOpenChange={(open) => !open && setDeleteId(null)}
-        description={t("capa.catalog.deleteConfirm")}
+        description={t(deleteConfirmKey)}
         confirmLabel={t("common.delete")}
         pending={pending}
         onConfirm={() => deleteId && run(() => deleteCatalogItemAction(deleteId))}

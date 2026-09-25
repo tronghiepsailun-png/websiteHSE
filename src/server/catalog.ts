@@ -6,6 +6,7 @@ export type CatalogItemRow = { id: string; nameVi: string; nameZh: string | null
 /** Every dropdown a module lets the org edit, keyed by module then kind. */
 export const CATALOG_KINDS = {
   capa: ["area", "dept"],
+  forms: ["category"],
 } as const;
 
 export type CatalogModule = keyof typeof CATALOG_KINDS;

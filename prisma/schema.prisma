@@ -35,6 +35,7 @@ model Organization {
   documentTypes        DocumentType[]
   picklists            Picklist[]
   catalogItems         CatalogItem[]
+  formTemplates        FormTemplate[]
   incidentCategories   IncidentCategory[]
   incidentSeverities   IncidentSeverity[]
   idSequenceConfigs    IdSequenceConfig[]
@@ -364,10 +365,37 @@ model CatalogItem {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formTemplates FormTemplate[]
 
   @@index([organizationId, module, kind])
   @@map("catalog_items")
+}
+
+/// One entry of the "Thư viện biểu mẫu" (form library): a named form that belongs to a category
+/// (a CatalogItem of module "forms", kind "category") and carries one or more files — Word, Excel,
+/// PDF... — stored in the shared polymorphic Document table (module "forms", recordId = this id).
+/// A file that gets replaced by a newer one is kept with tag "archived" and simply not listed.
+model FormTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  categoryId     String
+  code           String? // optional form number, e.g. HSE-F-012
+  nameVi         String
+  nameZh         String?
+  descriptionVi  String?
+  descriptionZh  String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     CatalogItem  @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+
+  @@index([organizationId, categoryId])
+  @@map("form_templates")
 }
 
 model PicklistItem {
