@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Clock, Star } from "lucide-react";
+import { ClipboardList, Clock, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
@@ -9,8 +9,9 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
-  { href: "/employees/security/attendance", labelKey: "employees.security.tabAttendance", icon: Clock, fg: "#2563eb", bg: "#dbeafe" },
-  { href: "/employees/security/evaluation", labelKey: "employees.security.tabEvaluation", icon: Star, fg: "#d97706", bg: "#fef3c7" },
+  { href: "/security/attendance", labelKey: "nav.securityAttendance", icon: Clock, fg: "#2563eb", bg: "#dbeafe" },
+  { href: "/security/evaluation", labelKey: "nav.securityEvaluation", icon: Star, fg: "#d97706", bg: "#fef3c7" },
+  { href: "/security/tasks", labelKey: "nav.securityTasks", icon: ClipboardList, fg: "#0d9488", bg: "#ccfbf1" },
 ];
 
 // Same plain-<a> pattern as violations/violations-tabs.tsx — a real full page load on every

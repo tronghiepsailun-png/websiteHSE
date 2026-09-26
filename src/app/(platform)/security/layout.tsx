@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SecurityTabs } from "./security-tabs";
 import { T } from "@/components/i18n/t";
 
-/** Shared header + tab bar for every /employees/security/* route — mirrors how the Violations
+/** Shared header + tab bar for every /security/* route — mirrors how the Violations
  *  module's own layout.tsx shares one title/tab-bar card across its sub-routes. Chấm công and
  *  Đánh giá khảo hạch used to be two separate sidebar entries; merged here into one "Quản lý bảo
  *  an" section per the user's request. */

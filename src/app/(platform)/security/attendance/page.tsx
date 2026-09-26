@@ -21,7 +21,7 @@ function hasPermission(permissionKeys: string[] | null, key: string) {
   return permissionKeys === null || permissionKeys.includes(key);
 }
 
-export default async function EmployeeAttendancePage({ searchParams }: PageProps<"/employees/security/attendance">) {
+export default async function EmployeeAttendancePage({ searchParams }: PageProps<"/security/attendance">) {
   const access = await tryApiAccess(PERMISSIONS.SECURITY_VIEW);
   if ("denied" in access) return <NoPermissionState />;
   const ctx = access;

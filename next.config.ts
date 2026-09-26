@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
+  // "Quản lý bảo an" moved out of the employees module into its own /security section; keep old
+  // bookmarks and links working.
+  async redirects() {
+    return [{ source: "/employees/security/:path*", destination: "/security/:path*", permanent: true }];
+  },
   experimental: {
     // Both the incidents and employees Excel-import actions already enforce their own 25MB
     // file-size ceiling (MAX_IMPORT_SIZE_BYTES), and confirming an employee import sends every

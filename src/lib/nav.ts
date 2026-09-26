@@ -8,7 +8,8 @@ import {
   IdCard,
   FileCheck2,
   ClipboardList,
-  ShieldCheck,
+  Clock,
+  Star,
   ShieldX,
   FileText,
   Leaf,
@@ -54,7 +55,14 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: "nav.groupEmployeeMgmt",
     items: [
       { href: "/employees", labelKey: "nav.employees", permission: PERMISSIONS.EMPLOYEE_VIEW, icon: IdCard },
-      { href: "/employees/security", labelKey: "nav.employeeSecurity", permission: PERMISSIONS.SECURITY_VIEW, icon: ShieldCheck },
+    ],
+  },
+  {
+    labelKey: "nav.groupSecurity",
+    items: [
+      { href: "/security/attendance", labelKey: "nav.securityAttendance", permission: PERMISSIONS.SECURITY_VIEW, icon: Clock },
+      { href: "/security/evaluation", labelKey: "nav.securityEvaluation", permission: PERMISSIONS.SECURITY_VIEW, icon: Star },
+      { href: "/security/tasks", labelKey: "nav.securityTasks", permission: PERMISSIONS.SECURITY_VIEW, icon: ClipboardList },
     ],
   },
   {

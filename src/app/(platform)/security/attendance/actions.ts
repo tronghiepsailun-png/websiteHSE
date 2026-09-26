@@ -50,5 +50,5 @@ export async function setAttendanceStatusAction(
     update: { status: parsed.data.status, hours: hoursValue, notes: noteValue },
   });
 
-  revalidatePath("/employees/security/attendance");
+  revalidatePath("/security/attendance");
 }
