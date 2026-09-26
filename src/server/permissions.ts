@@ -52,6 +52,8 @@ export const PERMISSIONS = {
   // change, replace files of, hide or delete forms and manage the categories.
   FORMS_VIEW: "forms.view",
   FORMS_EDIT: "forms.edit",
+  // AI assistant (Q&A + Vietnamese/Chinese translation) in the top bar.
+  AI_USE: "ai.use",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -174,6 +176,15 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     key: "procurement",
     labelKey: "nav.procurement",
     view: PERMISSIONS.PROCUREMENT_VIEW,
+    edit: null,
+    delete: null,
+    upload: null,
+    download: null,
+  },
+  {
+    key: "ai",
+    labelKey: "nav.aiAssistant",
+    view: PERMISSIONS.AI_USE,
     edit: null,
     delete: null,
     upload: null,

@@ -23,6 +23,8 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Breadcrumb, DocumentTitle } from "@/components/layout/breadcrumb";
+import { AssistantButton } from "@/components/ai/assistant";
+import { PERMISSIONS } from "@/server/permissions";
 import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
@@ -55,6 +57,7 @@ export function AppShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const t = useT();
+  const canUseAi = permissionKeys === null || permissionKeys.includes(PERMISSIONS.AI_USE);
 
   // Persisted independently of theme/locale — purely a layout preference, per browser.
   useEffect(() => {
@@ -185,6 +188,7 @@ export function AppShell({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+            {canUseAi && <AssistantButton />}
             <ThemeToggle />
             <LanguageSwitcher />
             <Separator orientation="vertical" className="mx-1 h-5" />

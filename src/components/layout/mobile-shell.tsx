@@ -22,6 +22,8 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { DocumentTitle } from "@/components/layout/breadcrumb";
+import { AssistantButton } from "@/components/ai/assistant";
+import { PERMISSIONS } from "@/server/permissions";
 import { T } from "@/components/i18n/t";
 import { useT } from "@/lib/i18n/locale-context";
 import type { DictionaryKey } from "@/lib/i18n/translate";
@@ -80,6 +82,7 @@ export function MobileShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const activeTab = useActiveTab();
   const t = useT();
+  const canUseAi = permissionKeys === null || permissionKeys.includes(PERMISSIONS.AI_USE);
 
   return (
     <div className="mobile-shell flex h-screen flex-col overflow-hidden">
@@ -122,6 +125,7 @@ export function MobileShell({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        {canUseAi && <AssistantButton />}
         <ThemeToggle />
         <UserMenu name={user.name} email={user.email} isPlatformAdmin={user.isPlatformAdmin} showSettings={showSettings} />
       </header>
