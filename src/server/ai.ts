@@ -137,8 +137,15 @@ async function discoverModels(apiKey: string): Promise<string[]> {
 }
 
 async function callGemini(system: string, contents: GeminiContent[], temperature: number): Promise<AiResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  // Tolerate stray spaces/quotes around the value in .env.
+  const apiKey = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!apiKey) return { error: "not_configured" };
+  // HTTP headers only carry plain ASCII — a value with accents/spaces (e.g. a placeholder that was
+  // never replaced with the real key) would make fetch throw a confusing ByteString error.
+  if (!/^[\x21-\x7e]+$/.test(apiKey)) {
+    console.error("GEMINI_API_KEY contains characters that cannot be part of an API key — check the .env value.");
+    return { error: "invalid_key" };
+  }
   const models = (process.env.GEMINI_MODELS ?? DEFAULT_MODELS).split(",").map((m) => m.trim()).filter(Boolean);
 
   const first = await tryModels(models, apiKey, system, contents, temperature);
