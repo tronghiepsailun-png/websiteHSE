@@ -160,7 +160,7 @@ const vi = {
   "ai.translate.auto": "Tự động",
   "ai.translate.viZh": "Việt → Trung",
   "ai.translate.zhVi": "Trung → Việt",
-  "ai.translate.placeholder": "Dán hoặc nhập văn bản cần dịch...",
+  "ai.translate.placeholder": "Nhập hoặc dán văn bản cần dịch... (Enter để dịch, Shift+Enter xuống dòng)",
   "ai.translate.button": "Dịch",
   "ai.translate.working": "Đang dịch...",
   "ai.translate.result": "Bản dịch",

@@ -220,6 +220,15 @@ export function AssistantButton({ className }: { className?: string }) {
                     setSource(e.target.value);
                     setTranslation(null);
                   }}
+                  onKeyDown={(e) => {
+                    // Enter translates right away; Shift+Enter still inserts a line break. The
+                    // isComposing check keeps Enter from firing while a Vietnamese/Chinese IME is
+                    // still confirming a word.
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      translate();
+                    }
+                  }}
                   placeholder={t("ai.translate.placeholder")}
                   aria-label={t("ai.translate.placeholder")}
                   rows={6}

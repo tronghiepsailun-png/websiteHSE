@@ -161,7 +161,7 @@ const zh: Record<DictionaryKey, string> = {
   "ai.translate.auto": "自动",
   "ai.translate.viZh": "越 → 中",
   "ai.translate.zhVi": "中 → 越",
-  "ai.translate.placeholder": "粘贴或输入需要翻译的文字…",
+  "ai.translate.placeholder": "输入或粘贴需要翻译的文字…（回车翻译，Shift+回车换行）",
   "ai.translate.button": "翻译",
   "ai.translate.working": "正在翻译…",
   "ai.translate.result": "译文",
