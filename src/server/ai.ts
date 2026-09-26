@@ -5,13 +5,15 @@ import { MAX_INPUT_CHARS } from "@/lib/ai-constants";
 // conversations are never stored.
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODELS = "gemini-2.5-flash,gemini-2.5-flash-lite";
+// The "-latest" aliases follow Google's current Flash / Flash-Lite, so a retired model name
+// doesn't silently break the assistant.
+const DEFAULT_MODELS = "gemini-flash-latest,gemini-flash-lite-latest,gemini-2.5-flash";
 
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_HISTORY_CHARS = 12000;
 
 export type AiChatMessage = { role: "user" | "assistant"; text: string };
-export type AiResult = { text: string } | { error: "not_configured" | "rate_limited" | "quota" | "invalid_key" | "blocked" | "failed" };
+export type AiResult = { text: string } | { error: "not_configured" | "rate_limited" | "quota" | "invalid_key" | "blocked" | "failed"; code?: string };
 
 // Free-tier keys have small, shifting quotas — a per-person hourly cap keeps one user from
 // draining the whole factory's allowance. In-memory on purpose (resets on restart, no storage).
@@ -56,12 +58,16 @@ function translateSystem(direction: TranslateDirection) {
 
 type GeminiContent = { role: "user" | "model"; parts: { text: string }[] };
 
-async function callGemini(system: string, contents: GeminiContent[], temperature: number): Promise<AiResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { error: "not_configured" };
-  const models = (process.env.GEMINI_MODELS ?? DEFAULT_MODELS).split(",").map((m) => m.trim()).filter(Boolean);
+type Failure = Extract<AiResult, { error: string }>;
 
-  let lastError: Extract<AiResult, { error: string }>["error"] = "failed";
+/** Tries each model in turn. Returns `done` as soon as there is a final answer / blocked /
+ *  invalid-key result; otherwise how it failed (quota vs anything else, plus the last status code)
+ *  and whether any model was reported as unknown — which is what triggers model auto-discovery. */
+type TryResult = { done: AiResult } | { done?: undefined; failure: Failure; unknownModel: boolean };
+
+async function tryModels(models: string[], apiKey: string, system: string, contents: GeminiContent[], temperature: number): Promise<TryResult> {
+  let failure: Failure = { error: "failed" };
+  let unknownModel = false;
   for (const model of models) {
     try {
       const res = await fetch(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
@@ -75,20 +81,20 @@ async function callGemini(system: string, contents: GeminiContent[], temperature
         signal: AbortSignal.timeout(45_000),
       });
 
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        // A rejected key is the same for every model — no point trying the next one.
-        const body = await res.text().catch(() => "");
-        console.error("Gemini rejected the request:", res.status, body.slice(0, 300));
-        return { error: /API key|API_KEY|permission/i.test(body) ? "invalid_key" : "failed" };
-      }
       if (res.status === 429) {
-        lastError = "quota";
+        failure = { error: "quota", code: "429" };
         continue;
       }
       if (!res.ok) {
-        console.error("Gemini error:", model, res.status);
-        lastError = "failed";
-        continue; // 404 (model retired) / 5xx — try the next model in the list
+        const body = await res.text().catch(() => "");
+        console.error("Gemini error:", model, res.status, body.slice(0, 300));
+        // A rejected key is the same for every model — no point trying the next one.
+        if ([400, 401, 403].includes(res.status) && /API key|API_KEY|permission denied/i.test(body)) {
+          return { done: { error: "invalid_key", code: String(res.status) } as AiResult };
+        }
+        if (res.status === 404) unknownModel = true;
+        failure = { error: "failed", code: String(res.status) };
+        continue; // 404 (retired model) / other 4xx for this model / 5xx — try the next one
       }
 
       const data = (await res.json()) as {
@@ -96,15 +102,53 @@ async function callGemini(system: string, contents: GeminiContent[], temperature
         promptFeedback?: { blockReason?: string };
       };
       const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
-      if (text) return { text };
-      if (data.promptFeedback?.blockReason || data.candidates?.[0]?.finishReason === "SAFETY") return { error: "blocked" };
-      lastError = "failed";
+      if (text) return { done: { text } as AiResult };
+      if (data.promptFeedback?.blockReason || data.candidates?.[0]?.finishReason === "SAFETY") return { done: { error: "blocked" } as AiResult };
+      console.error("Gemini returned no text:", model, data.candidates?.[0]?.finishReason);
+      failure = { error: "failed", code: data.candidates?.[0]?.finishReason ?? "empty" };
     } catch (err) {
       console.error("Gemini request failed:", model, err instanceof Error ? err.message : err);
-      lastError = "failed";
+      failure = { error: "failed", code: "network" };
     }
   }
-  return { error: lastError };
+  return { failure, unknownModel };
+}
+
+// Google retires model names over time. When the configured ones are reported as unknown, ask the
+// API which Flash models this key can actually use and try those (newest stable first).
+let discovered: { models: string[]; at: number } | null = null;
+
+async function discoverModels(apiKey: string): Promise<string[]> {
+  if (discovered && Date.now() - discovered.at < 6 * 3_600_000) return discovered.models;
+  try {
+    const res = await fetch(`${API_BASE}?pageSize=200`, { headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] };
+    const models = (data.models ?? [])
+      .filter((m) => m.name && m.supportedGenerationMethods?.includes("generateContent"))
+      .map((m) => (m.name as string).replace(/^models\//, ""))
+      .filter((name) => /flash/.test(name) && !/(image|tts|live|audio|embedding|robotics|computer|exp|preview|thinking|vision)/.test(name))
+      .sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+    discovered = { models, at: Date.now() };
+    return models;
+  } catch {
+    return [];
+  }
+}
+
+async function callGemini(system: string, contents: GeminiContent[], temperature: number): Promise<AiResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { error: "not_configured" };
+  const models = (process.env.GEMINI_MODELS ?? DEFAULT_MODELS).split(",").map((m) => m.trim()).filter(Boolean);
+
+  const first = await tryModels(models, apiKey, system, contents, temperature);
+  if (first.done) return first.done;
+  if (!first.unknownModel) return first.failure;
+
+  const extra = (await discoverModels(apiKey)).filter((m) => !models.includes(m)).slice(0, 4);
+  if (extra.length === 0) return first.failure;
+  const second = await tryModels(extra, apiKey, system, contents, temperature);
+  return second.done ?? second.failure;
 }
 
 export async function aiChat(history: AiChatMessage[]): Promise<AiResult> {
