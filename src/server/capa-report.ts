@@ -169,6 +169,11 @@ function addSummarySlide(pptx: PptxGenJS, items: CapaReportItem[], contentBg: st
 
   const chartX = 7.35;
   const chartW = 5.5;
+  const rightPanelY = 1.2;
+  const rightPanelH = 6.0;
+  // White card behind the chart + summary text, so the deck's own green facet background doesn't
+  // show through that whole right-hand block — matches the white boxes already used for photos.
+  slide.addShape(pptx.ShapeType.rect, { x: chartX - 0.15, y: rightPanelY, w: chartW + 0.3, h: rightPanelH, fill: { color: "FFFFFF" }, line: { color: "000000", width: 1 } });
   slide.addChart(pptx.ChartType.bar, [{ name: "Số vấn đề", labels: chartLabels, values: chartValues }], {
     x: chartX,
     y: 1.3,
