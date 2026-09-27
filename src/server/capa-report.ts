@@ -159,50 +159,63 @@ function addSummarySlide(pptx: PptxGenJS, items: CapaReportItem[], contentBg: st
   const chartLabels: string[] = [];
   const chartValues: number[] = [];
   for (const key of CLASSIFICATION_ORDER) {
-    chartLabels.push(CLASSIFICATION_LABELS[key].vi);
+    chartLabels.push(CLASSIFICATION_LABELS[key].zh);
     chartValues.push(byClassification.get(key) ?? 0);
   }
   if (byClassification.has("__none__")) {
-    chartLabels.push(UNCLASSIFIED_LABEL.vi);
+    chartLabels.push(UNCLASSIFIED_LABEL.zh);
     chartValues.push(byClassification.get("__none__")!);
   }
 
   const chartX = 7.35;
   const chartW = 5.5;
-  slide.addText(
-    [
-      { text: "安全隐患问题统计", options: { breakLine: true } },
-      { text: "Thống kê phân loại vấn đề" },
-    ],
-    { x: chartX, y: 1.3, w: chartW, h: 0.5, align: "center", fontFace: "Arial", bold: true, fontSize: 13, color: "000000" }
-  );
   slide.addChart(pptx.ChartType.bar, [{ name: "Số vấn đề", labels: chartLabels, values: chartValues }], {
     x: chartX,
-    y: 1.85,
+    y: 1.3,
     w: chartW,
-    h: 2.9,
+    h: 3.45,
     barDir: "col",
     chartColors: [CHART_BLUE],
     showValue: true,
     dataLabelColor: "000000",
     dataLabelFontSize: 11,
     showLegend: false,
-    showTitle: false,
+    showTitle: true,
+    title: "安全隐患问题统计\nThống kê phân loại vấn đề",
+    titleFontFace: "Arial",
+    titleFontSize: 13,
+    titleColor: "000000",
     catAxisLabelFontSize: 9,
     valAxisHidden: true,
     valGridLine: { style: "none" },
     catAxisLineShow: true,
   });
 
-  // ---- Right: red summary paragraph ----
-  const period =
+  // ---- Right: red summary paragraph, Chinese first then Vietnamese ----
+  const fmtDateCN = (d: Date) => `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
+  const periodCN =
+    minDate && maxDate && minDate.getTime() !== maxDate.getTime()
+      ? minDate.getUTCFullYear() === maxDate.getUTCFullYear() && minDate.getUTCMonth() === maxDate.getUTCMonth()
+        ? `${minDate.getUTCFullYear()}年${minDate.getUTCMonth() + 1}月${minDate.getUTCDate()}日至${maxDate.getUTCDate()}日`
+        : `${fmtDateCN(minDate)}至${fmtDateCN(maxDate)}`
+      : minDate
+        ? fmtDateCN(minDate)
+        : "";
+  const periodVi =
     minDate && maxDate && minDate.getTime() !== maxDate.getTime()
       ? `Từ ngày ${fmtDate(minDate)} đến ngày ${fmtDate(maxDate)}`
       : `Ngày ${fmtDate(minDate)}`;
   const unresolved = grandTotal - grandDone;
   slide.addText(
     [
-      { text: `${period}, Phòng An toàn - Môi trường tổ chức đánh giá và kiểm tra các mối nguy tiềm ẩn về an toàn, phát hiện ` },
+      { text: `${periodCN}，安全环保部组织开展安全隐患排查检查，共发现` },
+      { text: String(grandTotal), options: { bold: true } },
+      { text: "个问题，其中" },
+      { text: String(unresolved), options: { bold: true } },
+      { text: "个问题尚未整改，目前已完成" },
+      { text: String(grandDone), options: { bold: true } },
+      { text: "个问题。", options: { breakLine: true } },
+      { text: `${periodVi}, Phòng An toàn - Môi trường tổ chức đánh giá và kiểm tra các mối nguy tiềm ẩn về an toàn, phát hiện ` },
       { text: String(grandTotal), options: { bold: true } },
       { text: " vấn đề phát sinh, trong đó " },
       { text: String(unresolved), options: { bold: true } },
@@ -210,7 +223,7 @@ function addSummarySlide(pptx: PptxGenJS, items: CapaReportItem[], contentBg: st
       { text: String(grandDone), options: { bold: true } },
       { text: " vấn đề đã hoàn thành." },
     ],
-    { x: chartX, y: 4.95, w: chartW, h: 2.1, fontFace: "Arial", fontSize: 12, color: SUMMARY_RED, valign: "top", lineSpacingMultiple: 1.15 }
+    { x: chartX, y: 4.95, w: chartW, h: 2.1, fontFace: "Arial", fontSize: 11, color: SUMMARY_RED, valign: "top", lineSpacingMultiple: 1.15 }
   );
 }
 
