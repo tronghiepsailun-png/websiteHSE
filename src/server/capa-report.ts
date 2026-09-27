@@ -286,10 +286,14 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
     slide.background = { data: contentBg };
     addLogo(slide);
 
+    // Responsible department in parentheses right after the title, e.g. "二、潜在危险（设备部）" — so
+    // whoever that department is doesn't have to scan the table below to know the slide is theirs.
+    const deptZh = item.responsibleDept?.split("\n")[0] || null;
+    const titleZh = deptZh ? `二、潜在危险（${deptZh}）` : "二、潜在危险";
     slide.addShape(pptx.ShapeType.roundRect, { x: 0.5, y: 0.32, w: 7.9, h: 0.86, fill: { color: GREEN }, line: { type: "none" }, rectRadius: 0.07 });
     slide.addText(
       [
-        { text: "二、潜在危险", options: { bold: true, fontSize: 18, breakLine: true } },
+        { text: titleZh, options: { bold: true, fontSize: titleZh.length > 16 ? 15 : 18, breakLine: true } },
         { text: "Mục II. Nguy hiểm tiềm ẩn", options: { fontSize: 14 } },
       ],
       { x: 0.75, y: 0.32, w: 7.5, h: 0.86, fontFace: "Arial", color: "FFFFFF", valign: "middle", margin: 0 }
