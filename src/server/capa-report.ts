@@ -363,9 +363,21 @@ export async function buildCapaReport(params: { items: CapaReportItem[]; reporte
   return out as Buffer;
 }
 
+/** Vietnamese name to sort a department by (the second line of the "zh\nvi" bilingual string, or
+ *  the whole string when there's only one language) — unassigned sorts after every real
+ *  department. */
+function deptSortKey(dept: string | null): string {
+  if (!dept) return "￿";
+  const parts = dept.split("\n");
+  return parts[parts.length - 1];
+}
+
 /** Loads the requested CAPA rows (scoped to the org — ids from another tenant are silently
  *  dropped), resolves area/department to "Chinese + Vietnamese" via the workshop catalog, and
- *  pulls each row's before/after photo bytes from storage. Keeps the caller's id order. */
+ *  pulls each row's before/after photo bytes from storage. Sorted by responsible department (its
+ *  own per-issue slides then read as one contiguous block per department instead of interleaved
+ *  in whatever order the rows were selected/filtered) — items with no department come last;
+ *  otherwise the caller's id order is kept within the same department. */
 export async function loadCapaReportItems(organizationId: string, ids: string[]): Promise<CapaReportItem[]> {
   const [rows, areaItems, deptItems, photos] = await Promise.all([
     prisma.capaItem.findMany({ where: { organizationId, id: { in: ids } } }),
@@ -401,5 +413,6 @@ export async function loadCapaReportItems(organizationId: string, ids: string[])
       after: await readPhoto(p.after),
     });
   }
+  items.sort((a, b) => deptSortKey(a.responsibleDept).localeCompare(deptSortKey(b.responsibleDept), "vi"));
   return items;
 }
