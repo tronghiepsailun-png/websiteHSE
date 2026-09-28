@@ -1,4 +1,4 @@
-import { Sun, Moon } from "lucide-react";
+import { Clock, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
@@ -47,9 +47,20 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <AttendanceMonthFilter year={year} month={month} options={availableAttendanceMonths()} />
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+              <Clock className="size-5" />
+            </span>
+            <div>
+              <h1 className="text-xl font-semibold"><T k="nav.securityAttendance" /></h1>
+              <p className="hidden text-sm text-muted-foreground md:block"><T k="security.attendance.subtitle" /></p>
+            </div>
+          </div>
+          <AttendanceMonthFilter year={year} month={month} options={availableAttendanceMonths()} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-3 gap-3">
         <Card><CardHeader className="pb-2"><p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"><T k="attendance.kpi.day" /></p><CardTitle className="text-2xl leading-none font-bold text-amber-600 dark:text-amber-400">{stats.day}</CardTitle></CardHeader></Card>

@@ -10,7 +10,7 @@ export default async function EmployeeEvaluationPage() {
   return (
     <ModuleEmptyState
       icon={Star}
-      titleKey="nav.employeeEvaluation"
+      titleKey="nav.securityEvaluation"
       messageKey="modules.evaluation.empty"
       illustrationSrc="/illustrations/security-evaluation.webp"
     />
