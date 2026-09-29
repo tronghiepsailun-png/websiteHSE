@@ -12,15 +12,35 @@
 
 import { prisma } from "@/lib/prisma";
 
-const SOURCE_NAME = "CCG";
 const TARGET_CODE = "JJL02";
 const DRY_RUN = process.argv.includes("--dry-run");
+// Optional `--from=<org code or name>`; otherwise the source is whichever other organization
+// has the most active items (that's CCG — the only org actually using Tồn kho so far).
+const FROM = process.argv.find((a) => a.startsWith("--from="))?.slice("--from=".length);
+
+async function findSource(targetId: string | undefined) {
+  const orgs = await prisma.organization.findMany({
+    where: targetId ? { id: { not: targetId } } : undefined,
+    include: { _count: { select: { inventoryItems: { where: { isActive: true } } } } },
+  });
+  console.log("Organizations:");
+  for (const o of orgs) console.log(`  - ${o.name} (code ${o.code}): ${o._count.inventoryItems} active items`);
+
+  if (FROM) {
+    const match = orgs.find((o) => o.code === FROM || o.name === FROM);
+    if (!match) throw new Error(`Source organization "${FROM}" not found.`);
+    return match;
+  }
+  const best = [...orgs].sort((a, b) => b._count.inventoryItems - a._count.inventoryItems)[0];
+  if (!best || best._count.inventoryItems === 0) throw new Error("No organization has any inventory items to copy.");
+  return best;
+}
 
 async function main() {
-  const source = await prisma.organization.findFirst({ where: { name: SOURCE_NAME } });
-  if (!source) throw new Error(`Source organization "${SOURCE_NAME}" not found.`);
-
   const target = await prisma.organization.findUnique({ where: { code: TARGET_CODE } });
+  const source = await findSource(target?.id);
+  console.log(`Source: ${source.name} (code ${source.code})`);
+
   if (!target && !DRY_RUN) {
     throw new Error(`Organization "${TARGET_CODE}" not found — run scripts/add-organization-jjl.ts first.`);
   }
