@@ -35,6 +35,7 @@ import { useLocale, useT } from "@/lib/i18n/locale-context";
 import { extensionOf, type FormDto, type FormFileDto } from "@/lib/form-files";
 import { deleteFormAction, deleteFormFileAction, replaceFormFileAction, toggleFormActiveAction } from "./actions";
 import { FormEditorDialog } from "./form-editor-dialog";
+import { FilePreviewDialog, previewKind } from "./file-preview-dialog";
 
 type Category = { id: string; nameVi: string; nameZh: string | null; isActive: boolean };
 
@@ -65,9 +66,9 @@ const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif"];
 function fileKind(fileName: string) {
   const ext = extensionOf(fileName);
   const type = FILE_TYPES.find((f) => f.exts.includes(ext));
-  if (type) return { label: type.label, tone: type.tone, previewable: ext === "pdf" };
-  if (IMAGE_EXTS.includes(ext)) return { label: "IMG", tone: "bg-purple-500/10 text-purple-600 dark:text-purple-400", previewable: true };
-  return { label: ext.toUpperCase().slice(0, 5) || "FILE", tone: "bg-slate-500/10 text-slate-600", previewable: false };
+  if (type) return { label: type.label, tone: type.tone };
+  if (IMAGE_EXTS.includes(ext)) return { label: "IMG", tone: "bg-purple-500/10 text-purple-600 dark:text-purple-400" };
+  return { label: ext.toUpperCase().slice(0, 5) || "FILE", tone: "bg-slate-500/10 text-slate-600" };
 }
 
 function formatSize(bytes: number) {
@@ -95,6 +96,7 @@ export function FormLibraryView({ categories, forms, canEdit }: { categories: Ca
   const [editingForm, setEditingForm] = useState<FormDto | null>(null);
   const [deletingForm, setDeletingForm] = useState<FormDto | null>(null);
   const [deletingFile, setDeletingFile] = useState<FormFileDto | null>(null);
+  const [previewFile, setPreviewFile] = useState<FormFileDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const localized = (vi: string, zh: string | null) => (locale === "zh" ? zh?.trim() || vi : vi);
@@ -281,7 +283,7 @@ export function FormLibraryView({ categories, forms, canEdit }: { categories: Ca
 
                   <ul className="flex flex-col gap-1.5">
                     {form.files.map((file) => (
-                      <FileRow key={file.id} file={file} canEdit={canEdit} busy={pending} onReplace={(data) => run(() => replaceFormFileAction(data))} onDelete={() => setDeletingFile(file)} />
+                      <FileRow key={file.id} file={file} canEdit={canEdit} busy={pending} onPreview={() => setPreviewFile(file)} onReplace={(data) => run(() => replaceFormFileAction(data))} onDelete={() => setDeletingFile(file)} />
                     ))}
                     {form.files.length === 0 && <li className="text-sm text-muted-foreground">{t("forms.noFile")}</li>}
                   </ul>
@@ -303,6 +305,7 @@ export function FormLibraryView({ categories, forms, canEdit }: { categories: Ca
         />
       )}
 
+      <FilePreviewDialog file={previewFile} onOpenChange={(open) => !open && setPreviewFile(null)} />
       <ConfirmDialog
         open={deletingForm !== null}
         onOpenChange={(open) => !open && setDeletingForm(null)}
@@ -367,12 +370,14 @@ function FileRow({
   file,
   canEdit,
   busy,
+  onPreview,
   onReplace,
   onDelete,
 }: {
   file: FormFileDto;
   canEdit: boolean;
   busy: boolean;
+  onPreview: () => void;
   onReplace: (data: FormData) => void;
   onDelete: () => void;
 }) {
@@ -390,11 +395,11 @@ function FileRow({
         </span>
         <span className="block text-xs text-muted-foreground">{formatSize(file.sizeBytes)}</span>
       </span>
-      {kind.previewable && (
-        <a href={href} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "ghost", size: "sm" })} aria-label={t("forms.preview")}>
+      {previewKind(file.fileName) && (
+        <Button type="button" variant="outline" size="sm" onClick={onPreview} aria-label={t("forms.preview")}>
           <Eye className="size-4" />
           <span className="hidden sm:inline">{t("forms.preview")}</span>
-        </a>
+        </Button>
       )}
       <a href={`${href}?download=1`} className={buttonVariants({ variant: "default", size: "sm" })}>
         <Download className="size-4" />
