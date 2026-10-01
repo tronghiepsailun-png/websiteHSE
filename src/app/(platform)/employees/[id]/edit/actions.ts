@@ -10,6 +10,7 @@ import { resolveOrgUnitIdByName } from "@/server/org-units";
 import { writeAuditLog, diffFields } from "@/server/audit";
 import { assertBelongsToOrg } from "@/server/org-context";
 import { EMPLOYEE_STATUSES } from "@/server/employees";
+import { TEAMS, setGuardTeam, todayVN, type Team } from "@/server/attendance";
 import { getLocale } from "@/lib/i18n/get-locale.server";
 import { t } from "@/lib/i18n/translate";
 import { zodFieldErrors } from "@/lib/form-errors";
@@ -72,6 +73,12 @@ export async function updateEmployeeAction(_prev: EmployeeFormState, formData: F
       return { error: t(locale, "employees.form.errorDuplicate") };
     }
     throw err;
+  }
+
+  // A team change made here counts from today on, same as on the Chấm công page — otherwise the
+  // guard's past months would be recomputed with the new team.
+  if (before!.shift && nextValues.shift !== before!.shift && (TEAMS as readonly string[]).includes(nextValues.shift ?? "")) {
+    await setGuardTeam(ctx.organizationId, data.employeeId, nextValues.shift as Team, todayVN(), before!.shift);
   }
 
   const changes = diffFields(before as unknown as Record<string, unknown>, nextValues as unknown as Record<string, unknown>, [

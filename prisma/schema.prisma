@@ -43,6 +43,7 @@ model Organization {
   capaItems            CapaItem[]
   workPlanDocuments    WorkPlanDocument[]
   attendanceRecords    AttendanceRecord[]
+  shiftAssignments     ShiftAssignment[]
   auditLogs            AuditLog[]
   recordDomains        RecordDomain[]
   recordEntries        RecordEntry[]
@@ -239,6 +240,7 @@ model Employee {
   capaItemsResponsible    CapaItem[] @relation("CapaResponsiblePerson")
   safetyOfficerLinks      SafetyOfficer[]
   attendanceOverrides     AttendanceRecord[]
+  shiftAssignments        ShiftAssignment[]
   inventoryTransactionsReceived InventoryTransaction[] @relation("InventoryTransactionRecipient")
   workInjuryDeductions    WorkInjuryDeduction[]
   safety5sViolations      Safety5sViolation[]
@@ -270,6 +272,27 @@ model AttendanceRecord {
   @@unique([organizationId, employeeId, date])
   @@index([organizationId, date])
   @@map("attendance_records")
+}
+
+/// A security guard's rotation team (A/B/C) from a given date on — the team on any date is the
+/// latest row with effectiveFrom <= that date, so moving someone to another team never rewrites
+/// the months before the change. A guard with no rows simply uses Employee.shift for every date;
+/// the first change also stores a baseline row (effectiveFrom 1970-01-01) holding the old team.
+/// Employee.shift is kept equal to the team of the latest row.
+model ShiftAssignment {
+  id             String   @id @default(cuid())
+  organizationId String
+  employeeId     String
+  team           String // A | B | C
+  effectiveFrom  DateTime // UTC midnight, date-only
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, employeeId, effectiveFrom])
+  @@map("shift_assignments")
 }
 
 /// Append-only change history, used across every module.

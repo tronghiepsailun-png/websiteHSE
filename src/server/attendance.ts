@@ -35,12 +35,103 @@ export function computeDefaultStatus(teamCode: string | null, date: Date): Atten
   return "off";
 }
 
+export const TEAMS = ["A", "B", "C"] as const;
+export type Team = (typeof TEAMS)[number];
+
 export async function listSecurityGuards(organizationId: string) {
   return prisma.employee.findMany({
     where: { organizationId, position: "保安", status: "active" },
     orderBy: [{ shift: "asc" }, { fullName: "asc" }],
     select: { id: true, employeeCode: true, fullName: true, fullNameZh: true, shift: true },
   });
+}
+
+/** Stored as the first ShiftAssignment's effectiveFrom — "this was the team from the start". */
+const BASELINE_DATE = new Date(Date.UTC(1970, 0, 1));
+
+type Assignment = { id: string; team: string; effectiveFrom: Date; notes: string | null };
+
+/** Team on `date`: the latest assignment that has started by then; with no assignments at all
+ *  (the guard's team has never been changed here) it's just Employee.shift. */
+function teamOn(assignments: Assignment[], fallback: string | null, date: Date): string | null {
+  if (assignments.length === 0) return fallback;
+  let team: string | null = null;
+  for (const a of assignments) {
+    if (a.effectiveFrom.getTime() <= date.getTime()) team = a.team;
+    else break;
+  }
+  return team;
+}
+
+async function loadAssignments(organizationId: string, employeeIds: string[]) {
+  const rows = await prisma.shiftAssignment.findMany({
+    where: { organizationId, employeeId: { in: employeeIds } },
+    orderBy: { effectiveFrom: "asc" },
+  });
+  const byEmployee = new Map<string, Assignment[]>();
+  for (const r of rows) {
+    const list = byEmployee.get(r.employeeId) ?? [];
+    list.push(r);
+    byEmployee.set(r.employeeId, list);
+  }
+  return byEmployee;
+}
+
+/** Today's date in Vietnam (UTC+7) as UTC midnight — the "today" a manager means. */
+export function todayVN() {
+  const now = new Date(Date.now() + 7 * 3_600_000);
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** Moves a guard to `team` from `effectiveFrom` on, leaving every date before it as it was.
+ *  `previousShift` is the team the guard had before (needed for the baseline row the first time
+ *  a guard's team is changed). Also keeps Employee.shift equal to the latest assignment. */
+export async function setGuardTeam(
+  organizationId: string,
+  employeeId: string,
+  team: Team,
+  effectiveFrom: Date,
+  previousShift: string | null,
+  notes: string | null = null
+) {
+  const existing = await prisma.shiftAssignment.count({ where: { organizationId, employeeId } });
+  if (existing === 0 && previousShift && effectiveFrom.getTime() > BASELINE_DATE.getTime()) {
+    await prisma.shiftAssignment.create({ data: { organizationId, employeeId, team: previousShift, effectiveFrom: BASELINE_DATE } });
+  }
+  await prisma.shiftAssignment.upsert({
+    where: { organizationId_employeeId_effectiveFrom: { organizationId, employeeId, effectiveFrom } },
+    create: { organizationId, employeeId, team, effectiveFrom, notes },
+    update: { team, notes },
+  });
+  await syncEmployeeShift(organizationId, employeeId);
+}
+
+/** Undoes one team change (never the baseline row). */
+export async function deleteGuardTeamChange(organizationId: string, assignmentId: string) {
+  const row = await prisma.shiftAssignment.findUnique({ where: { id: assignmentId } });
+  if (!row || row.organizationId !== organizationId || row.effectiveFrom.getTime() === BASELINE_DATE.getTime()) return null;
+  await prisma.shiftAssignment.delete({ where: { id: assignmentId } });
+  // Only the baseline left → no change remains, go back to plain Employee.shift.
+  const remaining = await prisma.shiftAssignment.findMany({ where: { organizationId, employeeId: row.employeeId } });
+  if (remaining.length === 1 && remaining[0].effectiveFrom.getTime() === BASELINE_DATE.getTime()) {
+    await prisma.employee.update({ where: { id: row.employeeId }, data: { shift: remaining[0].team } });
+    await prisma.shiftAssignment.delete({ where: { id: remaining[0].id } });
+  } else {
+    await syncEmployeeShift(organizationId, row.employeeId);
+  }
+  return row;
+}
+
+async function syncEmployeeShift(organizationId: string, employeeId: string) {
+  const latest = await prisma.shiftAssignment.findFirst({ where: { organizationId, employeeId }, orderBy: { effectiveFrom: "desc" } });
+  if (latest) await prisma.employee.update({ where: { id: employeeId }, data: { shift: latest.team } });
+}
+
+/** The team of each guard on a given date, for working out who a swap partner is. */
+export async function teamsOnDate(organizationId: string, date: Date) {
+  const guards = await listSecurityGuards(organizationId);
+  const assignments = await loadAssignments(organizationId, guards.map((g) => g.id));
+  return new Map(guards.map((g) => [g.id, teamOn(assignments.get(g.id) ?? [], g.shift, date)]));
 }
 
 export type DayCell = {
@@ -72,14 +163,23 @@ export async function getAttendanceMonth(organizationId: string, year: number, m
       { status: o.status as AttendanceStatus, notes: o.notes, hours: o.hours },
     ])
   );
+  const assignmentsByGuard = await loadAssignments(organizationId, guards.map((g) => g.id));
+  const today = todayVN();
 
   const rows = guards.map((guard) => {
+    const assignments = assignmentsByGuard.get(guard.id) ?? [];
     const cells: DayCell[] = [];
+    // Team changes that take effect inside this month, e.g. B → C from the 15th.
+    const teamChanges: { day: number; from: string | null; to: string | null }[] = [];
+    let previousTeam = teamOn(assignments, guard.shift, new Date(Date.UTC(year, month - 1, 0)));
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(Date.UTC(year, month - 1, day));
       const key = `${guard.id}|${date.toISOString().slice(0, 10)}`;
       const override = overrideByKey.get(key);
-      const defaultStatus = computeDefaultStatus(guard.shift, date);
+      const team = teamOn(assignments, guard.shift, date);
+      if (team !== previousTeam) teamChanges.push({ day, from: previousTeam, to: team });
+      previousTeam = team;
+      const defaultStatus = computeDefaultStatus(team, date);
       cells.push({
         date,
         status: override?.status ?? defaultStatus,
@@ -89,8 +189,21 @@ export async function getAttendanceMonth(organizationId: string, year: number, m
         hours: override?.hours ?? DEFAULT_SHIFT_HOURS,
       });
     }
-    return { guard, cells };
+    const startTeam = teamOn(assignments, guard.shift, new Date(Date.UTC(year, month - 1, 1)));
+    return {
+      guard,
+      cells,
+      startTeam,
+      teamChanges,
+      currentTeam: teamOn(assignments, guard.shift, today),
+      history: assignments
+        .filter((a) => a.effectiveFrom.getTime() !== BASELINE_DATE.getTime())
+        .map((a) => ({ id: a.id, team: a.team, effectiveFrom: a.effectiveFrom.toISOString().slice(0, 10), notes: a.notes })),
+    };
   });
+
+  // Group the grid by the team each guard is on at the start of the month.
+  rows.sort((a, b) => (a.startTeam ?? "~").localeCompare(b.startTeam ?? "~") || a.guard.fullName.localeCompare(b.guard.fullName, "vi"));
 
   return { year, month, daysInMonth, rows };
 }

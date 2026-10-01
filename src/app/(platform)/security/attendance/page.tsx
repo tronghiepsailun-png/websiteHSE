@@ -4,15 +4,14 @@ import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
 import { PERMISSIONS } from "@/server/permissions";
 import { prisma } from "@/lib/prisma";
-import { getAttendanceMonth, getAttendanceStats, availableAttendanceMonths } from "@/server/attendance";
+import { getAttendanceMonth, getAttendanceStats, availableAttendanceMonths, todayVN } from "@/server/attendance";
+import { TeamCell } from "./team-change-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AttendanceMonthFilter } from "./attendance-month-filter";
 import { AttendanceCell } from "./attendance-cell";
 import { T } from "@/components/i18n/t";
-import { t } from "@/lib/i18n/translate";
-import { getLocale } from "@/lib/i18n/get-locale.server";
 import { REPORT_GRID_CLASS } from "@/lib/table-grid";
 
 const WEEKDAY_VI = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -25,7 +24,6 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
   const access = await tryApiAccess(PERMISSIONS.SECURITY_VIEW);
   if ("denied" in access) return <NoPermissionState />;
   const ctx = access;
-  const locale = await getLocale();
   const params = await searchParams;
 
   const now = new Date();
@@ -44,6 +42,8 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
   ]);
   const stats = getAttendanceStats(rows);
   const canManage = hasPermission(permissionKeys, PERMISSIONS.SECURITY_EDIT);
+  const today = todayVN().toISOString().slice(0, 10);
+  const guardOptions = rows.map((r) => ({ id: r.guard.id, fullName: r.guard.fullName, fullNameZh: r.guard.fullNameZh, currentTeam: r.currentTeam }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,14 +119,22 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map(({ guard, cells }) => (
+                {rows.map(({ guard, cells, startTeam, teamChanges, currentTeam, history }) => (
                   <TableRow key={guard.id} className="h-12">
                     <TableCell className="sticky left-0 z-10 bg-card font-medium whitespace-nowrap">
                       <div>{guard.fullName}</div>
                       {guard.fullNameZh && <div className="text-xs text-muted-foreground">{guard.fullNameZh}</div>}
                     </TableCell>
-                    <TableCell className="sticky left-40 z-10 bg-card text-center text-muted-foreground">
-                      {guard.shift ? `${t(locale, "attendance.team.prefix")} ${guard.shift}` : "—"}
+                    <TableCell className="sticky left-40 z-10 bg-card p-1 text-center text-muted-foreground">
+                      <TeamCell
+                        guard={{ id: guard.id, fullName: guard.fullName, fullNameZh: guard.fullNameZh, currentTeam }}
+                        startTeam={startTeam}
+                        teamChanges={teamChanges}
+                        history={history}
+                        guards={guardOptions}
+                        today={today}
+                        canManage={canManage}
+                      />
                     </TableCell>
                     {cells.map((cell) => {
                       const dateStr = cell.date.toISOString().slice(0, 10);
