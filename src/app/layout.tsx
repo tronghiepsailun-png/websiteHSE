@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/lib/i18n/locale-context";
@@ -9,9 +9,13 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Inter, not Geist: Geist has no Vietnamese glyphs, so every ạ/ế/ữ silently fell back to a
+// different system font mid-word. Inter ships a full Vietnamese subset and is the de-facto
+// workhorse face of data-dense product UIs.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -37,7 +41,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0f14" },
   ],
 };
 
@@ -47,10 +51,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full flex flex-col overflow-hidden bg-muted/30">
+      <body className="h-full flex flex-col overflow-hidden bg-canvas">
         {/* strategy="beforeInteractive" is Next's own hook for exactly this: it injects the
             script into the initial HTML and runs it before hydration, instead of as a plain DOM
             script tag React won't execute on its own. Needed because beforeinstallprompt is a

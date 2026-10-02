@@ -136,7 +136,7 @@ export function MobileShell({
         </div>
       )}
 
-      <main id="main-content" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted pb-4">
+      <main id="main-content" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-canvas pb-4">
         <div className="w-full p-3">{children}</div>
       </main>
 

@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -34,6 +34,7 @@
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+  --color-canvas: var(--canvas);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -52,89 +53,94 @@
 }
 
 :root {
-  /* HSE Enterprise light theme: white/near-white surfaces, a single HSE-green primary
-     identity (mirrors the dark theme's green, just applied to a light base instead of
-     navy), same blue/amber/orange/purple chart hues as dark mode so both themes agree
-     on what each color means. Dark forest-green sidebar for brand presence, matching
-     the reference corporate-dashboard look. */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #16a34a;
-  --primary-foreground: #f8fafc;
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.955 0 0); /* page canvas — a shade darker than pure white so bg-card blocks actually separate from it */
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: #16a34a; /* = Tailwind green-600, matches every existing text-green-600 usage */
-  --warning: #d97706; /* = Tailwind amber-600, matches every existing text-amber-600 usage */
-  --chart-brand: #16a34a; /* one HSE green for every non-semantic distribution chart — shade/opacity varies, hue never does */
+  /* Light theme, modelled on current enterprise SaaS practice (Linear/Vercel/Stripe-style):
+     ~90% cool slate neutrals carry the interface, one emerald brand color is used sparingly
+     for primary actions/active state, and every other hue means a status (red = broken,
+     amber = warning) rather than decoration. Text colors are picked for WCAG AA contrast on
+     both the white cards and the slate canvas. Deep forest sidebar keeps the HSE identity. */
+  --background: #ffffff;
+  --foreground: #0f172a; /* slate-900 */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #047857; /* emerald-700 — white text on it passes AA (5.5:1); the old green-600 didn't */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f4f8;
+  --canvas: #f3f5f8; /* page background — just dark enough that white cards separate from it */
+  --muted-foreground: #5b6779; /* ≥ 4.9:1 on white and on the canvas */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #dc2626;
+  --success: #047857;
+  --warning: #b45309; /* amber-700 — readable as text, not just as a fill */
+  --chart-brand: #059669; /* one HSE green for every non-semantic distribution chart — shade/opacity varies, hue never does */
   --accent-blue: #2563eb; /* controlled 2nd/3rd accent for enterprise-dashboard-style KPI tiers (not chart data) */
   --accent-purple: #7c3aed;
-  --border: oklch(0.88 0 0); /* darker than the old 0.922 — card/table edges need to actually read as edges */
-  --input: oklch(0.88 0 0);
-  --ring: #16a34a;
-  --chart-1: #16a34a;
+  --border: #e2e8f0; /* slate-200 — hairline edges; separation comes from the canvas/card contrast */
+  --input: #d5dde7;
+  --ring: #059669;
+  --chart-1: #059669;
   --chart-2: #2563eb;
   --chart-3: #d97706;
   --chart-4: #ea580c;
-  --chart-5: #9333ea;
-  --radius: 0.75rem;
-  --sidebar: #0f3d24;
-  --sidebar-foreground: #cfe8d9;
-  --sidebar-primary: #16a34a;
-  --sidebar-primary-foreground: #f8fafc;
-  --sidebar-accent: #16a34a;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: rgba(248, 250, 252, 0.1);
-  --sidebar-ring: #22c55e;
+  --chart-5: #7c3aed;
+  --radius: 0.5rem;
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.03);
+  --sidebar: #0b2a1e;
+  --sidebar-foreground: #c3d3cb;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(52 211 153 / 0.14); /* active item: a tint, not a solid block */
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+  --sidebar-ring: #34d399;
 }
 
 .dark {
-  /* HSE Enterprise dark theme: dark navy surfaces, green = safety/primary identity,
-     blue = data/cost, amber/orange/red = warning/danger/critical severity scale. */
-  --background: #0b1320;
-  --foreground: #e5e7eb;
-  --card: #121a2b;
-  --card-foreground: #e5e7eb;
-  --popover: #1a2337;
-  --popover-foreground: #e5e7eb;
-  --primary: #22c55e;
-  --primary-foreground: #f8fafc;
-  --secondary: #121a2b;
-  --secondary-foreground: #e5e7eb;
-  --muted: #1a2337;
-  --muted-foreground: #9ca3af;
-  --accent: #1a2337;
-  --accent-foreground: #e5e7eb;
-  --destructive: #ef4444;
-  --success: #4ade80; /* = Tailwind green-400, matches every existing dark:text-green-400 usage */
-  --warning: #fbbf24; /* = Tailwind amber-400, same hex already used for --chart-3 */
-  --chart-brand: #22c55e; /* one HSE green for every non-semantic distribution chart — matches --primary */
+  /* Dark theme: layered near-black neutrals (canvas < card < popover, each a step lighter)
+     instead of saturated navy, a brighter emerald primary with dark text on it (AA), and the
+     same status hues as light mode so a color always means the same thing. */
+  --background: #0b0f14;
+  --foreground: #e6e9ee;
+  --card: #11161d;
+  --card-foreground: #e6e9ee;
+  --popover: #161c25;
+  --popover-foreground: #e6e9ee;
+  --primary: #10b981;
+  --primary-foreground: #022c22;
+  --secondary: #161c25;
+  --secondary-foreground: #e6e9ee;
+  --muted: #1a212b; /* fills/hovers sit one step above the card */
+  --canvas: #0b0f14; /* page background behind the cards */
+  --muted-foreground: #8d97a5;
+  --accent: #1a212b;
+  --accent-foreground: #e6e9ee;
+  --destructive: #f05252;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --chart-brand: #10b981;
   --accent-blue: #3b82f6;
-  --accent-purple: #a855f7;
-  --border: #263044;
-  --input: #263044;
-  --ring: #22c55e;
-  --chart-1: #22c55e;
+  --accent-purple: #a78bfa;
+  --border: #222a35;
+  --input: #2b3441;
+  --ring: #10b981;
+  --chart-1: #10b981;
   --chart-2: #3b82f6;
   --chart-3: #fbbf24;
   --chart-4: #f97316;
-  --chart-5: #a855f7;
-  --sidebar: #0b1320;
-  --sidebar-foreground: #9ca3af;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #f8fafc;
-  --sidebar-accent: rgba(34, 197, 94, 0.12);
-  --sidebar-accent-foreground: #22c55e;
-  --sidebar-border: #263044;
-  --sidebar-ring: #22c55e;
+  --chart-5: #a78bfa;
+  --shadow-card: 0 0 0 0 transparent;
+  --sidebar: #090c10;
+  --sidebar-foreground: #9aa4b2;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #022c22;
+  --sidebar-accent: rgb(16 185 129 / 0.12);
+  --sidebar-accent-foreground: #6ee7b7;
+  --sidebar-border: #1a2029;
+  --sidebar-ring: #10b981;
 }
 
 @layer base {
@@ -146,6 +152,14 @@
   }
   html {
     @apply font-sans;
+    /* Inter's alternate glyphs that read as "product UI": open digits, straight-sided l/1 */
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.011em;
   }
 }
 

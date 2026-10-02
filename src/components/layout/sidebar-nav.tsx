@@ -68,7 +68,11 @@ function NavLink({
         compact ? "py-1" : "py-1.5",
         collapsed ? "justify-center px-2" : "pr-3 pl-2",
         "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-        active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-white/10 hover:text-sidebar-foreground"
+        // Active = a soft tint plus a thin accent bar on the left (Linear/Vercel-style), not a
+        // solid brand-colored block — keeps the eye on the page, not the menu.
+        active
+          ? "relative bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1.5 before:-left-1 before:w-[3px] before:rounded-full before:bg-sidebar-primary"
+          : "text-sidebar-foreground/75 hover:bg-white/[0.06] hover:text-sidebar-foreground"
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -126,10 +130,10 @@ function NavGroup({
           type="button"
           onClick={handleClick}
           className={cn(
-            "flex items-center justify-between rounded-md px-3 text-xs font-semibold tracking-wide uppercase transition-colors outline-none",
+            "flex items-center justify-between rounded-md px-3 text-[11px] font-semibold tracking-wider uppercase transition-colors outline-none",
             compact ? "py-0.5" : "py-1",
-            "hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-ring/50",
-            isActiveGroup ? "text-sidebar-foreground" : "text-sidebar-foreground/60"
+            "hover:bg-white/[0.06] focus-visible:ring-3 focus-visible:ring-ring/50",
+            isActiveGroup ? "text-sidebar-foreground/90" : "text-sidebar-foreground/50"
           )}
         >
           {t(labelKey)}

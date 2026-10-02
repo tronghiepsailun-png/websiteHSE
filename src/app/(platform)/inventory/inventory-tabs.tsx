@@ -11,7 +11,7 @@ export type InventoryTabKey = "stock" | "issuance" | "stockin" | "catalog";
 const TABS: { key: InventoryTabKey; href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
   { key: "stock", href: "/inventory?view=stock", labelKey: "inventory.tabs.stock", icon: Boxes, fg: "#ea580c", bg: "#ffedd5" },
   { key: "issuance", href: "/inventory?view=issuance", labelKey: "inventory.tabs.issuance", icon: PackageMinus, fg: "#dc2626", bg: "#fee2e2" },
-  { key: "stockin", href: "/inventory?view=stockin", labelKey: "inventory.tabs.stockIn", icon: PackagePlus, fg: "#16a34a", bg: "#dcfce7" },
+  { key: "stockin", href: "/inventory?view=stockin", labelKey: "inventory.tabs.stockIn", icon: PackagePlus, fg: "#059669", bg: "#dcfce7" },
   { key: "catalog", href: "/inventory/catalog", labelKey: "inventory.tabs.catalog", icon: ClipboardList, fg: "#2563eb", bg: "#dbeafe" },
 ];
 
@@ -30,7 +30,7 @@ export function InventoryTabs({ active, canManageCatalog }: { active: InventoryT
           <Link
             key={tab.key}
             href={tab.href}
-            style={isActive ? { backgroundColor: tab.bg, borderColor: tab.fg, color: tab.fg } : undefined}
+            style={isActive ? { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, borderColor: tab.fg, color: tab.fg } : undefined}
             className={cn(
               "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-all duration-150",
               isActive
@@ -40,7 +40,7 @@ export function InventoryTabs({ active, canManageCatalog }: { active: InventoryT
           >
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-md"
-              style={isActive ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: tab.bg, color: tab.fg }}
+              style={isActive ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, color: tab.fg }}
             >
               <Icon className="size-3.5" />
             </span>

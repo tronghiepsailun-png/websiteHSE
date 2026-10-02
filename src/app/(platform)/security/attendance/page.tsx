@@ -104,8 +104,8 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
             <Table className={cn(REPORT_GRID_CLASS, "table-fixed")}>
               <TableHeader>
                 <TableRow className="h-14">
-                  <TableHead className="sticky left-0 z-10 w-40 bg-card"><T k="attendance.table.name" /></TableHead>
-                  <TableHead className="sticky left-40 z-10 w-16 bg-card"><T k="attendance.table.team" /></TableHead>
+                  <TableHead className="sticky left-0 z-10 w-48 bg-card"><T k="attendance.table.name" /></TableHead>
+                  <TableHead className="sticky left-48 z-10 w-16 bg-card"><T k="attendance.table.team" /></TableHead>
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const d = new Date(Date.UTC(year, month - 1, i + 1));
                     const isWeekend = d.getUTCDay() === 0 || d.getUTCDay() === 6;
@@ -125,7 +125,7 @@ export default async function EmployeeAttendancePage({ searchParams }: PageProps
                       <div>{guard.fullName}</div>
                       {guard.fullNameZh && <div className="text-xs text-muted-foreground">{guard.fullNameZh}</div>}
                     </TableCell>
-                    <TableCell className="sticky left-40 z-10 bg-card p-1 text-center text-muted-foreground">
+                    <TableCell className="sticky left-48 z-10 bg-card p-1 text-center text-muted-foreground">
                       <TeamCell
                         guard={{ id: guard.id, fullName: guard.fullName, fullNameZh: guard.fullNameZh, currentTeam }}
                         startTeam={startTeam}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   AlertTriangle,
+  BarChart3,
   IdCard,
   FileCheck2,
   ClipboardCheck,
@@ -119,7 +120,7 @@ export default async function DashboardPage() {
       value: capaSummary && capaSummary.total > 0 ? `${Math.round((capaSummary.completed / capaSummary.total) * 100)}%` : "—",
       icon: ClipboardCheck,
       bg: "#dcfce7",
-      fg: "#16a34a",
+      fg: "#059669",
       href: "/capa",
       visible: canSeeCapa,
     },
@@ -279,7 +280,7 @@ export default async function DashboardPage() {
             violationsByTypeChart.length > 0 ? (
               <DonutChart titleKey="violations.overview.chart.byType" data={violationsByTypeChart} topN={3} colorMap={violationsByTypeColorMap} />
             ) : (
-              <div />
+              <EmptyChartCard titleKey="violations.overview.chart.byType" />
             )
           ) : (
             <LockedCard titleKey="violations.overview.chart.byType" />
@@ -288,7 +289,7 @@ export default async function DashboardPage() {
             recordsDashboard && recordsDashboard.byZoneStatus.length > 0 ? (
               <ZoneStatusBarChart titleKey="records.chart.byZoneStatus" data={recordsDashboard.byZoneStatus} className="h-full" chartHeight={280} />
             ) : (
-              <div />
+              <EmptyChartCard titleKey="records.chart.byZoneStatus" />
             )
           ) : (
             <LockedCard titleKey="records.chart.byZoneStatus" />
@@ -357,6 +358,28 @@ export default async function DashboardPage() {
 /** Fills a chart/stat-card slot when the signed-in account lacks the view permission for it —
  *  keeps the dashboard's grid fully populated (no ragged gaps from a missing card) while still
  *  making clear the number/chart is withheld, not just empty. */
+/** Holds a chart's place in the grid when there's nothing to plot yet — a blank gap there
+ *  read as a broken layout. */
+function EmptyChartCard({ titleKey }: { titleKey: DictionaryKey }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-semibold">
+          <T k={titleKey} />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col items-center justify-center gap-2.5 py-8 text-center">
+        <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <BarChart3 className="size-5" />
+        </span>
+        <p className="text-sm text-muted-foreground">
+          <T k="common.noData" />
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function LockedCard({ titleKey }: { titleKey: DictionaryKey }) {
   return (
     <Card>

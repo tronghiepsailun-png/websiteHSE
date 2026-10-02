@@ -49,7 +49,7 @@ export function KpiCard({
     // opt into) — consistency across modules was the whole point of having one shared component.
     <Card
       className={cn(
-        "h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-2 hover:ring-primary/50",
+        "h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-foreground/20",
         tile?.border,
         className
       )}
@@ -64,7 +64,7 @@ export function KpiCard({
               <T k="common.noPermissionTitle" />
             </p>
           ) : (
-            <CardTitle className={valueClassName ?? "text-xl leading-none font-bold"}>{value}</CardTitle>
+            <CardTitle className={cn("mt-1 tabular-nums", valueClassName ?? "text-2xl leading-none font-semibold tracking-tight")}>{value}</CardTitle>
           )}
         </div>
         <div
@@ -72,7 +72,9 @@ export function KpiCard({
             "flex size-8 shrink-0 items-center justify-center rounded-lg",
             locked ? "bg-muted text-muted-foreground" : cn(tile?.iconBg, tile?.iconFg)
           )}
-          style={!locked && !tile ? { backgroundColor: iconBg, color: iconFg } : undefined}
+          // Tinted from the icon color itself (not the literal pastel `iconBg`), so the badge
+          // reads correctly on both the white light-mode card and the dark card.
+          style={!locked && !tile ? { backgroundColor: iconFg ? `color-mix(in srgb, ${iconFg} 14%, transparent)` : iconBg, color: iconFg } : undefined}
         >
           {locked ? <Lock className="size-4" /> : <Icon className="size-4" />}
         </div>

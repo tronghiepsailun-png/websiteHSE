@@ -200,7 +200,7 @@ export function AppShell({
           <OrgSwitcher activeOrg={activeOrg} organizations={organizations} />
         </div>
 
-        <main id="main-content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-muted outline-none">
+        <main id="main-content" tabIndex={-1} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-canvas outline-none">
           <div className="mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6">{children}</div>
           <footer className="shrink-0 border-t bg-background px-4 py-3 text-center text-xs text-muted-foreground">
             {activeOrg?.name ?? t("common.appName")} · <T k="common.appName" /> · © {new Date().getFullYear()}

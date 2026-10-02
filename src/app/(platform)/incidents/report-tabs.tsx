@@ -11,7 +11,7 @@ import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 // Same accent colors as this page's own KPI cards (green/blue/amber/purple), plus one more
 // (teal) for the 5th tab — keeps the tab bar visually tied to the dashboard it switches between.
 const TABS: { value: ReportView; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
-  { value: "detail", labelKey: "incidents.tabs.detail", icon: AlertTriangle, fg: "#16a34a", bg: "#dcfce7" },
+  { value: "detail", labelKey: "incidents.tabs.detail", icon: AlertTriangle, fg: "#059669", bg: "#dcfce7" },
   { value: "stats", labelKey: "incidents.tabs.stats", icon: BarChart3, fg: "#2563eb", bg: "#dbeafe" },
   { value: "score", labelKey: "incidents.tabs.score", icon: Star, fg: "#d97706", bg: "#fef3c7" },
   { value: "deduction", labelKey: "incidents.tabs.deduction", icon: TrendingDown, fg: "#9333ea", bg: "#f3e8ff" },
@@ -35,7 +35,7 @@ export function ReportTabs({ active }: { active: ReportView }) {
           <a
             key={tab.value}
             href={href}
-            style={isActive ? { backgroundColor: tab.bg, borderColor: tab.fg, color: tab.fg } : undefined}
+            style={isActive ? { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, borderColor: tab.fg, color: tab.fg } : undefined}
             className={cn(
               "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-all duration-150",
               isActive
@@ -45,7 +45,7 @@ export function ReportTabs({ active }: { active: ReportView }) {
           >
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-md"
-              style={isActive ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: tab.bg, color: tab.fg }}
+              style={isActive ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, color: tab.fg }}
             >
               <Icon className="size-3.5" />
             </span>

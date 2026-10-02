@@ -9,7 +9,7 @@ import type { DictionaryKey } from "@/lib/i18n/translate";
 import { HorizontalScroll } from "@/components/ui/horizontal-scroll";
 
 const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: string; bg: string }[] = [
-  { href: "/violations", labelKey: "violations.tabs.overview", icon: LayoutGrid, fg: "#16a34a", bg: "#dcfce7" },
+  { href: "/violations", labelKey: "violations.tabs.overview", icon: LayoutGrid, fg: "#059669", bg: "#dcfce7" },
   { href: "/violations/5s", labelKey: "nav.violations5s", icon: AlertOctagon, fg: "#ea580c", bg: "#ffedd5" },
   { href: "/violations/internal", labelKey: "nav.violationsInternal", icon: ShieldX, fg: "#dc2626", bg: "#fee2e2" },
   { href: "/violations/external", labelKey: "nav.violationsExternal", icon: AlertTriangle, fg: "#d97706", bg: "#fef3c7" },
@@ -33,7 +33,7 @@ export function ViolationsTabs() {
             href={tab.href}
             style={
               active
-                ? { backgroundColor: tab.bg, borderColor: tab.fg, color: tab.fg }
+                ? { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, borderColor: tab.fg, color: tab.fg }
                 : undefined
             }
             className={cn(
@@ -45,7 +45,7 @@ export function ViolationsTabs() {
           >
             <span
               className="flex size-6 shrink-0 items-center justify-center rounded-md"
-              style={active ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: tab.bg, color: tab.fg }}
+              style={active ? { backgroundColor: tab.fg, color: "#fff" } : { backgroundColor: `color-mix(in srgb, ${tab.fg} 12%, transparent)`, color: tab.fg }}
             >
               <Icon className="size-3.5" />
             </span>
