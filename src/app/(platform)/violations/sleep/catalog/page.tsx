@@ -7,17 +7,16 @@ import { ensureSleepCatalogSeeded, SLEEP_MODULE } from "@/server/sleep-violation
 import { T } from "@/components/i18n/t";
 import { CatalogEditor } from "@/components/catalog/catalog-editor";
 
-/** Every quick-pick list of the "Vi phạm (ngủ)" form, each freely editable: places, factories,
- *  departments, positions, penalty-note texts, and the checking guards (MSNV + report color). */
+/** Every quick-pick list of the "Vi phạm (ngủ)" row, each freely editable: the checking guards
+ *  (MSNV + report color), places, and penalty-note texts. Factory/department/position aren't
+ *  lists — they're read from the picked employee's own record. */
 export default async function SleepCatalogPage() {
   const access = await tryApiAccess(PERMISSIONS.VIOLATION_EDIT);
   if ("denied" in access) return <NoPermissionState />;
   const orgId = access.organizationId;
 
   await ensureSleepCatalogSeeded(orgId);
-  const [guards, locations, notes, factories, departments, positions] = await Promise.all(
-    ["guard", "location", "note", "factory", "dept", "position"].map((kind) => listCatalogItems(orgId, SLEEP_MODULE, kind))
-  );
+  const [guards, locations, notes] = await Promise.all(["guard", "location", "note"].map((kind) => listCatalogItems(orgId, SLEEP_MODULE, kind)));
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,9 +43,6 @@ export default async function SleepCatalogPage() {
         nameZhKey="sleep.catalog.noteZh"
         hintKey="sleep.catalog.noteHint"
       />
-      <CatalogEditor module={SLEEP_MODULE} kind="factory" titleKey="sleep.catalog.factory" items={factories} hintKey="sleep.catalog.zhHint" />
-      <CatalogEditor module={SLEEP_MODULE} kind="dept" titleKey="sleep.catalog.dept" items={departments} hintKey="sleep.catalog.zhHint" />
-      <CatalogEditor module={SLEEP_MODULE} kind="position" titleKey="sleep.catalog.position" items={positions} hintKey="sleep.catalog.zhHint" />
     </div>
   );
 }

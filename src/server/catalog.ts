@@ -15,7 +15,7 @@ export type CatalogItemRow = {
 export const CATALOG_KINDS = {
   capa: ["area", "dept"],
   forms: ["category"],
-  sleep: ["location", "factory", "dept", "position", "note", "guard"],
+  sleep: ["location", "note", "guard"],
 } as const;
 
 export type CatalogModule = keyof typeof CATALOG_KINDS;

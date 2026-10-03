@@ -24,7 +24,11 @@ export function EmployeeCombobox({
   valueMode = "id",
   defaultText,
   onSelect,
+  autoPickExactCode = false,
 }: {
+  /** Typing a complete MSNV that matches exactly one employee picks them straight away — no
+   *  need to click the suggestion (fast data entry by code). */
+  autoPickExactCode?: boolean;
   /** Called with the picked employee (or null once the pick is cleared by typing) — for forms
    *  that fill other fields from the choice. */
   onSelect?: (employee: EmployeeLite | null) => void;
@@ -79,7 +83,16 @@ export function EmployeeCombobox({
       return;
     }
     debounceRef.current = setTimeout(async () => {
-      setOptions(await searchEmployeesAction(value));
+      const results = await searchEmployeesAction(value);
+      setOptions(results);
+      const exact = autoPickExactCode ? results.filter((e) => e.employeeCode === value.trim()) : [];
+      if (exact.length === 1) {
+        const pick = exact[0];
+        justSelectedRef.current = true;
+        setSelected(pick);
+        onSelect?.(pick);
+        setInputValue(nameMode ? pick.fullName : formatEmployee(pick));
+      }
     }, 250);
   }
 

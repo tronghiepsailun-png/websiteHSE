@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { parseHiddenColumns } from "@/lib/column-visibility";
+import { SLEEP_COLUMNS_COOKIE, SLEEP_TOGGLEABLE_COLUMNS } from "./column-visibility";
 import { Download, ListTree } from "lucide-react";
 import { tryApiAccess } from "@/server/api-guard";
 import { NoPermissionState } from "@/components/no-permission-state";
@@ -28,17 +31,6 @@ function vnd(n: number) {
   return `${n.toLocaleString("vi-VN")} đ`;
 }
 
-/** Chinese-first lists (factory/department/position) are written into the sheet in Chinese,
- *  exactly as the company's own file does; the Vietnamese name is shown alongside in the picker. */
-function zhOptions(items: { nameVi: string; nameZh: string | null; isActive: boolean }[]) {
-  return items
-    .filter((i) => i.isActive)
-    .map((i) => {
-      const value = i.nameZh?.trim() || i.nameVi;
-      return { value, label: i.nameZh ? `${i.nameZh} — ${i.nameVi}` : i.nameVi };
-    });
-}
-
 export default async function SleepViolationsPage({ searchParams }: PageProps<"/violations/sleep">) {
   const access = await tryApiAccess(PERMISSIONS.VIOLATION_VIEW);
   if ("denied" in access) return <NoPermissionState />;
@@ -53,7 +45,10 @@ export default async function SleepViolationsPage({ searchParams }: PageProps<"/
 
   await ensureSleepCatalogSeeded(ctx.organizationId);
 
-  const [items, monthOptions, permissionKeys, locations, factories, departments, positions, notes, guards] = await Promise.all([
+  const cookieStore = await cookies();
+  const hiddenColumns = parseHiddenColumns(cookieStore.get(SLEEP_COLUMNS_COOKIE)?.value, SLEEP_TOGGLEABLE_COLUMNS);
+
+  const [items, monthOptions, permissionKeys, locations, notes, guards] = await Promise.all([
     listSleepViolations(ctx.organizationId, { year, month, search }),
     availableSleepViolationMonths(ctx.organizationId),
     ctx.isPlatformAdmin
@@ -62,9 +57,6 @@ export default async function SleepViolationsPage({ searchParams }: PageProps<"/
           .findMany({ where: { userId: ctx.userId, organizationId: ctx.organizationId }, include: { role: { include: { rolePermissions: { include: { permission: true } } } } } })
           .then((rows) => rows.flatMap((r) => r.role.rolePermissions.map((rp) => rp.permission.key))),
     listCatalogItems(ctx.organizationId, SLEEP_MODULE, "location"),
-    listCatalogItems(ctx.organizationId, SLEEP_MODULE, "factory"),
-    listCatalogItems(ctx.organizationId, SLEEP_MODULE, "dept"),
-    listCatalogItems(ctx.organizationId, SLEEP_MODULE, "position"),
     listCatalogItems(ctx.organizationId, SLEEP_MODULE, "note"),
     listCatalogItems(ctx.organizationId, SLEEP_MODULE, "guard"),
   ]);
@@ -76,9 +68,6 @@ export default async function SleepViolationsPage({ searchParams }: PageProps<"/
 
   const catalogs: SleepCatalogs = {
     locations: locations.filter((i) => i.isActive).map((i) => ({ value: i.nameVi, label: i.nameZh ? `${i.nameVi} — ${i.nameZh}` : i.nameVi })),
-    factories: zhOptions(factories),
-    departments: zhOptions(departments),
-    positions: zhOptions(positions),
     notes: notes.filter((i) => i.isActive).map((i) => ({ vi: i.nameVi, zh: i.nameZh })),
     guards: guards.filter((i) => i.isActive).map((i) => ({ id: i.id, code: i.code, nameVi: i.nameVi, nameZh: i.nameZh, color: i.color })),
     defaults: SLEEP_DEFAULT_AMOUNTS,
@@ -147,7 +136,7 @@ export default async function SleepViolationsPage({ searchParams }: PageProps<"/
 
       <Safety5sFilters year={year} month={month} search={search} options={monthOptions} basePath="/violations/sleep" />
 
-      <SleepView rows={rows} catalogs={catalogs} canEdit={canEdit} canDelete={canDelete} />
+      <SleepView rows={rows} catalogs={catalogs} canEdit={canEdit} canDelete={canDelete} hiddenColumns={[...hiddenColumns]} year={year} month={month} />
     </div>
   );
 }

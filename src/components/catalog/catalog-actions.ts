@@ -31,7 +31,7 @@ const MODULES: Record<string, { permission: string; kinds: string[]; textColumn:
   // rename here only affects what's picked from now on — recorded rows stay as recorded.
   sleep: {
     permission: PERMISSIONS.VIOLATION_EDIT,
-    kinds: ["location", "factory", "dept", "position", "note", "guard"],
+    kinds: ["location", "note", "guard"],
     textColumn: {},
     paths: ["/violations/sleep/catalog", "/violations/sleep"],
   },
