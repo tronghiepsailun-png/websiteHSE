@@ -23,7 +23,11 @@ export function EmployeeCombobox({
   formId,
   valueMode = "id",
   defaultText,
+  onSelect,
 }: {
+  /** Called with the picked employee (or null once the pick is cleared by typing) — for forms
+   *  that fill other fields from the choice. */
+  onSelect?: (employee: EmployeeLite | null) => void;
   name: string;
   placeholder: string;
   emptyLabel: string;
@@ -67,6 +71,7 @@ export function EmployeeCombobox({
       justSelectedRef.current = false;
       return;
     }
+    if (selected) onSelect?.(null);
     setSelected(null);
 
     if (!value.trim()) {
@@ -96,6 +101,7 @@ export function EmployeeCombobox({
         onValueChange={(value) => {
           justSelectedRef.current = true;
           setSelected(value);
+          onSelect?.(value);
           if (value) setInputValue(nameMode ? value.fullName : formatEmployee(value));
         }}
         filter={null}

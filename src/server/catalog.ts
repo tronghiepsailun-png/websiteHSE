@@ -1,12 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import type { Locale } from "@/lib/i18n/translate";
 
-export type CatalogItemRow = { id: string; nameVi: string; nameZh: string | null; sortOrder: number; isActive: boolean };
+export type CatalogItemRow = {
+  id: string;
+  nameVi: string;
+  nameZh: string | null;
+  code: string | null;
+  color: string | null;
+  sortOrder: number;
+  isActive: boolean;
+};
 
 /** Every dropdown a module lets the org edit, keyed by module then kind. */
 export const CATALOG_KINDS = {
   capa: ["area", "dept"],
   forms: ["category"],
+  sleep: ["location", "factory", "dept", "position", "note", "guard"],
 } as const;
 
 export type CatalogModule = keyof typeof CATALOG_KINDS;
@@ -19,7 +28,7 @@ export async function listCatalogItems(organizationId: string, module: string, k
   return prisma.catalogItem.findMany({
     where: { organizationId, module, kind },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, nameVi: true, nameZh: true, sortOrder: true, isActive: true },
+    select: { id: true, nameVi: true, nameZh: true, code: true, color: true, sortOrder: true, isActive: true },
   });
 }
 

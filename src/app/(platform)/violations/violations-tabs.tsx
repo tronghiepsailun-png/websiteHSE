@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutGrid, AlertOctagon, ShieldX, AlertTriangle, Link2 } from "lucide-react";
+import { LayoutGrid, AlertOctagon, ShieldX, AlertTriangle, Link2, Moon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/components/i18n/t";
@@ -14,6 +14,7 @@ const TABS: { href: string; labelKey: DictionaryKey; icon: LucideIcon; fg: strin
   { href: "/violations/internal", labelKey: "nav.violationsInternal", icon: ShieldX, fg: "#dc2626", bg: "#fee2e2" },
   { href: "/violations/external", labelKey: "nav.violationsExternal", icon: AlertTriangle, fg: "#d97706", bg: "#fef3c7" },
   { href: "/violations/lien-de", labelKey: "nav.violationsLienDe", icon: Link2, fg: "#2563eb", bg: "#dbeafe" },
+  { href: "/violations/sleep", labelKey: "nav.violationsSleep", icon: Moon, fg: "#4f46e5", bg: "#e0e7ff" },
 ];
 
 /** Deliberately a plain <a>, not next/link — same reasoning as the incidents ReportTabs:

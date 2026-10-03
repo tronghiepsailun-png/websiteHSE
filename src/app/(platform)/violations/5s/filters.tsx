@@ -15,11 +15,13 @@ export function Safety5sFilters({
   month,
   search,
   options,
+  basePath = "/violations/5s",
 }: {
   year: number;
   month: number;
   search?: string;
   options: { year: number; month: number }[];
+  basePath?: string;
 }) {
   const t = useT();
   const formRef = useRef<HTMLFormElement>(null);
@@ -52,7 +54,7 @@ export function Safety5sFilters({
             {t("violationsLienDe.filter.apply")}
           </Button>
           {search && (
-            <Link href={`/violations/5s?ym=${value}`} className="text-sm text-muted-foreground underline">
+            <Link href={`${basePath}?ym=${value}`} className="text-sm text-muted-foreground underline">
               {t("common.clearFilters")}
             </Link>
           )}

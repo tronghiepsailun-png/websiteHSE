@@ -44,6 +44,7 @@ model Organization {
   workPlanDocuments    WorkPlanDocument[]
   attendanceRecords    AttendanceRecord[]
   shiftAssignments     ShiftAssignment[]
+  sleepViolations      SleepViolation[]
   auditLogs            AuditLog[]
   recordDomains        RecordDomain[]
   recordEntries        RecordEntry[]
@@ -384,6 +385,8 @@ model CatalogItem {
   kind           String // e.g. area | dept — which dropdown within the module
   nameVi         String
   nameZh         String?
+  code           String? // optional extra key some lists need — e.g. a guard's MSNV (sleep module)
+  color          String? // optional #RRGGBB — e.g. the fill a guard's cell gets in the sleep report
   sortOrder      Int      @default(0)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
@@ -1032,6 +1035,52 @@ model Safety5sViolationContent {
 
   @@index([organizationId])
   @@map("safety_5s_violation_contents")
+}
+
+/// "Vi phạm (ngủ)": one night-shift employee caught sleeping on duty, mirroring a row of the
+/// monthly sheet "N月份夜班员工上班时间睡觉的名单". People are stored as snapshots (code + name
+/// as printed), so a row keeps reading exactly as it was recorded even if the employee later
+/// moves department; the *Id columns only remember who was picked, for editing.
+model SleepViolation {
+  id             String @id @default(cuid())
+  organizationId String
+  periodYear     Int
+  periodMonth    Int // 1-12, the month of checkDate
+
+  checkDate DateTime // 检查日期 — UTC midnight, date-only
+  checkTime String? // 违纪时间, as written ("4:20")
+  location  String? // 违纪地点
+
+  employeeId   String?
+  employeeCode String? // 违规人员工号
+  employeeName String // 违规人员名称
+  factory      String? // 工厂 (一期/二期/三期)
+  department   String? // 部门
+  position     String? // 岗位
+  fineAmountVnd Int? // 考核金额
+  note         String? // 备注 (penalty text, Vietnamese line + Chinese line)
+
+  liableEmployeeId String?
+  liableCode       String? // 连带责任人工号
+  liableName       String? // 连带责任人名称
+  liableFineVnd    Int? // 考核金额
+
+  guardCatalogId String?
+  guardCode      String? // 检查保安的工号
+  guardNameZh    String?
+  guardNameVi    String?
+  guardColor     String? // cell fill in the report, copied from the guard's catalog entry
+  guardRewardVnd Int? // 保安奖金
+  remark         String? // last 备注 column — free text
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, periodYear, periodMonth])
+  @@map("sleep_violations")
 }
 
 /// Catalog of physical HSE/PCCC equipment items tracked by the Inventory module (chuông báo

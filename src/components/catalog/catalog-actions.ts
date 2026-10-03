@@ -27,12 +27,28 @@ const MODULES: Record<string, { permission: string; kinds: string[]; textColumn:
     textColumn: {},
     paths: ["/form-library/categories", "/form-library"],
   },
+  // Sleep-violation rows store snapshots (text as printed), never a catalog reference, so a
+  // rename here only affects what's picked from now on — recorded rows stay as recorded.
+  sleep: {
+    permission: PERMISSIONS.VIOLATION_EDIT,
+    kinds: ["location", "factory", "dept", "position", "note", "guard"],
+    textColumn: {},
+    paths: ["/violations/sleep/catalog", "/violations/sleep"],
+  },
 };
 
 const nameSchema = z.object({
   nameVi: z.string().trim().min(1).max(200),
   nameZh: z.string().trim().max(200).optional(),
+  code: z.string().trim().max(50).optional(),
+  color: z
+    .string()
+    .trim()
+    .regex(/^(#[0-9a-fA-F]{6})?$/)
+    .optional(),
 });
+
+type CatalogInput = { nameVi: string; nameZh?: string; code?: string; color?: string };
 
 async function authorize(module: string) {
   const cfg = MODULES[module];
@@ -65,7 +81,7 @@ async function isDuplicate(organizationId: string, module: string, kind: string,
   return dup !== null;
 }
 
-export async function createCatalogItemAction(module: string, kind: string, input: { nameVi: string; nameZh?: string }): Promise<CatalogActionResult> {
+export async function createCatalogItemAction(module: string, kind: string, input: CatalogInput): Promise<CatalogActionResult> {
   const auth = await authorize(module);
   const locale = await getLocale();
   const parsed = nameSchema.safeParse(input);
@@ -85,6 +101,8 @@ export async function createCatalogItemAction(module: string, kind: string, inpu
       kind,
       nameVi: parsed.data.nameVi,
       nameZh: parsed.data.nameZh || null,
+      code: parsed.data.code || null,
+      color: parsed.data.color || null,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
@@ -95,7 +113,7 @@ export async function createCatalogItemAction(module: string, kind: string, inpu
 
 /** Renaming keeps every existing record pointing at the entry where records store its name as
  *  plain text (CAPA): they're rewritten to the new Vietnamese name in the same step. */
-export async function updateCatalogItemAction(id: string, input: { nameVi: string; nameZh?: string }): Promise<CatalogActionResult> {
+export async function updateCatalogItemAction(id: string, input: CatalogInput): Promise<CatalogActionResult> {
   const locale = await getLocale();
   const parsed = nameSchema.safeParse(input);
   const owned = await loadOwned(id);
@@ -108,7 +126,16 @@ export async function updateCatalogItemAction(id: string, input: { nameVi: strin
   const renamed = parsed.data.nameVi !== row.nameVi || (parsed.data.nameZh || null) !== row.nameZh;
 
   await prisma.$transaction([
-    prisma.catalogItem.update({ where: { id }, data: { nameVi: parsed.data.nameVi, nameZh: parsed.data.nameZh || null } }),
+    prisma.catalogItem.update({
+      where: { id },
+      data: {
+        nameVi: parsed.data.nameVi,
+        nameZh: parsed.data.nameZh || null,
+        // Only lists that use these fields send them — leave them untouched otherwise.
+        ...(parsed.data.code !== undefined ? { code: parsed.data.code || null } : {}),
+        ...(parsed.data.color !== undefined ? { color: parsed.data.color || null } : {}),
+      },
+    }),
     ...(column && renamed
       ? [prisma.capaItem.updateMany({ where: { organizationId: ctx.organizationId, [column]: { in: oldNames } }, data: { [column]: parsed.data.nameVi } })]
       : []),
